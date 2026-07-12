@@ -1,3 +1,8 @@
+---
+artifact: brief
+status: draft   # draft | final — the incubation gate requires `final`
+---
+
 # Decision Brief — <Idea Title>
 
 <!--
