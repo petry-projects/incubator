@@ -1,0 +1,97 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Incubation package gate
+#
+# Keeps an incubation PR RED until the touched idea package(s) under ideas/<slug>/
+# contain every required artifact (brainstorm, market research, brief, PRD — see
+# ideas/package-spec.json), each marked `status: final` with its required section
+# headers and no leftover template placeholders. Posts/updates a single checklist
+# comment showing exactly what is still missing.
+#
+# A green gate + a code-owner approval (pr-quality ruleset) is the authorization
+# to begin work on the idea as defined.
+# ─────────────────────────────────────────────────────────────────────────────
+name: Incubation package gate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "ideas/**"
+
+permissions: {}
+
+concurrency:
+  group: incubation-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Resolve touched idea packages
+        id: slugs
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch -q origin "$BASE_REF"
+          mapfile -t dirs < <(
+            git diff --name-only "origin/${BASE_REF}...HEAD" -- 'ideas/*/**' \
+              | grep -oE '^ideas/[^/]+/' \
+              | grep -v '^ideas/_TEMPLATE/' \
+              | sed 's:/$::' | sort -u
+          )
+          printf 'dirs=%s\n' "${dirs[*]}" >> "$GITHUB_OUTPUT"
+          printf 'count=%s\n' "${#dirs[@]}" >> "$GITHUB_OUTPUT"
+
+      - name: Run completeness gate
+        id: gate
+        if: steps.slugs.outputs.count != '0'
+        run: |
+          set +e
+          report="$(bash scripts/incubation-gate.sh ${{ steps.slugs.outputs.dirs }})"
+          code=$?
+          {
+            echo 'report<<GATE_EOF'
+            echo "$report"
+            echo 'GATE_EOF'
+            echo "code=$code"
+          } >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upsert checklist comment
+        if: steps.slugs.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          REPORT: ${{ steps.gate.outputs.report }}
+        run: |
+          marker='<!-- incubation-gate -->'
+          body="$(printf '%s\n\n%s' "$marker" "$REPORT")"
+          cid="$(gh api "repos/$REPO/issues/$PR/comments" --jq \
+            ".[] | select(.body | startswith(\"$marker\")) | .id" | head -1)"
+          if [ -n "$cid" ]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$cid" -f body="$body" >/dev/null
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -f body="$body" >/dev/null
+          fi
+
+      - name: Enforce gate
+        if: steps.slugs.outputs.count != '0'
+        run: |
+          if [ "${{ steps.gate.outputs.code }}" != "0" ]; then
+            echo "::error::Incubation package incomplete — see the checklist comment on the PR."
+            exit 1
+          fi
+          echo "Incubation package complete."
+
+      - name: No idea package touched
+        if: steps.slugs.outputs.count == '0'
+        run: echo "PR touches ideas/ but no ideas/<slug>/ package — gate not applicable."

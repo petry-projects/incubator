@@ -1,3 +1,8 @@
+---
+artifact: ost
+status: draft   # draft | final — supporting artifact (not gate-required)
+---
+
 # Opportunity–Solution Tree — <Idea Title>
 
 <!--

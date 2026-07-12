@@ -1,3 +1,8 @@
+---
+artifact: market-research
+status: draft   # draft | final — the incubation gate requires `final`
+---
+
 # Market Research — <Idea Title>
 
 <!--

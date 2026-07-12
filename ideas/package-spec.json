@@ -1,0 +1,30 @@
+{
+  "_comment": "Machine-readable incubation-package contract enforced by scripts/incubation-gate.sh. Human-facing doc: ideas/PACKAGE.md. An idea PR stays red until every required artifact below is present, marked `status: final`, carries its required section headers, and has no leftover template placeholders. A green gate + code-owner approval is the authorization to begin work.",
+  "final_status": "final",
+  "required_artifacts": [
+    {
+      "file": "brainstorm.md",
+      "title": "Brainstorm",
+      "producer": "Mary (Analyst) — human-facilitated in the idea Discussion",
+      "required_sections": ["Problem space", "Ideas explored", "Selected direction"]
+    },
+    {
+      "file": "market-research.md",
+      "title": "Market & competitive research",
+      "producer": "Mary (Analyst) — human-facilitated",
+      "required_sections": ["How it's solved today", "The gap", "Market signal"]
+    },
+    {
+      "file": "brief.md",
+      "title": "Decision brief / PRD-lite",
+      "producer": "Mary (Analyst)",
+      "required_sections": ["Problem", "Target user", "Recommendation"]
+    },
+    {
+      "file": "prd.md",
+      "title": "PRD",
+      "producer": "John (PM) — bmad-prd (headless + validated)",
+      "required_sections": ["Vision", "Target User", "Functional Requirements", "Success"]
+    }
+  ]
+}
