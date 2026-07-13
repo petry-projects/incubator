@@ -13,10 +13,13 @@
 name: Incubation package gate
 
 on:
+  # No `paths:` filter: this runs on EVERY PR so the `gate` check always reports a
+  # status. That is required for it to be a *required* status check — a path-filtered
+  # check that never runs would block non-ideas PRs forever. When a PR touches no
+  # ideas/<slug>/ package, the job resolves 0 slugs and passes (see "No idea package
+  # touched" below).
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
-    paths:
-      - "ideas/**"
 
 permissions: {}
 
