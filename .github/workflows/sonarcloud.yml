@@ -14,7 +14,8 @@
 #   • permissions: {} at top, least-privilege per job (contents + pull-requests: read)
 #   • triggers: push + pull_request to main; checkout with fetch-depth: 0
 #   • first scan is continue-on-error with a single retry (SonarCloud's analysis
-#     endpoint is occasionally flaky)
+#     endpoint is occasionally flaky); a short backoff precedes the retry so it
+#     lands after the transient blip clears instead of immediately re-hitting it
 #   • SHA-pin every third-party action (never a tag/branch)
 # ─────────────────────────────────────────────────────────────────────────────
 name: SonarCloud Analysis
@@ -46,6 +47,9 @@ jobs:
         if: env.SONAR_TOKEN != ''
         uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
         continue-on-error: true
+      - name: Backoff before retry
+        if: env.SONAR_TOKEN != '' && steps.sonar.outcome == 'failure'
+        run: sleep 30
       - name: SonarCloud Scan (retry)
         if: env.SONAR_TOKEN != '' && steps.sonar.outcome == 'failure'
         uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
