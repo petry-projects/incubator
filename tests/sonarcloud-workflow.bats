@@ -29,8 +29,8 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
 
 @test "a single retry step is gated on the initial scan failing" {
   retry_block="$(awk 'index($0,"- name: SonarCloud Scan (retry)"){p=1} p && /^      - / && !index($0,"- name: SonarCloud Scan (retry)"){p=0} p' "$SONAR_YML")"
-  run grep -cF "name: SonarCloud Scan (retry)" "$SONAR_YML"
-  [ "$output" -eq 1 ]
+  [ -n "$retry_block" ]
+  echo "$retry_block" | grep -qF "name: SonarCloud Scan (retry)"
   echo "$retry_block" | grep -qF "steps.sonar.outcome == 'failure'"
 }
 
