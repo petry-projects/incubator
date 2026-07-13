@@ -28,21 +28,26 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
 }
 
 @test "a single retry step is gated on the initial scan failing" {
-  grep -qF "name: SonarCloud Scan (retry)" "$SONAR_YML"
-  grep -qF "steps.sonar.outcome == 'failure'" "$SONAR_YML"
+  retry_block="$(awk 'index($0,"- name: SonarCloud Scan (retry)"){p=1} p && /^      - / && !index($0,"- name: SonarCloud Scan (retry)"){p=0} p' "$SONAR_YML")"
+  run grep -cF "name: SonarCloud Scan (retry)" "$SONAR_YML"
+  [ "$output" -eq 1 ]
+  echo "$retry_block" | grep -qF "steps.sonar.outcome == 'failure'"
 }
 
 @test "a backoff step waits before the retry" {
-  grep -qF "name: Backoff before retry" "$SONAR_YML"
-  grep -qE 'sleep [0-9]+' "$SONAR_YML"
+  backoff_block="$(awk '/- name: Backoff before retry/{p=1} p && /^      - / && !/- name: Backoff before retry/{p=0} p' "$SONAR_YML")"
+  [ -n "$backoff_block" ]
+  echo "$backoff_block" | grep -qF "steps.sonar.outcome == 'failure'"
+  echo "$backoff_block" | grep -qF "run: sleep 30"
 }
 
 @test "the backoff is gated on the same failure condition as the retry" {
   # Both the backoff and the retry must only run when the first scan failed,
   # so the wait is never paid on the happy path.
-  run grep -cF "steps.sonar.outcome == 'failure'" "$SONAR_YML"
-  [ "$status" -eq 0 ]
-  [ "$output" -ge 2 ]
+  backoff_block="$(awk '/- name: Backoff before retry/{p=1} p && /^      - / && !/- name: Backoff before retry/{p=0} p' "$SONAR_YML")"
+  retry_block="$(awk 'index($0,"- name: SonarCloud Scan (retry)"){p=1} p && /^      - / && !index($0,"- name: SonarCloud Scan (retry)"){p=0} p' "$SONAR_YML")"
+  echo "$backoff_block" | grep -qF "steps.sonar.outcome == 'failure'"
+  echo "$retry_block" | grep -qF "steps.sonar.outcome == 'failure'"
 }
 
 @test "the backoff step appears before the retry step" {
