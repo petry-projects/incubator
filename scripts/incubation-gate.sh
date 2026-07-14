@@ -25,23 +25,26 @@ SPEC="${SPEC:-$REPO_ROOT/ideas/package-spec.json}"
 # fm_status <file> — echo the frontmatter `status:` value (empty if none/no file).
 fm_status() {
   local f="$1"
-  [ -f "$f" ] || return 0
+  [[ -f "$f" ]] || return 0
   awk '
     NR==1 && $0=="---" { infm=1; next }
     infm && $0=="---" { exit }
     infm && /^status:/ { sub(/^status:[[:space:]]*/,""); gsub(/["'\''` ]/,""); sub(/#.*/,""); print; exit }
   ' "$f"
+  return 0
 }
 
 # has_section <file> <needle> — true if a markdown header line contains <needle>
 # (case-insensitive, fixed-string so section names may contain regex metachars).
 has_section() {
-  grep -E '^#{1,6}[[:space:]]' "$1" 2>/dev/null | grep -qiF "$2"
+  local file="$1" needle="$2"
+  grep -E '^#{1,6}[[:space:]]' "$file" 2>/dev/null | grep -qiF "$needle"
 }
 
 # has_placeholder <file> — true if unfilled template placeholders remain.
 has_placeholder() {
-  grep -qE 'TODO — needs discovery|TODO: needs discovery|<Idea Title>|<slug>|<YYYY-MM-DD>|<who>|<link>' "$1" 2>/dev/null
+  local file="$1"
+  grep -qE 'TODO — needs discovery|TODO: needs discovery|<Idea Title>|<slug>|<YYYY-MM-DD>|<who>|<link>' "$file" 2>/dev/null
 }
 
 # check_artifact <idea-dir> <artifact-index> — echo "PASS|reason" / "FAIL|reason";
@@ -53,10 +56,10 @@ check_artifact() {
   path="$dir/$file"
   final="$(jq -r '.final_status' "$SPEC")"
 
-  [ -f "$path" ] || { echo "FAIL|missing"; return 1; }
+  [[ -f "$path" ]] || { echo "FAIL|missing"; return 1; }
 
   st="$(fm_status "$path")"
-  [ "$st" = "$final" ] || { echo "FAIL|status='${st:-none}' (need '$final')"; return 1; }
+  [[ "$st" = "$final" ]] || { echo "FAIL|status='${st:-none}' (need '$final')"; return 1; }
 
   local n i sec missing=()
   n="$(jq -r ".required_artifacts[$idx].required_sections | length" "$SPEC")"
@@ -64,7 +67,7 @@ check_artifact() {
     sec="$(jq -r ".required_artifacts[$idx].required_sections[$i]" "$SPEC")"
     has_section "$path" "$sec" || missing+=("$sec")
   done
-  [ "${#missing[@]}" -eq 0 ] || { echo "FAIL|missing section(s): ${missing[*]}"; return 1; }
+  [[ "${#missing[@]}" -eq 0 ]] || { echo "FAIL|missing section(s): ${missing[*]}"; return 1; }
 
   ! has_placeholder "$path" || { echo "FAIL|unfilled template placeholders remain"; return 1; }
 
@@ -76,7 +79,7 @@ check_artifact() {
 # return 0 when every required artifact passes, 1 otherwise.
 check_package() {
   local dir="$1"
-  [ -d "$dir" ] || dir="$REPO_ROOT/$dir"
+  [[ -d "$dir" ]] || dir="$REPO_ROOT/$dir"
   local slug n i file res pass=0
   slug="$(basename "$dir")"
   n="$(jq -r '.required_artifacts | length' "$SPEC")"
@@ -91,7 +94,7 @@ check_package() {
     fi
   done
   echo ""
-  if [ "$pass" -eq "$n" ]; then
+  if [[ "$pass" -eq "$n" ]]; then
     echo "**Package: $pass/$n — COMPLETE ✅**"
     return 0
   fi
@@ -101,7 +104,7 @@ check_package() {
 
 main() {
   local -a dirs=()
-  if [ "${1:-}" = "--all" ]; then
+  if [[ "${1:-}" = "--all" ]]; then
     while IFS= read -r d; do dirs+=("$d"); done < <(
       find "$REPO_ROOT/ideas" -mindepth 1 -maxdepth 1 -type d ! -name '_TEMPLATE' | sort
     )
@@ -109,7 +112,7 @@ main() {
     dirs=("$@")
   fi
 
-  if [ "${#dirs[@]}" -eq 0 ]; then
+  if [[ "${#dirs[@]}" -eq 0 ]]; then
     echo "_No idea packages in scope — nothing to gate._"
     return 0
   fi
@@ -121,13 +124,13 @@ main() {
     check_package "$dir" || overall=1
     echo ""
   done
-  if [ "$overall" -eq 0 ]; then
+  if [[ "$overall" -eq 0 ]]; then
     echo "All packages complete — approval of this PR is the authorization to begin work."
   fi
   return "$overall"
 }
 
 # Source-guard: tests source this file to exercise the helpers.
-if [ "${BASH_SOURCE[0]:-$0}" = "$0" ]; then
+if [[ "${BASH_SOURCE[0]:-$0}" = "$0" ]]; then
   main "$@"
 fi
