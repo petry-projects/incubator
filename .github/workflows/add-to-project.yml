@@ -57,3 +57,4 @@ jobs:
     secrets:
       INITIATIVES_APP_ID: ${{ secrets.INITIATIVES_APP_ID }}
       INITIATIVES_APP_PRIVATE_KEY: ${{ secrets.INITIATIVES_APP_PRIVATE_KEY }}
+# agent_ref re-pinned to v-form for #657 major-scoped channels.
