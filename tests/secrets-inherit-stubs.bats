@@ -13,6 +13,28 @@
 
 WF_DIR="${BATS_TEST_DIRNAME}/../.github/workflows"
 
+# Extract only the secrets: mapping block from a workflow file so per-secret
+# assertions are not fragile to new steps or jobs that happen to mention the
+# same key names elsewhere in the file.
+get_secrets_block() {
+  awk '
+    /^[[:space:]]*secrets:/ {
+      match($0, /^[[:space:]]*/);
+      indent = RLENGTH;
+      p = 1;
+      next
+    }
+    p {
+      match($0, /^[[:space:]]*/);
+      if (RLENGTH <= indent && $0 ~ /[^[:space:]]/) {
+        p = 0
+      } else {
+        print $0
+      }
+    }
+  ' "$1"
+}
+
 # Every caller stub that previously used `secrets: inherit`.
 STUBS=(
   auto-rebase.yml
@@ -40,20 +62,23 @@ STUBS=(
 }
 
 @test "dependabot-automerge.yml passes only APP_ID and APP_PRIVATE_KEY" {
-  grep -qE '^\s*secrets:\s*$' "$WF_DIR/dependabot-automerge.yml"
-  grep -qE '^\s*APP_ID:\s*\$\{\{\s*secrets\.APP_ID\s*\}\}\s*$' "$WF_DIR/dependabot-automerge.yml"
-  grep -qE '^\s*APP_PRIVATE_KEY:\s*\$\{\{\s*secrets\.APP_PRIVATE_KEY\s*\}\}\s*$' "$WF_DIR/dependabot-automerge.yml"
+  run get_secrets_block "$WF_DIR/dependabot-automerge.yml"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -qE '^\s*APP_ID:\s*\$\{\{\s*secrets\.APP_ID\s*\}\}\s*$'
+  echo "$output" | grep -qE '^\s*APP_PRIVATE_KEY:\s*\$\{\{\s*secrets\.APP_PRIVATE_KEY\s*\}\}\s*$'
 }
 
 @test "dev-lead.yml passes the CLAUDE token plus its optional secrets explicitly" {
-  grep -qE '^\s*secrets:\s*$' "$WF_DIR/dev-lead.yml"
-  grep -qE '^\s*CLAUDE_CODE_OAUTH_TOKEN:\s*\$\{\{\s*secrets\.CLAUDE_CODE_OAUTH_TOKEN\s*\}\}\s*$' "$WF_DIR/dev-lead.yml"
-  grep -qE '^\s*GH_PAT_WORKFLOWS:\s*\$\{\{\s*secrets\.GH_PAT_WORKFLOWS\s*\}\}\s*$' "$WF_DIR/dev-lead.yml"
-  grep -qE '^\s*GOOGLE_API_KEY:\s*\$\{\{\s*secrets\.GOOGLE_API_KEY\s*\}\}\s*$' "$WF_DIR/dev-lead.yml"
-  grep -qE '^\s*GH_PAT:\s*\$\{\{\s*secrets\.GH_PAT\s*\}\}\s*$' "$WF_DIR/dev-lead.yml"
+  run get_secrets_block "$WF_DIR/dev-lead.yml"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -qE '^\s*CLAUDE_CODE_OAUTH_TOKEN:\s*\$\{\{\s*secrets\.CLAUDE_CODE_OAUTH_TOKEN\s*\}\}\s*$'
+  echo "$output" | grep -qE '^\s*GH_PAT_WORKFLOWS:\s*\$\{\{\s*secrets\.GH_PAT_WORKFLOWS\s*\}\}\s*$'
+  echo "$output" | grep -qE '^\s*GOOGLE_API_KEY:\s*\$\{\{\s*secrets\.GOOGLE_API_KEY\s*\}\}\s*$'
+  echo "$output" | grep -qE '^\s*GH_PAT:\s*\$\{\{\s*secrets\.GH_PAT\s*\}\}\s*$'
 }
 
 @test "pr-review-mention.yml passes only GH_PAT_WORKFLOWS" {
-  grep -qE '^\s*secrets:\s*$' "$WF_DIR/pr-review-mention.yml"
-  grep -qE '^\s*GH_PAT_WORKFLOWS:\s*\$\{\{\s*secrets\.GH_PAT_WORKFLOWS\s*\}\}\s*$' "$WF_DIR/pr-review-mention.yml"
+  run get_secrets_block "$WF_DIR/pr-review-mention.yml"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -qE '^\s*GH_PAT_WORKFLOWS:\s*\$\{\{\s*secrets\.GH_PAT_WORKFLOWS\s*\}\}\s*$'
 }
