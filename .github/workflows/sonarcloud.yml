@@ -32,6 +32,11 @@ jobs:
   sonarcloud:
     name: SonarCloud
     runs-on: ubuntu-latest
+    # Job-level backstop: bound the whole job so a hang anywhere (checkout, a
+    # scan that stalls before its own step timeout, etc.) fails fast instead of
+    # running to GitHub's 6-hour default. Kept above the sum of the two scan
+    # step timeouts + backoff so a genuine retry is never killed prematurely.
+    timeout-minutes: 25
     permissions:
       contents: read
       pull-requests: read
@@ -46,6 +51,10 @@ jobs:
         id: sonar
         if: env.SONAR_TOKEN != ''
         uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
+        # Step timeout so a hung scan (SonarCloud's endpoint occasionally stalls
+        # rather than erroring) fails fast — letting continue-on-error mark it
+        # failed and trigger the backoff + retry, instead of hanging for hours.
+        timeout-minutes: 10
         continue-on-error: true
       - name: Backoff before retry
         if: env.SONAR_TOKEN != '' && steps.sonar.outcome == 'failure'
@@ -53,3 +62,5 @@ jobs:
       - name: SonarCloud Scan (retry)
         if: env.SONAR_TOKEN != '' && steps.sonar.outcome == 'failure'
         uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8.2.0
+        # Bound the retry too, so a hang on the second attempt also fails fast.
+        timeout-minutes: 10

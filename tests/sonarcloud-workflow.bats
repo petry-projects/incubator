@@ -57,3 +57,41 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
   [ -n "$retry_line" ]
   [ "$backoff_line" -lt "$retry_line" ]
 }
+
+# ── Hang guard (issue #21) ────────────────────────────────────────────────────
+# p50 was 66s but p95 was ~2.8h: the signature of a hung scan, not a slow one.
+# With no timeout-minutes, a hung SonarCloud scan runs to GitHub's 6-hour job
+# default and counts as a failed run — and because the hang never lets the step
+# finish, continue-on-error never fires, so the backoff/retry never runs. These
+# tests pin the timeout bounds that turn a hang into a fast, retryable failure.
+
+@test "the sonarcloud job declares a timeout-minutes backstop" {
+  # Job-level key (4-space indent) that bounds the whole job.
+  timeout="$(grep -E '^    timeout-minutes: [0-9]+$' "$SONAR_YML" | head -1 | grep -oE '[0-9]+')"
+  [ -n "$timeout" ]
+  [ "$timeout" -gt 0 ]
+}
+
+@test "the initial scan step bounds its runtime with timeout-minutes" {
+  scan_block="$(awk '/- name: SonarCloud Scan$/{p=1} p && /^      - / && !/- name: SonarCloud Scan$/{p=0} p' "$SONAR_YML")"
+  [ -n "$scan_block" ]
+  echo "$scan_block" | grep -qE '^        timeout-minutes: [0-9]+$'
+}
+
+@test "the retry scan step bounds its runtime with timeout-minutes" {
+  retry_block="$(awk 'index($0,"- name: SonarCloud Scan (retry)"){p=1} p && /^      - / && !index($0,"- name: SonarCloud Scan (retry)"){p=0} p' "$SONAR_YML")"
+  [ -n "$retry_block" ]
+  echo "$retry_block" | grep -qE '^        timeout-minutes: [0-9]+$'
+}
+
+@test "the job timeout is large enough to cover both bounded scans plus backoff" {
+  # The job backstop must exceed initial-scan + retry step timeouts so a real
+  # (non-hung) retry is never killed by the job-level cap before it can recover.
+  job_timeout="$(grep -E '^    timeout-minutes: [0-9]+$' "$SONAR_YML" | head -1 | grep -oE '[0-9]+')"
+  initial_timeout="$(awk '/- name: SonarCloud Scan$/{p=1} p && /^      - / && !/- name: SonarCloud Scan$/{p=0} p' "$SONAR_YML" | grep -oE 'timeout-minutes: [0-9]+' | grep -oE '[0-9]+')"
+  retry_timeout="$(awk 'index($0,"- name: SonarCloud Scan (retry)"){p=1} p && /^      - / && !index($0,"- name: SonarCloud Scan (retry)"){p=0} p' "$SONAR_YML" | grep -oE 'timeout-minutes: [0-9]+' | grep -oE '[0-9]+')"
+  [ -n "$job_timeout" ]
+  [ -n "$initial_timeout" ]
+  [ -n "$retry_timeout" ]
+  [ "$job_timeout" -gt "$((initial_timeout + retry_timeout))" ]
+}
