@@ -38,19 +38,13 @@ fm_status() {
 # (case-insensitive, fixed-string so section names may contain regex metachars).
 has_section() {
   local file="$1" needle="$2"
-  if grep -E '^#{1,6}[[:space:]]' "$file" 2>/dev/null | grep -qiF "$needle"; then
-    return 0
-  fi
-  return 1
+  grep -E '^#{1,6}[[:space:]]' "$file" 2>/dev/null | grep -qiF "$needle"
 }
 
 # has_placeholder <file> — true if unfilled template placeholders remain.
 has_placeholder() {
   local file="$1"
-  if grep -qE 'TODO — needs discovery|TODO: needs discovery|<Idea Title>|<slug>|<YYYY-MM-DD>|<who>|<link>' "$file" 2>/dev/null; then
-    return 0
-  fi
-  return 1
+  grep -qE 'TODO — needs discovery|TODO: needs discovery|<Idea Title>|<slug>|<YYYY-MM-DD>|<who>|<link>' "$file" 2>/dev/null
 }
 
 # check_artifact <idea-dir> <artifact-index> — echo "PASS|reason" / "FAIL|reason";
