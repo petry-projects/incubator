@@ -69,7 +69,7 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
 
 @test "the backoff is long enough to outlast a minute-scale transient (>= 60s)" {
   backoff_block="$(awk '/- name: Backoff before retry/{p=1} p && /^      - / && !/- name: Backoff before retry/{p=0} p' "$SONAR_YML")"
-  seconds="$(echo "$backoff_block" | grep -oE 'sleep [0-9]+' | grep -oE '[0-9]+')"
+  seconds="$(echo "$backoff_block" | sed -nE 's/.*sleep ([0-9]+).*/\1/p' | head -n 1)"
   [ -n "$seconds" ]
   [ "$seconds" -ge 60 ]
 }
