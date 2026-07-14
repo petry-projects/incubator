@@ -88,8 +88,10 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
   # The job backstop must exceed initial-scan + retry step timeouts so a real
   # (non-hung) retry is never killed by the job-level cap before it can recover.
   job_timeout="$(grep -E '^    timeout-minutes: [0-9]+$' "$SONAR_YML" | head -1 | grep -oE '[0-9]+')"
-  step_sum="$(grep -E '^        timeout-minutes: [0-9]+$' "$SONAR_YML" | grep -oE '[0-9]+' | awk '{s+=$1} END{print s}')"
+  initial_timeout="$(awk '/- name: SonarCloud Scan$/{p=1} p && /^      - / && !/- name: SonarCloud Scan$/{p=0} p' "$SONAR_YML" | grep -oE 'timeout-minutes: [0-9]+' | grep -oE '[0-9]+')"
+  retry_timeout="$(awk 'index($0,"- name: SonarCloud Scan (retry)"){p=1} p && /^      - / && !index($0,"- name: SonarCloud Scan (retry)"){p=0} p' "$SONAR_YML" | grep -oE 'timeout-minutes: [0-9]+' | grep -oE '[0-9]+')"
   [ -n "$job_timeout" ]
-  [ -n "$step_sum" ]
-  [ "$job_timeout" -gt "$step_sum" ]
+  [ -n "$initial_timeout" ]
+  [ -n "$retry_timeout" ]
+  [ "$job_timeout" -gt "$((initial_timeout + retry_timeout))" ]
 }
