@@ -38,7 +38,9 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
   backoff_block="$(awk '/- name: Backoff before retry/{p=1} p && /^      - / && !/- name: Backoff before retry/{p=0} p' "$SONAR_YML")"
   [ -n "$backoff_block" ]
   echo "$backoff_block" | grep -qF "steps.sonar.outcome == 'failure'"
-  echo "$backoff_block" | grep -qF "run: sleep 30"
+  # Pin the intent (a real wait precedes the retry), not a magic number: parse the
+  # sleep duration so tuning the backoff never needs a brittle exact-match edit.
+  echo "$backoff_block" | grep -qE 'run: sleep [0-9]+'
 }
 
 @test "the backoff is gated on the same failure condition as the retry" {
@@ -56,6 +58,20 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
   [ -n "$backoff_line" ]
   [ -n "$retry_line" ]
   [ "$backoff_line" -lt "$retry_line" ]
+}
+
+# ── Backoff duration guard (issue #27) ────────────────────────────────────────
+# Failure rate was 43.8% with a hang signature already bounded by #21's timeout,
+# so the live driver was the single retry re-hitting the same transient: a 30s
+# backoff does not outlast a minute-scale SonarCloud/API blip, so the retry lands
+# inside the outage and both attempts fail together. This pins a backoff long
+# enough to clear a typical transient before the (single, standard-mandated) retry.
+
+@test "the backoff is long enough to outlast a minute-scale transient (>= 60s)" {
+  backoff_block="$(awk '/- name: Backoff before retry/{p=1} p && /^      - / && !/- name: Backoff before retry/{p=0} p' "$SONAR_YML")"
+  seconds="$(echo "$backoff_block" | sed -nE 's/.*sleep ([0-9]+).*/\1/p' | head -n 1)"
+  [ -n "$seconds" ]
+  [ "$seconds" -ge 60 ]
 }
 
 # ── Hang guard (issue #21) ────────────────────────────────────────────────────
