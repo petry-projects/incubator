@@ -111,3 +111,36 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
   [ -n "$retry_timeout" ]
   [ "$job_timeout" -gt "$((initial_timeout + retry_timeout))" ]
 }
+
+# ── Queue-pileup guard (issue #31) ────────────────────────────────────────────
+# p50 was a healthy 78s but p95 was 50669s (~14h) — far beyond the job's 25-min
+# (#21) execution timeout, which a single run's steps cannot exceed. That tail is
+# therefore dominated by *queue/pending* time: with no concurrency control and
+# "Cancelled Runs: 0", superseded/hung runs are never cancelled — they pile up,
+# hold runner capacity, and newer runs queue for hours before failing, driving
+# the degraded failure rate. These tests pin a concurrency group that cancels the
+# older in-flight run when a newer commit on the same ref arrives (as ci.yml does).
+
+@test "the workflow declares a concurrency group" {
+  # Top-level concurrency block with a non-empty group expression.
+  grep -qE '^concurrency:$' "$SONAR_YML"
+  grep -qE '^  group: .+$' "$SONAR_YML"
+}
+
+@test "cancel-in-progress is enabled so superseded runs are cancelled" {
+  concurrency_block="$(awk '/^concurrency:$/{p=1; next} p && /^[^[:space:]]/{p=0} p' "$SONAR_YML")"
+  [ -n "$concurrency_block" ]
+  echo "$concurrency_block" | grep -qE '^  cancel-in-progress: true$'
+}
+
+@test "the concurrency group is keyed on github.ref so it cancels across commits" {
+  # Keying on github.ref (not ref+sha) means a newer commit on the same branch
+  # supersedes and cancels the older, still-queued/running scan — the lever that
+  # drains the queue pileup behind the ~14h p95 tail.
+  group_line="$(grep -E '^  group: ' "$SONAR_YML" | head -1)"
+  [ -n "$group_line" ]
+  echo "$group_line" | grep -qF 'github.ref'
+  # Must not also pin the sha, which would scope the group per-commit and defeat
+  # cancellation of superseded runs.
+  ! echo "$group_line" | grep -qF 'github.sha'
+}

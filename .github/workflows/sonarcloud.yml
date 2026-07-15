@@ -29,6 +29,17 @@ on:
 
 permissions: {}
 
+# Cancel a superseded scan when a newer commit lands on the same ref. p50 was a
+# healthy 78s but p95 reached ~14h (issue #31) — far beyond the job's 25-minute
+# execution timeout, so that tail is queue/pending time, not a slow scan: with no
+# concurrency control, superseded/hung runs were never cancelled ("Cancelled
+# Runs: 0"), piling up and holding runner capacity while newer runs queued for
+# hours before failing. Keying on github.ref alone (not ref+sha) means a newer
+# commit supersedes and cancels the older still-in-flight run, draining the queue.
+concurrency:
+  group: sonarcloud-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   sonarcloud:
     name: SonarCloud
