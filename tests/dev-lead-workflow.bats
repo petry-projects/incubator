@@ -67,7 +67,7 @@ _uses_ref() {
   # against another.
   local uses_ref agent_ref
   uses_ref="$(_uses_ref)"
-  agent_ref="$(grep -E '^      agent_ref:' "$DEV_LEAD_YML" | sed -E 's/^[[:space:]]*agent_ref:[[:space:]]*//' | head -1)"
+  agent_ref="$(awk '/^[[:space:]]+with:/ {p=1; next} p && /^[[:space:]]+agent_ref:/ {sub(/.*agent_ref:[[:space:]]*/, ""); print; exit} p && !/^[[:space:]]+[a-z_]+:/ {p=0}' "$DEV_LEAD_YML")"
   [ -n "$uses_ref" ]
   [ -n "$agent_ref" ]
   [ "$uses_ref" = "$agent_ref" ]
@@ -88,10 +88,12 @@ _uses_ref() {
 @test "the job grants the required least-privilege scopes" {
   # The dev-lead job needs exactly these scopes; narrowing any of them breaks the
   # corresponding action (e.g. dropping issues:write stops issue comments).
-  grep -qE '^      contents: write$' "$DEV_LEAD_YML"
-  grep -qE '^      pull-requests: write$' "$DEV_LEAD_YML"
-  grep -qE '^      issues: write$' "$DEV_LEAD_YML"
-  grep -qE '^      actions: read$' "$DEV_LEAD_YML"
-  grep -qE '^      checks: read$' "$DEV_LEAD_YML"
-  grep -qE '^      statuses: read$' "$DEV_LEAD_YML"
+  local permissions_block
+  permissions_block="$(awk '/^[[:space:]]+permissions:/ {p=1; next} p && /^[[:space:]]+[a-z-]+:/ {print} p && !/^[[:space:]]+[a-z-]+:/ {p=0}' "$DEV_LEAD_YML")"
+  echo "$permissions_block" | grep -qE 'contents: write'
+  echo "$permissions_block" | grep -qE 'pull-requests: write'
+  echo "$permissions_block" | grep -qE 'issues: write'
+  echo "$permissions_block" | grep -qE 'actions: read'
+  echo "$permissions_block" | grep -qE 'checks: read'
+  echo "$permissions_block" | grep -qE 'statuses: read'
 }
