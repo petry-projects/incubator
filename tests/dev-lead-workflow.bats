@@ -4,8 +4,8 @@
 # dev-lead.yml is a THIN CALLER STUB: its runtime behavior — per-issue / per-PR
 # concurrency lanes, retries, timeouts — lives centrally in the reusable
 # dev-lead-reusable.yml, pinned to the moving `dev-lead/*` channel tag. Behavioral
-# edits to this caller are forbidden by its header and enforced fleet-wide by
-# template_stub_drift.sh's byte-identity check. The one failure mode this consumer
+# edits to this caller are forbidden by its header and enforced fleet-wide by the
+# org-wide drift-enforcement mechanism (see petry-projects/.github AGENTS.md). The one failure mode this consumer
 # repo controls is LOCAL DRIFT of the caller: a trimmed trigger, a narrowed
 # permission, a `@main` (self-hosting-circular) ref, a channel/agent_ref mismatch,
 # a dropped NOSONAR marker (which re-fails the Quality Gate), or an added
@@ -82,7 +82,7 @@ _uses_ref() {
   # caller-level `concurrency:` group would collapse those lanes onto one ref-keyed
   # group, so PR follow-up traffic would cancel in-flight issue pickups — the
   # spurious-cancellation signature Fleet Monitor flagged. Keep it out of the caller.
-  ! grep -qE '^concurrency:' "$DEV_LEAD_YML"
+  ! grep -qE '^[[:space:]]*concurrency:' "$DEV_LEAD_YML"
 }
 
 @test "the job grants the required least-privilege scopes" {
