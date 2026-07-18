@@ -23,7 +23,7 @@ PRM_YML="${BATS_TEST_DIRNAME}/../.github/workflows/pr-review-mention.yml"
 
 # Extract the single `uses:` line that calls the org reusable.
 uses_line() {
-  grep -E '^[[:space:]]*uses:[[:space:]]' "$PRM_YML" | head -1
+  awk '/^  pr-review-mention:$/{p=1;next} p&&/^  [^[:space:]]/{p=0} p' "$PRM_YML" | grep -E '^[[:space:]]*uses:[[:space:]]' | head -1
 }
 
 @test "pr-review-mention.yml exists" {
@@ -61,8 +61,7 @@ uses_line() {
 }
 
 @test "the pr-review-mention job grants pull-requests: write" {
-  grep -qE '^  pr-review-mention:$' "$PRM_YML"
-  grep -qE '^      pull-requests: write$' "$PRM_YML"
+  awk '/^  pr-review-mention:$/{p=1;next} p&&/^  [^[:space:]]/{p=0} p' "$PRM_YML" | grep -qE '^[[:space:]]+pull-requests:[[:space:]]+write'
 }
 
 # ── Reusable ref (header: "do not repoint to @main, a SHA, or a frozen @vX") ──
@@ -84,5 +83,5 @@ uses_line() {
 }
 
 @test "secrets are inherited by the reusable" {
-  grep -qE '^    secrets: inherit' "$PRM_YML"
+  awk '/^  pr-review-mention:$/{p=1;next} p&&/^  [^[:space:]]/{p=0} p' "$PRM_YML" | grep -qE '^[[:space:]]+secrets:[[:space:]]+inherit'
 }
