@@ -411,4 +411,3 @@ coverage/
 # Logs / env
 *.log
 
-# Private keys / certificates — prevent accidental commit of TLS/SSH/GPG material
