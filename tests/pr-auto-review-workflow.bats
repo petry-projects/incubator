@@ -17,9 +17,14 @@
 
 PAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/pr-auto-review.yml"
 
+# Extract the full pr-auto-review job block.
+job_block() {
+  awk '/^  pr-auto-review:$/{p=1;next} p&&/^  [^[:space:]]/{p=0} p' "$PAR_YML"
+}
+
 # Extract the single `uses:` line that calls the org reusable.
 uses_line() {
-  awk '/^  pr-auto-review:$/{p=1;next} p&&/^  [^[:space:]]/{p=0} p' "$PAR_YML" | grep -E '^[[:space:]]*uses:[[:space:]]' | head -1
+  job_block | grep -E '^[[:space:]]*uses:[[:space:]]' | head -1
 }
 
 @test "pr-auto-review.yml exists" {
@@ -45,7 +50,7 @@ uses_line() {
 
 @test "workflow_run watches this repo's CI workflow by name" {
   grep -qE '^  workflow_run:$' "$PAR_YML"
-  awk '/^  workflow_run:$/{p=1;next} p&&/workflows:/{print;exit}' "$PAR_YML" | grep -qF '["CI"]'
+  awk '/^  workflow_run:$/{p=1;next} p&&/^[[:space:]]{0,2}[^[:space:]]/{p=0} p&&/workflows:/{print;exit}' "$PAR_YML" | grep -qF '["CI"]'
 }
 
 # ── Immutable stub invariants (header: "you MUST NOT change") ─────────────────
@@ -55,10 +60,9 @@ uses_line() {
 }
 
 @test "the pr-auto-review job preserves its read-only permissions block" {
-  block() { awk '/^  pr-auto-review:$/{p=1;next} p&&/^  [^[:space:]]/{p=0} p' "$PAR_YML"; }
-  block | grep -qE '^[[:space:]]+pull-requests:[[:space:]]+read'
-  block | grep -qE '^[[:space:]]+checks:[[:space:]]+read'
-  block | grep -qE '^[[:space:]]+actions:[[:space:]]+read'
+  job_block | grep -qE '^[[:space:]]+pull-requests:[[:space:]]+read'
+  job_block | grep -qE '^[[:space:]]+checks:[[:space:]]+read'
+  job_block | grep -qE '^[[:space:]]+actions:[[:space:]]+read'
 }
 
 @test "uses: targets the org pr-auto-review reusable workflow" {
