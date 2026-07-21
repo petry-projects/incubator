@@ -19,13 +19,18 @@ CI_YML="${BATS_TEST_DIRNAME}/../.github/workflows/ci.yml"
 @test "no unresolved TODO/FIXME task marker remains (githubactions:S1135)" {
   # A resolved comment may still mention CI by name; only bare TODO/FIXME task
   # markers reintroduce the finding.
+  [ -f "$PR_YML" ]
   run grep -nE '(^|[^[:alnum:]])(TODO|FIXME)([^[:alnum:]]|$)' "$PR_YML"
-  [ "$status" -ne 0 ]
+  # Exit 1 means no matches (pass); exit 2 means grep error (e.g. missing file),
+  # which would also satisfy -ne 0 and mask regressions — check for 1 exactly.
+  [ "$status" -eq 1 ]
 }
 
 @test "workflow_run watches this repo's CI workflow name" {
   # The value must match the actual CI workflow's `name:` so workflow_run fires.
-  grep -qE '^    workflows: \["CI"\]$' "$PR_YML"
+  # Scope the search to the on: block to avoid spurious matches elsewhere in the file.
+  # 'next' skips past the on: line itself so /^[^[:space:]]/ doesn't self-terminate.
+  awk '/^on:/{f=1; next} f && /^[^[:space:]]/{exit} f' "$PR_YML" | grep -qE 'workflows: \["CI"\]'
 }
 
 @test "the watched name matches the CI workflow's declared name" {
