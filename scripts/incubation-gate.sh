@@ -39,14 +39,12 @@ fm_status() {
 has_section() {
   local file="$1" needle="$2"
   grep -E '^#{1,6}[[:space:]]' "$file" 2>/dev/null | grep -qiF "$needle"
-  return  # explicit return preserves the last grep's exit status (S7682)
 }
 
 # has_placeholder <file> — true if unfilled template placeholders remain.
 has_placeholder() {
   local file="$1"
   grep -qE 'TODO — needs discovery|TODO: needs discovery|<Idea Title>|<slug>|<YYYY-MM-DD>|<who>|<link>' "$file" 2>/dev/null
-  return  # explicit return preserves the last grep's exit status (S7682)
 }
 
 # check_artifact <idea-dir> <artifact-index> — echo "PASS|reason" / "FAIL|reason";
