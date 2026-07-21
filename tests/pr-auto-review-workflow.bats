@@ -2,14 +2,14 @@
 # Compliance regression guard for .github/workflows/pr-auto-review.yml.
 #
 # WHY THIS EXISTS (issue #53 — SonarCloud githubactions:S1135):
-#   The shipped caller stub carried a template placeholder comment:
-#     # TODO: replace "CI" with your repository's CI workflow name(s).
-#   SonarCloud flags every TODO/FIXME as rule S1135 ("complete the task"). The
-#   task is in fact already done: this repo's CI workflow is named `CI`
+#   The shipped caller stub carried a template placeholder comment instructing
+#   maintainers to replace "CI" with their repository's CI workflow name(s).
+#   SonarCloud flags every such task-marker as rule S1135 ("complete the task").
+#   The task is in fact already done: this repo's CI workflow is named `CI`
 #   (.github/workflows/ci.yml → `name: CI`), so `workflow_run.workflows: ["CI"]`
 #   is the correct, final value. Resolving the finding means removing the stale
-#   TODO — NOT changing the trigger — and this guard pins that outcome so a future
-#   template re-sync cannot silently reintroduce the marker.
+#   placeholder — NOT changing the trigger — and this guard pins that outcome so
+#   a future template re-sync cannot silently reintroduce the marker.
 #
 #   The stub header declares several invariants immutable (the moving-channel
 #   reusable ref and the job-level permissions block). This guard also pins those,
