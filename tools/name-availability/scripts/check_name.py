@@ -24,6 +24,20 @@ import sys
 import common as c
 
 
+def _resolve_domains(sess, slug, tlds, cf_token, cf_account) -> list[c.Result]:
+    domains = [f"{slug}.{t}" for t in tlds]
+    if cf_token and cf_account:
+        try:
+            cf_map = c.cloudflare_domain_check(sess, cf_account, cf_token, domains)
+            out = [cf_map[d] for d in domains if d in cf_map]
+            missing = [d for d in domains if d not in cf_map]
+            out.extend(c.rdap_domain(sess, d) for d in missing)
+            return out
+        except Exception as e:  # noqa: BLE001 - fall back to RDAP on any CF failure
+            print(f"[warn] Cloudflare domain-check failed ({e}); using RDAP", file=sys.stderr)
+    return [c.rdap_domain(sess, d) for d in domains]
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Check a name everywhere (read-only).")
     p.add_argument("name", help="Name to check, e.g. 'Acme Co'")
@@ -52,20 +66,7 @@ def main() -> int:
     results: list[c.Result] = []
 
     # Domains --------------------------------------------------------------
-    domains = [f"{slug}.{t}" for t in tlds]
-    used_cf = False
-    if cf_token and cf_account:
-        try:
-            cf_map = c.cloudflare_domain_check(sess, cf_account, cf_token, domains)
-            results.extend(cf_map[d] for d in domains if d in cf_map)
-            # Any domain CF didn't return, fall back to RDAP
-            missing = [d for d in domains if d not in cf_map]
-            results.extend(c.rdap_domain(sess, d) for d in missing)
-            used_cf = True
-        except Exception as e:  # noqa: BLE001 - fall back to RDAP on any CF failure
-            print(f"[warn] Cloudflare domain-check failed ({e}); using RDAP", file=sys.stderr)
-    if not used_cf:
-        results.extend(c.rdap_domain(sess, d) for d in domains)
+    results.extend(_resolve_domains(sess, slug, tlds, cf_token, cf_account))
 
     # GitHub, packages -----------------------------------------------------
     results.append(c.github_handle(sess, slug, gh_token))
