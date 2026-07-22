@@ -35,11 +35,16 @@ _uses_ref() {
   _ideate_uses | sed -E 's/.*feature-ideation-reusable\.yml@([^[:space:]]+).*/\1/'
 }
 
+# Emit the body of the top-level `on:` block (event trigger definitions).
+_on_block() {
+  awk '/^on:$/ {p=1; next} p && /^[^ ]/ {exit} p {print}' "$FI_YML"
+}
+
 # The multi-line permissions block belongs to the `ideate` job — the only
 # `permissions:` with child scopes (redispatch/prep/top-level all use `{}`).
-# Emit its child `key: value` lines.
+# Emit its child `key: value` lines, scoped to the `ideate` job block.
 _ideate_permissions() {
-  awk '/^    permissions:$/ {p=1; next} p && /^      [a-z-]+:/ {print} p && !/^      [a-z-]+:/ {p=0}' "$FI_YML"
+  awk '/^  ideate:$/ {ij=1; next} ij && /^    permissions:$/ {ip=1; next} ip && /^      [a-z-]+:/ {print} ip && !/^      [a-z-]+:/ {ip=0} ij && /^  [^ ]/ {exit}' "$FI_YML"
 }
 
 # Emit the child key: value lines of the `secrets:` block under the `ideate` job.
@@ -72,7 +77,7 @@ _project_context_body() {
   # discussion (auto-enhance freshly-created ideas).
   local trigger
   for trigger in schedule workflow_dispatch discussion; do
-    grep -qE "^  ${trigger}:$" "$FI_YML"
+    _on_block | grep -qE "^  ${trigger}:$"
   done
 }
 
@@ -110,7 +115,8 @@ _project_context_body() {
   # The reusable's gather-signals + analyze jobs need these scopes; narrowing any
   # breaks the corresponding step (e.g. dropping discussions:write stops the
   # create/update of Discussion threads — the workflow's entire purpose).
-  # The count check catches privilege escalation via added scopes.
+  # The count and allowlist checks together catch privilege escalation via added
+  # or malformed scopes; the per-key greps catch narrowing.
   local permissions_block
   permissions_block="$(_ideate_permissions)"
   echo "$permissions_block" | grep -qE '^      contents: read$'
@@ -120,6 +126,9 @@ _project_context_body() {
   echo "$permissions_block" | grep -qE '^      id-token: write$'
   echo "$permissions_block" | grep -qE '^      actions: read$'
   [ "$(echo "$permissions_block" | grep -c .)" -eq 6 ]
+  local bad_lines
+  bad_lines="$(echo "$permissions_block" | grep -vE '^      (contents|issues|pull-requests|discussions|id-token|actions): (read|write)$' || true)"
+  [ -z "$bad_lines" ]
 }
 
 @test "the CLAUDE_CODE_OAUTH_TOKEN secret is wired to the reusable" {
