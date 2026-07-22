@@ -43,7 +43,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -r requirements.txt
+      - run: pip install --only-binary :all: -r requirements.txt
       - name: Reserve name
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -61,9 +61,12 @@ jobs:
           REGISTRANT_STATE: ${{ secrets.REGISTRANT_STATE }}
           REGISTRANT_ZIP: ${{ secrets.REGISTRANT_ZIP }}
           REGISTRANT_COUNTRY: ${{ secrets.REGISTRANT_COUNTRY }}
+          INPUT_NAME: ${{ inputs.name }}
+          INPUT_TLDS: ${{ inputs.tlds }}
+          INPUT_MAX_PRICE: ${{ inputs.max_price }}
         run: |
-          python scripts/register_name.py "${{ inputs.name }}" \
-            --tlds "${{ inputs.tlds }}" \
-            --max-price "${{ inputs.max_price }}" \
+          python scripts/register_name.py "$INPUT_NAME" \
+            --tlds "$INPUT_TLDS" \
+            --max-price "$INPUT_MAX_PRICE" \
             ${{ inputs.skip_github && '--skip-github' || '' }} \
-            ${{ inputs.execute && format('--execute --confirm "{0}"', inputs.name) || '' }}
+            ${{ inputs.execute && format('--execute --confirm "{0}"', env.INPUT_NAME) || '' }}

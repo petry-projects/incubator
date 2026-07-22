@@ -78,7 +78,7 @@ def cf_register(sess, account_id, token, domain, contact, years, dry_run) -> str
     )
     if r.status_code in (200, 201):
         return f"REGISTERED {domain}"
-    raise RuntimeError(f"Cloudflare registration failed for {domain}: HTTP {r.status_code} {r.text[:300]}")
+    raise RuntimeError(f"Cloudflare registration failed for {domain}: HTTP {r.status_code}")
 
 
 def gh_create_repo(sess, token, org, slug, dry_run) -> str:
@@ -100,7 +100,7 @@ def gh_create_repo(sess, token, org, slug, dry_run) -> str:
     r = sess.post(url, headers=headers, json=body, timeout=30)
     if r.status_code == 201:
         return f"CREATED {r.json().get('full_name')}"
-    raise RuntimeError(f"GitHub repo create failed: HTTP {r.status_code} {r.text[:300]}")
+    raise RuntimeError(f"GitHub repo create failed: HTTP {r.status_code}")
 
 
 def _gh_login(sess, headers) -> str:

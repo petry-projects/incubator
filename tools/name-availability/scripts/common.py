@@ -74,7 +74,7 @@ def rdap_domain(sess: requests.Session, domain: str) -> Result:
     """
     url = f"https://rdap.org/domain/{domain}"
     try:
-        r = sess.get(url, timeout=20, allow_redirects=True)
+        r = sess.get(url, timeout=20, allow_redirects=False)
         if r.status_code == 404:
             return Result("domain", domain, AVAILABLE, "RDAP: no record", f"https://{domain}")
         if r.status_code == 200:
@@ -168,7 +168,7 @@ def social_handle(sess, platform, handle) -> Result:
     url = SOCIAL[platform].format(h=handle)
     target = f"{platform}:{handle}"
     try:
-        r = sess.get(url, timeout=20, allow_redirects=True)
+        r = sess.get(url, timeout=20, allow_redirects=False)
         if r.status_code == 404:
             return Result("social", target, AVAILABLE, "profile 404 (low confidence)", url, confidence="low")
         if r.status_code == 200:
