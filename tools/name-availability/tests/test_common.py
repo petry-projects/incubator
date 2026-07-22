@@ -121,6 +121,18 @@ class TestCloudflareCheck:
         with pytest.raises(RuntimeError, match="Cloudflare API error"):
             c.cloudflare_domain_check(session, "account123", "token", ["example.com"])
 
+    def test_zero_price_preserved(self, session):
+        """Zero price should be kept, not treated as missing."""
+        session.post.return_value = Mock(
+            status_code=200,
+            json=lambda: {
+                "success": True,
+                "result": [{"domain": "example.com", "available": True, "price": 0.0}],
+            },
+        )
+        results = c.cloudflare_domain_check(session, "account123", "token", ["example.com"])
+        assert results["example.com"].price == 0.0
+
     def test_item_without_name_skipped(self, session):
         """Items with no domain/name field are skipped."""
         session.post.return_value = Mock(
@@ -274,7 +286,7 @@ class TestToMarkdown:
             ),
         ]
         md = c.to_markdown("Acme", "acme", results)
-        assert "$26" in md or "$25" in md
+        assert "$26" in md
 
 
 class TestMakeSession:

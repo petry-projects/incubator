@@ -109,7 +109,8 @@ def cloudflare_domain_check(sess, account_id, token, domains) -> dict:
         if name is None:
             continue
         available = item.get("available")
-        price = item.get("price") or item.get("registration_fee")
+        _p = item.get("price")
+        price = _p if _p is not None else item.get("registration_fee")
         try:
             price = float(price) if price is not None else None
         except (TypeError, ValueError):

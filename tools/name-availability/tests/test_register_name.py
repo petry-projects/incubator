@@ -105,6 +105,15 @@ class TestCfRegister:
                 sess, "account123", "token", "example.com", {"email": "test@example.com"}, 1, False
             )
 
+    def test_registration_missing_success_field_raises(self):
+        """200 response with no success field is treated as failure."""
+        sess = MagicMock()
+        sess.post.return_value = Mock(status_code=200, json=lambda: {})
+        with pytest.raises(RuntimeError, match="reported failure"):
+            register_name.cf_register(
+                sess, "account123", "token", "example.com", {"email": "test@example.com"}, 1, False
+            )
+
     def test_failed_registration(self):
         """Failed registration raises error."""
         sess = MagicMock()
@@ -156,6 +165,15 @@ class TestGhCreateRepo:
         sess.post.return_value = Mock(status_code=400, text="Invalid repo name")
         mock_login.return_value = "testuser"
         with pytest.raises(RuntimeError, match="HTTP 400"):
+            register_name.gh_create_repo(sess, "token", None, "acme", False)
+
+    @patch("register_name._gh_login")
+    def test_auth_error_on_check_raises(self, mock_login):
+        """401/403 from repo existence check raises RuntimeError instead of proceeding to create."""
+        sess = MagicMock()
+        sess.get.return_value = Mock(status_code=401)
+        mock_login.return_value = "testuser"
+        with pytest.raises(RuntimeError, match="HTTP 401"):
             register_name.gh_create_repo(sess, "token", None, "acme", False)
 
     def test_repo_creation_with_org(self):
@@ -225,6 +243,14 @@ class TestRegisterNameMain:
         assert result == 2
         captured = capsys.readouterr()
         assert "empty slug" in captured.err
+
+    def test_invalid_years_exits_early(self, capsys):
+        """Zero or negative --years value exits non-zero before any registration."""
+        with patch("sys.argv", ["register_name.py", "Acme", "--years", "0"]):
+            result = register_name.main()
+        assert result == 2
+        captured = capsys.readouterr()
+        assert "years" in captured.err
 
     @patch("common.make_session")
     @patch("sys.stderr")
@@ -305,3 +331,33 @@ class TestRegisterNameMain:
 
         assert result == 0
         mock_cf_reg.assert_not_called()
+
+    @patch("common.make_session")
+    @patch("common.cloudflare_domain_check")
+    @patch("register_name.cf_register")
+    @patch("register_name.build_contact")
+    @patch("common.write_summary")
+    @patch.dict(
+        "os.environ",
+        {
+            "BRAND_ALLOW_SPEND": "yes",
+            "CLOUDFLARE_API_TOKEN": "token",
+            "CLOUDFLARE_ACCOUNT_ID": "account",
+        },
+    )
+    def test_execute_failure_returns_nonzero(
+        self, mock_write, mock_contact, mock_cf_reg, mock_cf_check, mock_session
+    ):
+        """Registration failure in execute mode returns non-zero exit code."""
+        mock_session.return_value = MagicMock()
+        mock_cf_check.return_value = {
+            "acme.com": c.Result("domain", "acme.com", c.AVAILABLE, price=25.0)
+        }
+        mock_contact.return_value = {"email": "test@example.com"}
+        mock_cf_reg.side_effect = RuntimeError("Payment failed")
+
+        with patch("sys.argv", ["register_name.py", "Acme", "--execute", "--confirm", "Acme"]):
+            with patch("register_name.gh_create_repo"):
+                result = register_name.main()
+
+        assert result == 1

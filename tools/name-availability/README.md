@@ -48,6 +48,7 @@ jobs:
     uses: petry-projects/incubator/.github/workflows/name-check.yml@main
     with:
       name: ${{ inputs.name }}
+      source_ref: main  # pin to a tag or SHA for reproducible runs, e.g. v1.2.3
     secrets: inherit
 ```
 
@@ -70,6 +71,7 @@ jobs:
     with:
       name: ${{ inputs.name }}
       execute: ${{ inputs.execute }}
+      source_ref: main  # pin to a tag or SHA for reproducible runs, e.g. v1.2.3
     secrets: inherit
 ```
 
