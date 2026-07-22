@@ -53,7 +53,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install --only-binary :all: -r requirements.txt
+      - run: |
+          pip install --only-binary :all: -r requirements.txt
       - name: Reserve name
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
