@@ -1,0 +1,69 @@
+name: Name register
+
+# Reserves a name across safe-to-automate channels.
+# GATE 1: this job targets the `brand-register` Environment — configure it with
+#         required reviewers so a human must approve every run.
+# GATE 2: `execute` defaults to false (dry run). Nothing is bought unless checked.
+# GATE 3: real domain spend also needs the BRAND_ALLOW_SPEND=yes secret + price cap.
+
+on:
+  workflow_dispatch:
+    inputs:
+      name:
+        description: "Name to reserve (e.g. Acme Co)"
+        required: true
+      tlds:
+        description: "Comma-separated TLDs to register"
+        default: "com,io,ai"
+      execute:
+        description: "EXECUTE for real? Leave unchecked for a dry run."
+        type: boolean
+        default: false
+      max_price:
+        description: "Skip any domain above this price (USD)"
+        default: "40"
+      skip_github:
+        description: "Skip creating the placeholder GitHub repo"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: tools/name-availability
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    environment: brand-register   # <- protect this env with required reviewers
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - name: Reserve name
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BRAND_GH_TOKEN: ${{ secrets.BRAND_GH_TOKEN }}
+          BRAND_GH_ORG: ${{ vars.BRAND_GH_ORG }}
+          BRAND_ALLOW_SPEND: ${{ secrets.BRAND_ALLOW_SPEND }}
+          REGISTRANT_FIRST_NAME: ${{ secrets.REGISTRANT_FIRST_NAME }}
+          REGISTRANT_LAST_NAME: ${{ secrets.REGISTRANT_LAST_NAME }}
+          REGISTRANT_ORG: ${{ secrets.REGISTRANT_ORG }}
+          REGISTRANT_EMAIL: ${{ secrets.REGISTRANT_EMAIL }}
+          REGISTRANT_PHONE: ${{ secrets.REGISTRANT_PHONE }}
+          REGISTRANT_ADDRESS: ${{ secrets.REGISTRANT_ADDRESS }}
+          REGISTRANT_CITY: ${{ secrets.REGISTRANT_CITY }}
+          REGISTRANT_STATE: ${{ secrets.REGISTRANT_STATE }}
+          REGISTRANT_ZIP: ${{ secrets.REGISTRANT_ZIP }}
+          REGISTRANT_COUNTRY: ${{ secrets.REGISTRANT_COUNTRY }}
+        run: |
+          python scripts/register_name.py "${{ inputs.name }}" \
+            --tlds "${{ inputs.tlds }}" \
+            --max-price "${{ inputs.max_price }}" \
+            ${{ inputs.skip_github && '--skip-github' || '' }} \
+            ${{ inputs.execute && format('--execute --confirm "{0}"', inputs.name) || '' }}
