@@ -104,10 +104,12 @@ def gh_create_repo(sess, token, org, slug, dry_run) -> str:
     r = sess.post(url, headers=headers, json=body, timeout=30)
     if r.status_code == 201:
         return f"CREATED {r.json().get('full_name')}"
+    detail = ""
     try:
-        body = r.json()
-        detail = body.get("message", "") if isinstance(body, dict) else ""
-    except Exception:
+        resp_data = r.json()
+        if isinstance(resp_data, dict):
+            detail = resp_data.get("message", "")
+    except ValueError:
         detail = ""
     raise RuntimeError(f"GitHub repo create failed: HTTP {r.status_code}{': ' + detail if detail else ''}")
 
@@ -146,7 +148,7 @@ def _try_register_domain(sess, cf_account, cf_token, d, avail, contact, dry_run,
             return False
     try:
         msg = cf_register(sess, cf_account, cf_token, d, contact, years, dry_run)
-        price_s = f" (${price:.0f})" if price is not None else ""
+        price_s = f" (${price:.0f})"
         log(summary, f"- {'🟡' if dry_run else '✅'} `{d}`{price_s} — {msg}")
         return False
     except Exception as e:  # noqa: BLE001
