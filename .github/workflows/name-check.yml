@@ -1,27 +1,23 @@
-name: Name check
+name: Name check (reusable)
+
+# Reusable workflow — invoked by a PRIVATE caller repo so the run's logs, job
+# summary, and artifacts stay in the caller, never here.
+#
+# There is intentionally NO workflow_dispatch trigger: this repo is public, and
+# a direct run would publish the name and domains being checked on the public
+# Actions tab. Call it from a private repo (see tools/name-availability/README.md).
 
 on:
-  workflow_dispatch:
-    inputs:
-      name:
-        description: "Name to check (e.g. Acme Co)"
-        required: true
-      tlds:
-        description: "Comma-separated TLDs"
-        default: "com,io,ai,co,app,dev,org,net"
-      social:
-        description: "Check social handles (low confidence)"
-        type: boolean
-        default: true
-      fail_on:
-        description: "Critical channels — job fails if any is taken"
-        default: "domain:com,github"
   workflow_call:
     inputs:
       name: { required: true, type: string }
       tlds: { type: string, default: "com,io,ai,co,app,dev,org,net" }
       social: { type: boolean, default: true }
       fail_on: { type: string, default: "domain:com,github" }
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: false }
+      CLOUDFLARE_ACCOUNT_ID: { required: false }
+      BRAND_GH_TOKEN: { required: false }
 
 permissions:
   contents: read
@@ -34,7 +30,12 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      # Reusable workflow: the default git context is the CALLER, so check out
+      # this repo explicitly to get the scripts.
       - uses: actions/checkout@v4
+        with:
+          repository: petry-projects/incubator
+          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
