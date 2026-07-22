@@ -228,5 +228,9 @@ def write_summary(markdown: str) -> None:
 
 
 def dump_json(path: str, name: str, slug: str, results: list[Result]) -> None:
-    with open(path, "w", encoding="utf-8") as f:
+    base = os.path.realpath(os.getcwd())
+    resolved = os.path.realpath(path)
+    if not resolved.startswith(base + os.sep):
+        raise ValueError(f"Output path escapes the working directory: {path!r}")
+    with open(resolved, "w", encoding="utf-8") as f:
         json.dump({"name": name, "slug": slug, "results": [asdict(r) for r in results]}, f, indent=2)
