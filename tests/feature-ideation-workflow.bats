@@ -24,11 +24,15 @@
 
 FI_YML="${BATS_TEST_DIRNAME}/../.github/workflows/feature-ideation.yml"
 
+# Emit the `uses:` line of the `ideate` job only (not any other job).
+_ideate_uses() {
+  awk '/^  ideate:$/ {p=1; next} p && /^    uses:/ {print; exit} p && /^  [^ ]/ {p=0}' "$FI_YML"
+}
+
 # Reusable ref pinned on the `uses:` line, i.e. the text after
 # `feature-ideation-reusable.yml@` up to the first whitespace (a comment or EOL).
 _uses_ref() {
-  grep -E 'uses:.*feature-ideation-reusable\.yml@' "$FI_YML" \
-    | sed -E 's/.*feature-ideation-reusable\.yml@([^[:space:]]+).*/\1/' | head -1
+  _ideate_uses | sed -E 's/.*feature-ideation-reusable\.yml@([^[:space:]]+).*/\1/'
 }
 
 # The multi-line permissions block belongs to the `ideate` job — the only
@@ -36,6 +40,11 @@ _uses_ref() {
 # Emit its child `key: value` lines.
 _ideate_permissions() {
   awk '/^    permissions:$/ {p=1; next} p && /^      [a-z-]+:/ {print} p && !/^      [a-z-]+:/ {p=0}' "$FI_YML"
+}
+
+# Emit the child key: value lines of the `secrets:` block under the `ideate` job.
+_ideate_secrets() {
+  awk '/^    secrets:$/ {p=1; next} p && /^      [A-Z_]+:/ {print} p && !/^      [A-Z_]+:/ {p=0}' "$FI_YML"
 }
 
 # Body lines of the `project_context: |` literal block (indented 8+ spaces).
@@ -69,7 +78,10 @@ _project_context_body() {
 
 @test "the discussion trigger fires on created" {
   # The redispatch bridge only works if `discussion: created` events arrive.
-  grep -qE '^    types: \[created\]$' "$FI_YML"
+  # Scope the check to the `discussion:` block to avoid false positives from
+  # unrelated `types:` lines elsewhere in the file.
+  awk '/^  discussion:$/ {p=1; next} p && /^    types:/ {print; exit} p && /^  [^ ]/ {p=0}' "$FI_YML" \
+    | grep -qE '\[created\]'
 }
 
 @test "the concurrency lane pins cancel-in-progress: false" {
@@ -91,13 +103,14 @@ _project_context_body() {
 @test "the reusable uses: line carries its S7637 NOSONAR marker" {
   # Without the marker SonarCloud's githubactions:S7637 fails the Quality Gate on
   # the first-party channel ref, turning every ideation run red.
-  grep -qE 'uses:.*feature-ideation-reusable\.yml@[^[:space:]]+[[:space:]]+# NOSONAR\(githubactions:S7637\)' "$FI_YML"
+  _ideate_uses | grep -qE 'uses:.*feature-ideation-reusable\.yml@[^[:space:]]+[[:space:]]+# NOSONAR\(githubactions:S7637\)'
 }
 
 @test "the ideate job grants exactly the required least-privilege scopes" {
   # The reusable's gather-signals + analyze jobs need these scopes; narrowing any
   # breaks the corresponding step (e.g. dropping discussions:write stops the
   # create/update of Discussion threads — the workflow's entire purpose).
+  # The count check catches privilege escalation via added scopes.
   local permissions_block
   permissions_block="$(_ideate_permissions)"
   echo "$permissions_block" | grep -qE '^      contents: read$'
@@ -106,12 +119,13 @@ _project_context_body() {
   echo "$permissions_block" | grep -qE '^      discussions: write$'
   echo "$permissions_block" | grep -qE '^      id-token: write$'
   echo "$permissions_block" | grep -qE '^      actions: read$'
+  [ "$(echo "$permissions_block" | grep -c .)" -eq 6 ]
 }
 
 @test "the CLAUDE_CODE_OAUTH_TOKEN secret is wired to the reusable" {
   # The reusable authenticates claude-code-action with this secret; dropping it
   # fails the Run Claude Code step immediately.
-  grep -qE '^      CLAUDE_CODE_OAUTH_TOKEN: \$\{\{ secrets\.CLAUDE_CODE_OAUTH_TOKEN \}\}$' "$FI_YML"
+  _ideate_secrets | grep -qE '^      CLAUDE_CODE_OAUTH_TOKEN: \$\{\{ secrets\.CLAUDE_CODE_OAUTH_TOKEN \}\}'
 }
 
 @test "project_context is customised for this repo, not the placeholder" {
