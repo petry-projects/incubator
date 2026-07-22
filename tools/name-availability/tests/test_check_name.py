@@ -165,6 +165,7 @@ class TestCheckNameMain:
 
     @patch("common.make_session")
     @patch("common.cloudflare_domain_check")
+    @patch.dict("os.environ", {"CLOUDFLARE_API_TOKEN": "test-token", "CLOUDFLARE_ACCOUNT_ID": "test-account"})
     def test_cloudflare_fallback_on_error(
         self, mock_cf, mock_session_fn
     ):
@@ -186,5 +187,6 @@ class TestCheckNameMain:
                                     with patch("sys.argv", ["check_name.py", "Acme"]):
                                         result = check_name.main()
 
-        # Should still succeed and fall back to RDAP
+        # CF was called (env vars were set), failed, and fell back to RDAP
+        mock_cf.assert_called_once()
         assert result == 0

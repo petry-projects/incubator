@@ -327,6 +327,13 @@ class TestDumpJson:
         c.dump_json(str(tmp_path / "out.json"), "Acme", "acme", results)
         mock_open.assert_called_once()
 
+    def test_dump_json_path_traversal_raises(self, tmp_path, monkeypatch):
+        """Path escaping the working directory raises ValueError."""
+        monkeypatch.chdir(tmp_path)
+        results = [c.Result("domain", "acme.com", c.AVAILABLE, "Available")]
+        with pytest.raises(ValueError, match="escapes the working directory"):
+            c.dump_json("../escape.json", "Acme", "acme", results)
+
 
 class TestResult:
     """Test Result dataclass."""
