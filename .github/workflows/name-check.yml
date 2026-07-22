@@ -1,0 +1,63 @@
+name: Name check (reusable)
+
+# Reusable workflow — invoked by a PRIVATE caller repo so the run's logs, job
+# summary, and artifacts stay in the caller, never here.
+#
+# There is intentionally NO workflow_dispatch trigger: this repo is public, and
+# a direct run would publish the name and domains being checked on the public
+# Actions tab. Call it from a private repo (see tools/name-availability/README.md).
+
+on:
+  workflow_call:
+    inputs:
+      name: { required: true, type: string }
+      tlds: { type: string, default: "com,io,ai,co,app,dev,org,net" }
+      social: { type: boolean, default: true }
+      fail_on: { type: string, default: "domain:com,github" }
+      source_ref: { type: string, default: "main", description: "Ref/SHA of petry-projects/incubator to check out — pin to a tag or SHA for reproducible runs" }
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: false }
+      CLOUDFLARE_ACCOUNT_ID: { required: false }
+      BRAND_GH_TOKEN: { required: false }
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: tools/name-availability
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      # Reusable workflow: the default git context is the CALLER, so check out
+      # this repo explicitly to get the scripts.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: petry-projects/incubator
+          ref: ${{ inputs.source_ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - run: |
+          pip install --require-hashes --only-binary :all: -r requirements-lock.txt
+      - name: Check name
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BRAND_GH_TOKEN: ${{ secrets.BRAND_GH_TOKEN || github.token }}
+          INPUT_NAME: ${{ inputs.name }}
+          INPUT_TLDS: ${{ inputs.tlds }}
+          INPUT_FAIL_ON: ${{ inputs.fail_on }}
+          INPUT_SOCIAL: ${{ inputs.social }}
+        run: |
+          args=("$INPUT_NAME" --tlds "$INPUT_TLDS" --fail-on "$INPUT_FAIL_ON" --json "result.json")
+          [[ "$INPUT_SOCIAL" == "true" ]] && args+=(--social) || args+=(--no-social)
+          python scripts/check_name.py "${args[@]}"
+      - uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        if: always()
+        with:
+          name: name-check-${{ github.run_id }}
+          path: tools/name-availability/result.json

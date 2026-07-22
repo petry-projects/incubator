@@ -48,6 +48,18 @@ jobs:
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           fetch-depth: 0
+      # Generate Python coverage so the quality gate has data for new code.
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Install Python dependencies
+        run: pip install --require-hashes --only-binary :all: -r tools/name-availability/requirements-lock.txt
+      - name: Run tests and generate coverage report
+        run: |
+          python -m pytest tools/name-availability/tests/ \
+            --cov=tools/name-availability/scripts \
+            --cov-report=xml:coverage.xml
       - name: SonarCloud Scan
         id: sonar
         if: env.SONAR_TOKEN != ''

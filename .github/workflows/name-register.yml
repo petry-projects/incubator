@@ -1,0 +1,88 @@
+name: Name register (reusable)
+
+# Reusable workflow, invoked by a PRIVATE caller repo (so run details stay
+# private). The human-approval gate lives in the CALLER (a protected Environment
+# there); this file keeps the code-level gates: dry-run default, price cap,
+# BRAND_ALLOW_SPEND, and the --confirm typo guard.
+#
+# There is intentionally NO workflow_dispatch trigger: this repo is public and a
+# direct run would publish the name/domains being registered.
+
+on:
+  workflow_call:
+    inputs:
+      name: { required: true, type: string }
+      tlds: { type: string, default: "com,io,ai" }
+      execute: { type: boolean, default: false }
+      max_price: { type: number, default: 40 }
+      skip_github: { type: boolean, default: false }
+      source_ref: { type: string, default: "main", description: "Ref/SHA of petry-projects/incubator to check out — pin to a tag or SHA for reproducible runs" }
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: false }
+      CLOUDFLARE_ACCOUNT_ID: { required: false }
+      BRAND_GH_TOKEN: { required: false }
+      BRAND_GH_ORG: { required: false }
+      BRAND_ALLOW_SPEND: { required: false }
+      REGISTRANT_FIRST_NAME: { required: false }
+      REGISTRANT_LAST_NAME: { required: false }
+      REGISTRANT_ORG: { required: false }
+      REGISTRANT_EMAIL: { required: false }
+      REGISTRANT_PHONE: { required: false }
+      REGISTRANT_ADDRESS: { required: false }
+      REGISTRANT_CITY: { required: false }
+      REGISTRANT_STATE: { required: false }
+      REGISTRANT_ZIP: { required: false }
+      REGISTRANT_COUNTRY: { required: false }
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: tools/name-availability
+
+jobs:
+  register:
+    runs-on: ubuntu-latest
+    steps:
+      # Reusable workflow: the default git context is the CALLER, so check out
+      # this repo explicitly to get the scripts.
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          repository: petry-projects/incubator
+          ref: ${{ inputs.source_ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - run: |
+          pip install --require-hashes --only-binary :all: -r requirements-lock.txt
+      - name: Reserve name
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BRAND_GH_TOKEN: ${{ secrets.BRAND_GH_TOKEN }}
+          BRAND_GH_ORG: ${{ secrets.BRAND_GH_ORG }}
+          BRAND_ALLOW_SPEND: ${{ secrets.BRAND_ALLOW_SPEND }}
+          REGISTRANT_FIRST_NAME: ${{ secrets.REGISTRANT_FIRST_NAME }}
+          REGISTRANT_LAST_NAME: ${{ secrets.REGISTRANT_LAST_NAME }}
+          REGISTRANT_ORG: ${{ secrets.REGISTRANT_ORG }}
+          REGISTRANT_EMAIL: ${{ secrets.REGISTRANT_EMAIL }}
+          REGISTRANT_PHONE: ${{ secrets.REGISTRANT_PHONE }}
+          REGISTRANT_ADDRESS: ${{ secrets.REGISTRANT_ADDRESS }}
+          REGISTRANT_CITY: ${{ secrets.REGISTRANT_CITY }}
+          REGISTRANT_STATE: ${{ secrets.REGISTRANT_STATE }}
+          REGISTRANT_ZIP: ${{ secrets.REGISTRANT_ZIP }}
+          REGISTRANT_COUNTRY: ${{ secrets.REGISTRANT_COUNTRY }}
+          INPUT_NAME: ${{ inputs.name }}
+          INPUT_TLDS: ${{ inputs.tlds }}
+          INPUT_MAX_PRICE: ${{ inputs.max_price }}
+          INPUT_SKIP_GITHUB: ${{ inputs.skip_github }}
+          INPUT_EXECUTE: ${{ inputs.execute }}
+        run: |
+          args=("$INPUT_NAME" --tlds "$INPUT_TLDS" --max-price "$INPUT_MAX_PRICE")
+          [[ "$INPUT_SKIP_GITHUB" == "true" ]] && args+=(--skip-github)
+          if [[ "$INPUT_EXECUTE" == "true" ]]; then
+            args+=(--execute --confirm "$INPUT_NAME")
+          fi
+          python scripts/register_name.py "${args[@]}"
