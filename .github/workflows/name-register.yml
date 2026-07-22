@@ -75,10 +75,12 @@ jobs:
           INPUT_NAME: ${{ inputs.name }}
           INPUT_TLDS: ${{ inputs.tlds }}
           INPUT_MAX_PRICE: ${{ inputs.max_price }}
+          INPUT_SKIP_GITHUB: ${{ inputs.skip_github }}
+          INPUT_EXECUTE: ${{ inputs.execute }}
         run: |
           args=("$INPUT_NAME" --tlds "$INPUT_TLDS" --max-price "$INPUT_MAX_PRICE")
-          ${{ inputs.skip_github && 'args+=(--skip-github)' || '' }}
-          if [[ "${{ inputs.execute }}" == "true" ]]; then
+          [[ "$INPUT_SKIP_GITHUB" == "true" ]] && args+=(--skip-github)
+          if [[ "$INPUT_EXECUTE" == "true" ]]; then
             args+=(--execute --confirm "$INPUT_NAME")
           fi
           python scripts/register_name.py "${args[@]}"

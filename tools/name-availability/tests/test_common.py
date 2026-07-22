@@ -306,8 +306,9 @@ class TestDumpJson:
     """Test JSON output."""
 
     @patch("builtins.open", create=True)
-    def test_dump_json(self, mock_open, tmp_path):
+    def test_dump_json(self, mock_open, tmp_path, monkeypatch):
         """Write results to JSON file."""
+        monkeypatch.chdir(tmp_path)
         results = [
             c.Result("domain", "acme.com", c.AVAILABLE, "Available"),
         ]
