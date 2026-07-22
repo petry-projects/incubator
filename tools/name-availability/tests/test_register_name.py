@@ -62,15 +62,30 @@ class TestBuildContact:
         assert result["organization"] == "ACME Corp"
 
 
+def _make_ctx(sess, *, cf_account="account123", cf_token="token", dry_run=False, **kwargs):
+    """Build a _RegCtx for tests with sensible defaults."""
+    return register_name._RegCtx(
+        sess=sess,
+        cf_account=cf_account,
+        cf_token=cf_token,
+        gh_token=None,
+        dry_run=dry_run,
+        allow_spend=False,
+        max_price=40.0,
+        years=1,
+        summary=[],
+        **kwargs,
+    )
+
+
 class TestCfRegister:
     """Test Cloudflare registration."""
 
     def test_dry_run(self):
         """Dry run should not call API."""
         sess = MagicMock()
-        result = register_name.cf_register(
-            sess, "account123", "token", "example.com", {"email": "test@example.com"}, 1, True
-        )
+        ctx = _make_ctx(sess, dry_run=True)
+        result = register_name.cf_register(ctx, "example.com", {"email": "test@example.com"})
         assert "DRY RUN" in result
         assert "would POST" in result
         sess.post.assert_not_called()
@@ -79,18 +94,14 @@ class TestCfRegister:
         """Successful 201 response."""
         sess = MagicMock()
         sess.post.return_value = Mock(status_code=201)
-        result = register_name.cf_register(
-            sess, "account123", "token", "example.com", {"email": "test@example.com"}, 1, False
-        )
+        result = register_name.cf_register(_make_ctx(sess), "example.com", {"email": "test@example.com"})
         assert "REGISTERED" in result
 
     def test_successful_registration_200(self):
         """Successful 200 response."""
         sess = MagicMock()
         sess.post.return_value = Mock(status_code=200)
-        result = register_name.cf_register(
-            sess, "account123", "token", "example.com", {"email": "test@example.com"}, 1, False
-        )
+        result = register_name.cf_register(_make_ctx(sess), "example.com", {"email": "test@example.com"})
         assert "REGISTERED" in result
 
     def test_successful_registration_checks_json_body(self):
@@ -101,27 +112,21 @@ class TestCfRegister:
             json=lambda: {"success": False, "errors": [{"message": "Payment required"}]},
         )
         with pytest.raises(RuntimeError, match="reported failure"):
-            register_name.cf_register(
-                sess, "account123", "token", "example.com", {"email": "test@example.com"}, 1, False
-            )
+            register_name.cf_register(_make_ctx(sess), "example.com", {"email": "test@example.com"})
 
     def test_registration_missing_success_field_raises(self):
         """200 response with no success field is treated as failure."""
         sess = MagicMock()
         sess.post.return_value = Mock(status_code=200, json=lambda: {})
         with pytest.raises(RuntimeError, match="reported failure"):
-            register_name.cf_register(
-                sess, "account123", "token", "example.com", {"email": "test@example.com"}, 1, False
-            )
+            register_name.cf_register(_make_ctx(sess), "example.com", {"email": "test@example.com"})
 
     def test_failed_registration(self):
         """Failed registration raises error."""
         sess = MagicMock()
         sess.post.return_value = Mock(status_code=400, text="Invalid domain")
         with pytest.raises(RuntimeError, match="HTTP 400"):
-            register_name.cf_register(
-                sess, "account123", "token", "example.com", {"email": "test@example.com"}, 1, False
-            )
+            register_name.cf_register(_make_ctx(sess), "example.com", {"email": "test@example.com"})
 
 
 class TestGhCreateRepo:

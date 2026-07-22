@@ -10,7 +10,6 @@ import json
 import os
 import re
 from dataclasses import dataclass, asdict
-from typing import Optional
 
 import requests
 
@@ -47,7 +46,7 @@ class Result:
     status: str             # AVAILABLE | TAKEN | UNKNOWN | ERROR
     detail: str = ""
     url: str = ""
-    price: Optional[float] = None
+    price: float | None = None
     confidence: str = "high"  # high | low (social checks are low)
 
 
@@ -124,7 +123,7 @@ def cloudflare_domain_check(sess, account_id, token, domains) -> dict:
     return out
 
 
-def github_handle(sess: requests.Session, handle: str, token: Optional[str]) -> Result:
+def github_handle(sess: requests.Session, handle: str, token: str | None) -> Result:
     headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
