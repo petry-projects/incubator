@@ -93,6 +93,18 @@ class TestCfRegister:
         )
         assert "REGISTERED" in result
 
+    def test_successful_registration_checks_json_body(self):
+        """Successful HTTP status but success=false in body raises error."""
+        sess = MagicMock()
+        sess.post.return_value = Mock(
+            status_code=200,
+            json=lambda: {"success": False, "errors": [{"message": "Payment required"}]},
+        )
+        with pytest.raises(RuntimeError, match="reported failure"):
+            register_name.cf_register(
+                sess, "account123", "token", "example.com", {"email": "test@example.com"}, 1, False
+            )
+
     def test_failed_registration(self):
         """Failed registration raises error."""
         sess = MagicMock()
@@ -206,6 +218,14 @@ class TestRegisterNameMain:
 
         assert result == 0
 
+    def test_empty_slug_exits_early(self, capsys):
+        """Punctuation-only name produces empty slug and exits non-zero."""
+        with patch("sys.argv", ["register_name.py", "!!!"]):
+            result = register_name.main()
+        assert result == 2
+        captured = capsys.readouterr()
+        assert "empty slug" in captured.err
+
     @patch("common.make_session")
     @patch("sys.stderr")
     def test_confirm_mismatch(self, mock_stderr, mock_session):
@@ -267,3 +287,21 @@ class TestRegisterNameMain:
             result = register_name.main()
 
         assert result == 0
+
+    @patch("common.make_session")
+    @patch("common.cloudflare_domain_check")
+    @patch("register_name.cf_register")
+    @patch("common.write_summary")
+    @patch.dict("os.environ", {"CLOUDFLARE_API_TOKEN": "token", "CLOUDFLARE_ACCOUNT_ID": "account"})
+    def test_price_none_skips_registration(self, mock_write, mock_cf_reg, mock_cf_check, mock_session):
+        """Domain with unknown price is skipped even when spend is allowed."""
+        mock_session.return_value = MagicMock()
+        mock_cf_check.return_value = {
+            "acme.com": c.Result("domain", "acme.com", c.AVAILABLE, price=None)
+        }
+
+        with patch("sys.argv", ["register_name.py", "Acme"]):
+            result = register_name.main()
+
+        assert result == 0
+        mock_cf_reg.assert_not_called()

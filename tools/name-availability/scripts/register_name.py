@@ -35,8 +35,6 @@ import argparse
 import os
 import sys
 
-import requests
-
 import common as c
 
 CF_API = "https://api.cloudflare.com/client/v4"
@@ -77,6 +75,10 @@ def cf_register(sess, account_id, token, domain, contact, years, dry_run) -> str
         timeout=90,
     )
     if r.status_code in (200, 201):
+        body = r.json()
+        if not body.get("success", True):
+            errors = body.get("errors", [])
+            raise RuntimeError(f"Cloudflare registration reported failure for {domain}: {errors}")
         return f"REGISTERED {domain}"
     raise RuntimeError(f"Cloudflare registration failed for {domain}: HTTP {r.status_code}")
 
@@ -127,6 +129,9 @@ def main() -> int:
     args = p.parse_args()
 
     name, slug = args.name, c.slugify(args.name)
+    if not slug:
+        print(f"[error] '{name}' produces an empty slug — name must contain at least one alphanumeric character", file=sys.stderr)
+        return 2
     tlds = [t.strip().lstrip(".") for t in args.tlds.split(",") if t.strip()]
     dry_run = not args.execute
     sess = c.make_session()
@@ -162,7 +167,10 @@ def main() -> int:
                     log(summary, f"- ⏭️ `{d}` — {res.detail if res else 'availability unknown'} (skip)")
                     continue
                 price = res.price
-                if price is not None and price > args.max_price:
+                if price is None:
+                    log(summary, f"- 🛑 `{d}` — price unknown; skipping (cannot enforce price cap)")
+                    continue
+                if price > args.max_price:
                     log(summary, f"- 🛑 `{d}` — ${price:.0f} exceeds --max-price ${args.max_price:.0f} (skip)")
                     continue
                 if not dry_run:

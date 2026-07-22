@@ -155,6 +155,14 @@ class TestCheckNameMain:
         # social_handle should not be called
         mock_social.assert_not_called()
 
+    def test_empty_slug_exits_with_error(self, capsys):
+        """Empty slug after slugification exits non-zero."""
+        with patch("sys.argv", ["check_name.py", "!!!"]):
+            result = check_name.main()
+        assert result == 1
+        captured = capsys.readouterr()
+        assert "empty slug" in captured.err
+
     @patch("common.make_session")
     @patch("common.cloudflare_domain_check")
     def test_cloudflare_fallback_on_error(

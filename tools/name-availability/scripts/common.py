@@ -100,9 +100,14 @@ def cloudflare_domain_check(sess, account_id, token, domains) -> dict:
     )
     r.raise_for_status()
     body = r.json()
+    if not body.get("success", True):
+        errors = body.get("errors", [])
+        raise RuntimeError(f"Cloudflare API error: {errors}")
     out: dict[str, Result] = {}
     for item in body.get("result", []):
         name = item.get("domain") or item.get("name")
+        if name is None:
+            continue
         available = item.get("available")
         price = item.get("price") or item.get("registration_fee")
         try:

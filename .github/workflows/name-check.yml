@@ -56,5 +56,5 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: name-check-${{ inputs.name }}
+          name: name-check-${{ github.run_id }}
           path: tools/name-availability/result.json

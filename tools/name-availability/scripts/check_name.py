@@ -40,6 +40,9 @@ def main() -> int:
 
     name = args.name
     slug = c.slugify(name)
+    if not slug:
+        print(f"[error] '{name}' produces an empty slug — name must contain at least one alphanumeric character", file=sys.stderr)
+        return 1
     tlds = [t.strip().lstrip(".") for t in args.tlds.split(",") if t.strip()]
     sess = c.make_session()
     gh_token = os.environ.get("BRAND_GH_TOKEN") or os.environ.get("GITHUB_TOKEN")

@@ -112,6 +112,31 @@ class TestCloudflareCheck:
         results = c.cloudflare_domain_check(session, "account123", "token", ["example.com"])
         assert results["example.com"].price is None
 
+    def test_success_false_raises(self, session):
+        """Cloudflare success=false raises RuntimeError."""
+        session.post.return_value = Mock(
+            status_code=200,
+            json=lambda: {"success": False, "errors": [{"code": 1003, "message": "Invalid account"}]},
+        )
+        with pytest.raises(RuntimeError, match="Cloudflare API error"):
+            c.cloudflare_domain_check(session, "account123", "token", ["example.com"])
+
+    def test_item_without_name_skipped(self, session):
+        """Items with no domain/name field are skipped."""
+        session.post.return_value = Mock(
+            status_code=200,
+            json=lambda: {
+                "success": True,
+                "result": [
+                    {"available": True},  # no domain or name
+                    {"domain": "ok.com", "available": True, "price": 10.0},
+                ],
+            },
+        )
+        results = c.cloudflare_domain_check(session, "account123", "token", ["ok.com"])
+        assert None not in results
+        assert "ok.com" in results
+
 
 class TestGitHubHandle:
     """Test GitHub handle availability checks."""
