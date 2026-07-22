@@ -1,0 +1,61 @@
+name: Name check (reusable)
+
+# Reusable workflow — invoked by a PRIVATE caller repo so the run's logs, job
+# summary, and artifacts stay in the caller, never here.
+#
+# There is intentionally NO workflow_dispatch trigger: this repo is public, and
+# a direct run would publish the name and domains being checked on the public
+# Actions tab. Call it from a private repo (see tools/name-availability/README.md).
+
+on:
+  workflow_call:
+    inputs:
+      name: { required: true, type: string }
+      tlds: { type: string, default: "com,io,ai,co,app,dev,org,net" }
+      social: { type: boolean, default: true }
+      fail_on: { type: string, default: "domain:com,github" }
+    secrets:
+      CLOUDFLARE_API_TOKEN: { required: false }
+      CLOUDFLARE_ACCOUNT_ID: { required: false }
+      BRAND_GH_TOKEN: { required: false }
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: tools/name-availability
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      # Reusable workflow: the default git context is the CALLER, so check out
+      # this repo explicitly to get the scripts.
+      - uses: actions/checkout@v4
+        with:
+          repository: petry-projects/incubator
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          pip install --only-binary :all: -r requirements-lock.txt
+      - name: Check name
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BRAND_GH_TOKEN: ${{ secrets.BRAND_GH_TOKEN || github.token }}
+          INPUT_NAME: ${{ inputs.name }}
+          INPUT_TLDS: ${{ inputs.tlds }}
+          INPUT_FAIL_ON: ${{ inputs.fail_on }}
+          INPUT_SOCIAL: ${{ inputs.social }}
+        run: |
+          args=("$INPUT_NAME" --tlds "$INPUT_TLDS" --fail-on "$INPUT_FAIL_ON" --json "result.json")
+          [[ "$INPUT_SOCIAL" == "true" ]] && args+=(--social) || args+=(--no-social)
+          python scripts/check_name.py "${args[@]}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: name-check-${{ github.run_id }}
+          path: tools/name-availability/result.json
