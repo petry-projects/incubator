@@ -47,16 +47,14 @@ jobs:
         with:
           persist-credentials: false
 
-      # ── Replace the step below with your stack's checks ───────────────────────
-      # Standard CI stages: lint, format check, type check, unit tests, coverage
-      # (plus integration / e2e / build where applicable). For example, a Node repo:
-      #   - uses: actions/setup-node@<sha> # vX   (with node-version + cache)
-      #   - run: npm ci
-      #   - run: npm run lint && npm run typecheck && npm test
-      # See BOOTSTRAP.md and the CI standard. Until you add real steps, the
-      # placeholder below keeps the required `build-and-test` check green.
-      - name: Placeholder — replace with real build/test steps
-        run: echo "CI stub — add your stack's lint/format/typecheck/test/coverage steps; see BOOTSTRAP.md."
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Install Python dependencies
+        run: pip install --require-hashes --only-binary :all: -r tools/name-availability/requirements-lock.txt
+      - name: Run Python tests
+        run: python -m pytest tools/name-availability/tests/ -v
 
   # Canonical secret-scan job — copied verbatim from push-protection.md#required-ci-job.
   # Produces the `Secret scan (gitleaks)` required check. Uses the gitleaks CLI (not
@@ -127,9 +125,16 @@ jobs:
             bats "${bats_files[@]}"
           fi
 
-      # ── Per-stack expansion — replace/augment the shell block above for your stack.
-      #    Keep the job id and `name:` as `coverage` so the required check is unchanged.
-      #    Node:   npx jest --coverage
-      #    Go:     go test ./... -coverprofile=coverage.out && go tool cover -func=coverage.out
-      #    Python: pytest --cov
-      #    Rust:   cargo llvm-cov --workspace
+      # ── Python coverage ───────────────────────────────────────────────────────
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: "3.12"
+      - name: Install Python dependencies
+        run: pip install --require-hashes --only-binary :all: -r tools/name-availability/requirements-lock.txt
+      - name: Python test coverage
+        run: |
+          python -m pytest tools/name-availability/tests/ \
+            --cov=tools/name-availability/scripts \
+            --cov-report=xml:coverage.xml \
+            --cov-report=term
