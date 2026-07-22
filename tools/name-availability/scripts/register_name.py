@@ -116,6 +116,60 @@ def log(summary: list[str], line: str) -> None:
     summary.append(line)
 
 
+def _try_register_domain(sess, summary, d, avail, cf_token, cf_account, dry_run, allow_spend, max_price, years, contact):
+    res = avail.get(d)
+    if not res or res.status != c.AVAILABLE:
+        log(summary, f"- ⏭️ `{d}` — {res.detail if res else 'availability unknown'} (skip)")
+        return
+    price = res.price
+    if price is None:
+        log(summary, f"- 🛑 `{d}` — price unknown; skipping (cannot enforce price cap)")
+        return
+    if price > max_price:
+        log(summary, f"- 🛑 `{d}` — ${price:.0f} exceeds --max-price ${max_price:.0f} (skip)")
+        return
+    if not dry_run:
+        if not allow_spend:
+            log(summary, f"- 🔒 `{d}` — BRAND_ALLOW_SPEND != 'yes'; refusing to spend (skip)")
+            return
+        if not contact:
+            log(summary, f"- 🔒 `{d}` — REGISTRANT_* contact not set; cannot register (skip)")
+            return
+    try:
+        msg = cf_register(sess, cf_account, cf_token, d, contact, years, dry_run)
+        price_s = f" (${price:.0f})" if price is not None else ""
+        log(summary, f"- {'🟡' if dry_run else '✅'} `{d}`{price_s} — {msg}")
+    except Exception as e:  # noqa: BLE001
+        log(summary, f"- ❌ `{d}` — {e}")
+
+
+def _register_domains(sess, summary, slug, tlds, cf_token, cf_account, dry_run, allow_spend, max_price, years):
+    summary.append("### Domains")
+    if not (cf_token and cf_account):
+        log(summary, "- ⚠️ CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID not set — skipping domains")
+        return
+    domains = [f"{slug}.{t}" for t in tlds]
+    try:
+        avail = c.cloudflare_domain_check(sess, cf_account, cf_token, domains)
+    except Exception as e:  # noqa: BLE001
+        log(summary, f"- ⚠️ domain-check failed ({e}); skipping domain registration")
+        avail = {}
+    contact = build_contact()
+    for d in domains:
+        _try_register_domain(sess, summary, d, avail, cf_token, cf_account, dry_run, allow_spend, max_price, years, contact)
+
+
+def _register_github(sess, summary, slug, gh_token, gh_org, dry_run):
+    summary.append("\n### GitHub")
+    if not gh_token:
+        log(summary, "- ⚠️ BRAND_GH_TOKEN not set — skipping GitHub repo")
+        return
+    try:
+        log(summary, f"- {'🟡' if dry_run else '✅'} {gh_create_repo(sess, gh_token, gh_org, slug, dry_run)}")
+    except Exception as e:  # noqa: BLE001
+        log(summary, f"- ❌ GitHub — {e}")
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Reserve a name where it is safe to automate.")
     p.add_argument("name")
@@ -148,63 +202,15 @@ def main() -> int:
     gh_org = os.environ.get("BRAND_GH_ORG", "").strip() or None
     allow_spend = os.environ.get("BRAND_ALLOW_SPEND", "").lower() == "yes"
 
-    # --- Domains ----------------------------------------------------------
     if not args.skip_domains:
-        summary.append("### Domains")
-        if not (cf_token and cf_account):
-            log(summary, "- ⚠️ CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID not set — skipping domains")
-        else:
-            domains = [f"{slug}.{t}" for t in tlds]
-            try:
-                avail = c.cloudflare_domain_check(sess, cf_account, cf_token, domains)
-            except Exception as e:  # noqa: BLE001
-                log(summary, f"- ⚠️ domain-check failed ({e}); skipping domain registration")
-                avail = {}
-            contact = build_contact()
-            for d in domains:
-                res = avail.get(d)
-                if not res or res.status != c.AVAILABLE:
-                    log(summary, f"- ⏭️ `{d}` — {res.detail if res else 'availability unknown'} (skip)")
-                    continue
-                price = res.price
-                if price is None:
-                    log(summary, f"- 🛑 `{d}` — price unknown; skipping (cannot enforce price cap)")
-                    continue
-                if price > args.max_price:
-                    log(summary, f"- 🛑 `{d}` — ${price:.0f} exceeds --max-price ${args.max_price:.0f} (skip)")
-                    continue
-                if not dry_run:
-                    # Gate 3 + contact presence
-                    if not allow_spend:
-                        log(summary, f"- 🔒 `{d}` — BRAND_ALLOW_SPEND != 'yes'; refusing to spend (skip)")
-                        continue
-                    if not contact:
-                        log(summary, f"- 🔒 `{d}` — REGISTRANT_* contact not set; cannot register (skip)")
-                        continue
-                try:
-                    msg = cf_register(sess, cf_account, cf_token, d, contact, args.years, dry_run)
-                    price_s = f" (${price:.0f})" if price is not None else ""
-                    log(summary, f"- {'🟡' if dry_run else '✅'} `{d}`{price_s} — {msg}")
-                except Exception as e:  # noqa: BLE001
-                    log(summary, f"- ❌ `{d}` — {e}")
-
-    # --- GitHub -----------------------------------------------------------
+        _register_domains(sess, summary, slug, tlds, cf_token, cf_account, dry_run, allow_spend, args.max_price, args.years)
     if not args.skip_github:
-        summary.append("\n### GitHub")
-        if not gh_token:
-            log(summary, "- ⚠️ BRAND_GH_TOKEN not set — skipping GitHub repo")
-        else:
-            try:
-                log(summary, f"- {'🟡' if dry_run else '✅'} {gh_create_repo(sess, gh_token, gh_org, slug, dry_run)}")
-            except Exception as e:  # noqa: BLE001
-                log(summary, f"- ❌ GitHub — {e}")
+        _register_github(sess, summary, slug, gh_token, gh_org, dry_run)
 
-    # --- Packages (print, never auto-publish) -----------------------------
     summary.append("\n### Packages — reserve by hand (not auto-published)")
     log(summary, f"- npm:  `npm init -y && npm publish --access public`  (name: `{slug}`)")
     log(summary, f"- PyPI: build a stub sdist then `twine upload dist/*`  (name: `{slug}`)")
 
-    # --- Social (never automated) -----------------------------------------
     summary.append("\n### Social — claim by hand")
     for platform, signup in c.SOCIAL_SIGNUP.items():
         log(summary, f"- {platform}: `@{slug}` → {signup}")

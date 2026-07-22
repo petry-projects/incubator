@@ -54,7 +54,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: |
-          pip install --only-binary :all: -r requirements-lock.txt
+          pip install --only-binary :all: --require-hashes -r requirements-lock.txt
       - name: Reserve name
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

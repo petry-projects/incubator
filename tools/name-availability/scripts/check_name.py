@@ -90,7 +90,7 @@ def main() -> int:
         banner = f"\n{'✅ CLEAR' if ok else '❌ CONFLICT'} — {detail}"
         print(banner)
         c.write_summary(banner)
-        return 0 if ok else 1
+        return int(not ok)
     return 0
 
 
