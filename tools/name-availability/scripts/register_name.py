@@ -34,10 +34,26 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+from dataclasses import dataclass
 
 import common as c
 
 CF_API = "https://api.cloudflare.com/client/v4"
+
+
+@dataclass
+class _RegCtx:
+    """Session-level state shared across all registration helpers."""
+
+    sess: object
+    cf_account: str | None
+    cf_token: str | None
+    gh_token: str | None
+    dry_run: bool
+    allow_spend: bool
+    max_price: float
+    years: int
+    summary: list[str]
 
 
 def build_contact() -> dict | None:
@@ -62,15 +78,15 @@ def build_contact() -> dict | None:
     }
 
 
-def cf_register(sess, account_id, token, domain, contact, years, dry_run) -> str:
-    payload = {"name": domain, "years": years, "auto_renew": True, "privacy": True, "contact": contact}
-    endpoint = f"{CF_API}/accounts/{account_id}/registrar/registrations"
-    if dry_run:
+def cf_register(ctx: _RegCtx, domain: str, contact: dict) -> str:
+    payload = {"name": domain, "years": ctx.years, "auto_renew": True, "privacy": True, "contact": contact}
+    endpoint = f"{CF_API}/accounts/{ctx.cf_account}/registrar/registrations"
+    if ctx.dry_run:
         safe = dict(payload, contact={"…": "REGISTRANT_* from env (hidden)"})
         return f"DRY RUN — would POST {endpoint} :: {safe}"
-    r = sess.post(
+    r = ctx.sess.post(
         endpoint,
-        headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        headers={"Authorization": f"Bearer {ctx.cf_token}", "Content-Type": "application/json"},
         json=payload,
         timeout=90,
     )
@@ -110,7 +126,7 @@ def gh_create_repo(sess, token, org, slug, dry_run) -> str:
         if isinstance(resp_data, dict):
             detail = resp_data.get("message", "")
     except ValueError:
-        detail = ""
+        pass
     raise RuntimeError(f"GitHub repo create failed: HTTP {r.status_code}{': ' + detail if detail else ''}")
 
 
@@ -125,68 +141,68 @@ def log(summary: list[str], line: str) -> None:
     summary.append(line)
 
 
-def _try_register_domain(sess, cf_account, cf_token, d, avail, contact, dry_run, allow_spend, max_price, years, summary) -> bool:
+def _try_register_domain(ctx: _RegCtx, d: str, avail: dict, contact: dict | None) -> bool:
     """Returns True if a real (non-skip) error occurred."""
     res = avail.get(d)
     if not res or res.status != c.AVAILABLE:
-        log(summary, f"- ⏭️ `{d}` — {res.detail if res else 'availability unknown'} (skip)")
+        log(ctx.summary, f"- ⏭️ `{d}` — {res.detail if res else 'availability unknown'} (skip)")
         return False
     price = res.price
     if price is None:
-        log(summary, f"- 🛑 `{d}` — price unknown; skipping (cannot enforce price cap)")
+        log(ctx.summary, f"- 🛑 `{d}` — price unknown; skipping (cannot enforce price cap)")
         return False
-    if price > max_price:
-        log(summary, f"- 🛑 `{d}` — ${price:.0f} exceeds --max-price ${max_price:.0f} (skip)")
+    if price > ctx.max_price:
+        log(ctx.summary, f"- 🛑 `{d}` — ${price:.0f} exceeds --max-price ${ctx.max_price:.0f} (skip)")
         return False
-    if not dry_run:
+    if not ctx.dry_run:
         # Gate 3 + contact presence
-        if not allow_spend:
-            log(summary, f"- 🔒 `{d}` — BRAND_ALLOW_SPEND != 'yes'; refusing to spend (skip)")
+        if not ctx.allow_spend:
+            log(ctx.summary, f"- 🔒 `{d}` — BRAND_ALLOW_SPEND != 'yes'; refusing to spend (skip)")
             return False
         if not contact:
-            log(summary, f"- 🔒 `{d}` — REGISTRANT_* contact not set; cannot register (skip)")
+            log(ctx.summary, f"- 🔒 `{d}` — REGISTRANT_* contact not set; cannot register (skip)")
             return False
     try:
-        msg = cf_register(sess, cf_account, cf_token, d, contact, years, dry_run)
+        msg = cf_register(ctx, d, contact)
         price_s = f" (${price:.0f})"
-        log(summary, f"- {'🟡' if dry_run else '✅'} `{d}`{price_s} — {msg}")
+        log(ctx.summary, f"- {'🟡' if ctx.dry_run else '✅'} `{d}`{price_s} — {msg}")
         return False
     except Exception as e:  # noqa: BLE001
-        log(summary, f"- ❌ `{d}` — {e}")
+        log(ctx.summary, f"- ❌ `{d}` — {e}")
         return True
 
 
-def _register_domains(sess, slug, tlds, cf_token, cf_account, dry_run, allow_spend, max_price, years, summary) -> bool:
+def _register_domains(ctx: _RegCtx, slug: str, tlds: list[str]) -> bool:
     """Returns True if any domain registration error occurred."""
-    summary.append("### Domains")
-    if not (cf_token and cf_account):
-        log(summary, "- ⚠️ CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID not set — skipping domains")
+    ctx.summary.append("### Domains")
+    if not (ctx.cf_token and ctx.cf_account):
+        log(ctx.summary, "- ⚠️ CLOUDFLARE_API_TOKEN / CLOUDFLARE_ACCOUNT_ID not set — skipping domains")
         return False
     domains = [f"{slug}.{t}" for t in tlds]
     try:
-        avail = c.cloudflare_domain_check(sess, cf_account, cf_token, domains)
+        avail = c.cloudflare_domain_check(ctx.sess, ctx.cf_account, ctx.cf_token, domains)
     except Exception as e:  # noqa: BLE001
-        log(summary, f"- ⚠️ domain-check failed ({e}); skipping domain registration")
+        log(ctx.summary, f"- ⚠️ domain-check failed ({e}); skipping domain registration")
         avail = {}
     contact = build_contact()
     had_error = False
     for d in domains:
-        if _try_register_domain(sess, cf_account, cf_token, d, avail, contact, dry_run, allow_spend, max_price, years, summary):
+        if _try_register_domain(ctx, d, avail, contact):
             had_error = True
     return had_error
 
 
-def _register_github(sess, gh_token, gh_org, slug, dry_run, summary) -> bool:
+def _register_github(ctx: _RegCtx, gh_org: str | None, slug: str) -> bool:
     """Returns True if a GitHub repo operation error occurred."""
-    summary.append("\n### GitHub")
-    if not gh_token:
-        log(summary, "- ⚠️ BRAND_GH_TOKEN not set — skipping GitHub repo")
+    ctx.summary.append("\n### GitHub")
+    if not ctx.gh_token:
+        log(ctx.summary, "- ⚠️ BRAND_GH_TOKEN not set — skipping GitHub repo")
         return False
     try:
-        log(summary, f"- {'🟡' if dry_run else '✅'} {gh_create_repo(sess, gh_token, gh_org, slug, dry_run)}")
+        log(ctx.summary, f"- {'🟡' if ctx.dry_run else '✅'} {gh_create_repo(ctx.sess, ctx.gh_token, gh_org, slug, ctx.dry_run)}")
         return False
     except Exception as e:  # noqa: BLE001
-        log(summary, f"- ❌ GitHub — {e}")
+        log(ctx.summary, f"- ❌ GitHub — {e}")
         return True
 
 
@@ -211,27 +227,33 @@ def main() -> int:
         return 2
     tlds = [t.strip().lstrip(".").lower() for t in args.tlds.split(",") if t.strip()]
     dry_run = not args.execute
-    sess = c.make_session()
-    summary: list[str] = [f"## Register — `{name}` (slug `{slug}`)  {'· DRY RUN' if dry_run else '· EXECUTE'}", ""]
 
     # Gate 2: confirm matches
     if args.execute and c.slugify(args.confirm) != slug:
         print(f"[abort] --confirm '{args.confirm}' does not match name '{name}'", file=sys.stderr)
         return 2
 
-    cf_token = os.environ.get("CLOUDFLARE_API_TOKEN")
-    cf_account = os.environ.get("CLOUDFLARE_ACCOUNT_ID")
-    gh_token = os.environ.get("BRAND_GH_TOKEN")
     gh_org = os.environ.get("BRAND_GH_ORG", "").strip() or None
-    allow_spend = os.environ.get("BRAND_ALLOW_SPEND", "").lower() == "yes"
+    summary: list[str] = [f"## Register — `{name}` (slug `{slug}`)  {'· DRY RUN' if dry_run else '· EXECUTE'}", ""]
+    ctx = _RegCtx(
+        sess=c.make_session(),
+        cf_account=os.environ.get("CLOUDFLARE_ACCOUNT_ID"),
+        cf_token=os.environ.get("CLOUDFLARE_API_TOKEN"),
+        gh_token=os.environ.get("BRAND_GH_TOKEN"),
+        dry_run=dry_run,
+        allow_spend=os.environ.get("BRAND_ALLOW_SPEND", "").lower() == "yes",
+        max_price=args.max_price,
+        years=args.years,
+        summary=summary,
+    )
 
     had_error = False
     if not args.skip_domains:
-        if _register_domains(sess, slug, tlds, cf_token, cf_account, dry_run, allow_spend, args.max_price, args.years, summary):
+        if _register_domains(ctx, slug, tlds):
             had_error = True
 
     if not args.skip_github:
-        if _register_github(sess, gh_token, gh_org, slug, dry_run, summary):
+        if _register_github(ctx, gh_org, slug):
             had_error = True
 
     # --- Packages (print, never auto-publish) -----------------------------
