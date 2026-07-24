@@ -1,0 +1,873 @@
+{
+  "keyword": "white noise",
+  "mobileaction": {
+    "keyword": "white noise",
+    "discovery_channel": "app-store",
+    "volume": 64,
+    "difficulty": 39,
+    "ranked_apps": 230,
+    "note": "resented market: BetterSleep 80% resent"
+  },
+  "competitors": [
+    {
+      "app": "White Noise Lite",
+      "id": 292987597,
+      "seller": "TMSOFT",
+      "rating": 4.82,
+      "count": 272184,
+      "price": "Free",
+      "updated": "2026-07",
+      "genre": "Health & Fitness",
+      "reviews": {
+        "n": 150,
+        "n_low": 27,
+        "n_high": 123,
+        "resent_frac": 0.33,
+        "gripes": {
+          "ads": 5,
+          "missing / limited": 3,
+          "got worse (enshittification)": 4,
+          "bugs / reliability": 4
+        },
+        "quotes": {
+          "ads": [
+            {
+              "r": 1,
+              "t": "Can\u2019t use it anymore",
+              "b": "Been using and relying on this white noise app when traveling for a very long time. Latest update suddenly has ads and wants me to upgrade. Time to get rid of i"
+            },
+            {
+              "r": 2,
+              "t": "Please fix the bugs",
+              "b": "Used to love this app. Now I can\u2019t get it to work because of the ads. I rebooted my phone and it finally worked. Then once again, it\u2019s happened again. Going to "
+            },
+            {
+              "r": 1,
+              "t": "Ads stopping the sound",
+              "b": "Some new ads being displayed in the app silence the sound selection in the app making it useless."
+            }
+          ],
+          "missing / limited": [
+            {
+              "r": 1,
+              "t": "Get Bent!",
+              "b": "I have used this for years now all of a sudden I can't keep it on with the phone being closed then trying to get more info and money for stuff I'll go get for f"
+            },
+            {
+              "r": 3,
+              "t": "Few glitches",
+              "b": "Appreciate the free brown noise sound. But annoyed that the sound will sometimes auto play in my car loudly the next day. Also wish there were settings for the "
+            },
+            {
+              "r": 1,
+              "t": "App",
+              "b": "It would be nice if the app played more than one sound and that for only a minute \ud83e\udee9"
+            }
+          ],
+          "got worse (enshittification)": [
+            {
+              "r": 1,
+              "t": "Volume Ruined",
+              "b": "What the heck?! New app update makes the sound so soft now. I can barely hear anything even at max volume. Will be switching to another app."
+            },
+            {
+              "r": 2,
+              "t": "Please fix the bugs",
+              "b": "Used to love this app. Now I can\u2019t get it to work because of the ads. I rebooted my phone and it finally worked. Then once again, it\u2019s happened again. Going to "
+            },
+            {
+              "r": 2,
+              "t": "What happened?",
+              "b": "This app used to be great and the noise stayed on all night and helped me sleep. Suddenly tonight, it stops when my phone is idle and the screen goes off, or wh"
+            }
+          ],
+          "bugs / reliability": [
+            {
+              "r": 3,
+              "t": "Few glitches",
+              "b": "Appreciate the free brown noise sound. But annoyed that the sound will sometimes auto play in my car loudly the next day. Also wish there were settings for the "
+            },
+            {
+              "r": 1,
+              "t": "Buggy Lately",
+              "b": "Bluetooth issues"
+            },
+            {
+              "r": 2,
+              "t": "Please fix the bugs",
+              "b": "Used to love this app. Now I can\u2019t get it to work because of the ads. I rebooted my phone and it finally worked. Then once again, it\u2019s happened again. Going to "
+            }
+          ]
+        },
+        "loves": {
+          "love": 26,
+          "best": 14,
+          "free": 8,
+          "simple": 3,
+          "easy": 2,
+          "fast": 2,
+          "no ads": 1,
+          "reliable": 1
+        },
+        "wishes": [
+          "can't keep it on with the phone being closed then trying to get more info and money f",
+          "need to fix whatever the latest OS update did",
+          "wish there were settings for the clock feature like that it would turn on immediatel",
+          "need to download another app, and create an account, and log in",
+          "need to upgrade, which it won\u2019t successfully do",
+          "need to be said"
+        ]
+      }
+    },
+    {
+      "app": "White Noise Deep Sleep Sounds",
+      "id": 1083248251,
+      "seller": "Slumber Studios, LLC",
+      "rating": 4.8,
+      "count": 205500,
+      "price": "Free",
+      "updated": "2026-06",
+      "genre": "Health & Fitness",
+      "reviews": {
+        "n": 100,
+        "n_low": 15,
+        "n_high": 85,
+        "resent_frac": 0.33,
+        "gripes": {
+          "pricing / paywall": 5
+        },
+        "quotes": {
+          "pricing / paywall": [
+            {
+              "r": 1,
+              "t": "7 Day Trail",
+              "b": "Pay to use this very basic white app. It complicates and monetizes what should be a straightforward service."
+            },
+            {
+              "r": 1,
+              "t": "Expensive",
+              "b": "Why force people to download your app only to find out there is a charge?"
+            },
+            {
+              "r": 1,
+              "t": "It\u2019s not free",
+              "b": "There are plenty better apps which are not only free, but much better."
+            }
+          ]
+        },
+        "loves": {
+          "love": 22,
+          "best": 11,
+          "free": 7,
+          "simple": 2,
+          "easy": 2,
+          "aesthetic": 1
+        },
+        "wishes": [
+          "need to purchase to have all the sleep sounds",
+          "Needs to be louder",
+          "wish that you didn\u2019t have to pay because people would get a lot more use out of it",
+          "wish that we could set the time that the noise goes to because as soon as the noise",
+          "no way to favorite them",
+          "need to be a subscription"
+        ]
+      }
+    },
+    {
+      "app": "Bedtime Fan: White Noise Baby",
+      "id": 907295335,
+      "seller": "Slumber Studios, LLC",
+      "rating": 4.77,
+      "count": 198946,
+      "price": "Free",
+      "updated": "2026-06",
+      "genre": "Health & Fitness",
+      "reviews": {
+        "n": 150,
+        "n_low": 47,
+        "n_high": 103,
+        "resent_frac": 0.77,
+        "gripes": {
+          "pricing / paywall": 17,
+          "ads": 16,
+          "got worse (enshittification)": 3,
+          "missing / limited": 1
+        },
+        "quotes": {
+          "pricing / paywall": [
+            {
+              "r": 1,
+              "t": "Click bait",
+              "b": "Click thru questions and then Paywall.  Disingenuous"
+            },
+            {
+              "r": 1,
+              "t": "Cancellation process",
+              "b": "I wanted to try the trial now I can\u2019t seem to get out of the subscription"
+            },
+            {
+              "r": 1,
+              "t": "Don\u2019t waste your money on this",
+              "b": "You\u2019re already spending money on the app and then it tells you that you have to pay and upgrade it just so you can have ONE SOUND and you wont and don\u2019t know if"
+            }
+          ],
+          "ads": [
+            {
+              "r": 1,
+              "t": "App is great beware of X ads",
+              "b": "I\u2019m disappointed that the ads were explicit and inappropriate for the free version. The app fan is a great resource but I can\u2019t believe the ads they had visible"
+            },
+            {
+              "r": 1,
+              "t": "Doesn\u2019t need to be a paid subscription",
+              "b": "The app begins with an unskippable performative survey that \u201cloads custom settings\u201d. Just let me see the app first before forcing information out of me and then"
+            },
+            {
+              "r": 1,
+              "t": "Naked women ads",
+              "b": "Unfortunately this app has naked women ads at the bottom of the fan. I do not appreciate this. I downloaded a fan app to have fan noise, not see naked women."
+            }
+          ],
+          "got worse (enshittification)": [
+            {
+              "r": 1,
+              "t": "Used to use",
+              "b": "Used this for a long time. Now ads get in the way and randomly shuts off which wakes me up."
+            },
+            {
+              "r": 3,
+              "t": "One flaw",
+              "b": "I used to love this app, but I\u2019m probably gonna have to remove it because it keeps coming on every time I use my camera. I had it off and swipe up and everythin"
+            },
+            {
+              "r": 1,
+              "t": "Wow. AWFUL ADS",
+              "b": "Just insane. Used to be my go to white noise app. Now they have unskippable 4 minute ads to listen to a fan. Deleting the app, insanity"
+            }
+          ],
+          "missing / limited": [
+            {
+              "r": 1,
+              "t": "No way to cancel subscription",
+              "b": "Great way to trap people. I said i did t want the subscription just the free trial"
+            }
+          ]
+        },
+        "loves": {
+          "love": 25,
+          "best": 18,
+          "free": 4,
+          "fast": 2,
+          "minimal": 1,
+          "easy": 1
+        },
+        "wishes": [
+          "need a membership for, there is a section for story\u2019s and podcast",
+          "need to link to a speaker",
+          "need a subscription for white noise",
+          "need the fan sound if I don\u2019t have my fan I use that noise but my favorite is the wh",
+          "need a fan to sleep, and my family took me somewhere a couple weeks ago  and we forg",
+          "need white noise to sleep \ud83d\ude34 GET THIS APP IM TELLING YOU, IT WORKS"
+        ]
+      }
+    },
+    {
+      "app": "White Noise",
+      "id": 289894882,
+      "seller": "TMSOFT",
+      "rating": 4.84,
+      "count": 45565,
+      "price": "$0.99",
+      "updated": "2026-07",
+      "genre": "Health & Fitness",
+      "reviews": {
+        "n": 150,
+        "n_low": 29,
+        "n_high": 121,
+        "resent_frac": 0.45,
+        "gripes": {
+          "bugs / reliability": 9,
+          "got worse (enshittification)": 7,
+          "ads": 4,
+          "missing / limited": 1,
+          "pricing / paywall": 2
+        },
+        "quotes": {
+          "bugs / reliability": [
+            {
+              "r": 2,
+              "t": "Noise \u2018glitches out\u2019 every 30 seconds",
+              "b": "Seems like it\u2019s a .wav file restarting? Very 90s. Note: this is on brown noise, also seeing others with this issue."
+            },
+            {
+              "r": 2,
+              "t": "Volume broken",
+              "b": "Latest update completely messed up the volume levels.  Put it back!"
+            },
+            {
+              "r": 1,
+              "t": "Undo the last change to the volume",
+              "b": "I used to have this play on the same Bluetooth speaker from my iPhone at 50% volume. After the update 2 days ago my iPhone now has to be at about 99% to hear it"
+            }
+          ],
+          "got worse (enshittification)": [
+            {
+              "r": 2,
+              "t": "Volume reduced",
+              "b": "You ruined the app in the most recent update. The overall volume is half of what it used to be."
+            },
+            {
+              "r": 1,
+              "t": "Undo the last change to the volume",
+              "b": "I used to have this play on the same Bluetooth speaker from my iPhone at 50% volume. After the update 2 days ago my iPhone now has to be at about 99% to hear it"
+            },
+            {
+              "r": 2,
+              "t": "AirPods control broken",
+              "b": "I used to love this app, but lately it doesn\u2019t respond to AirPods control gestures like stop and play. Instead, Apple Music or Spotify starts to play. I have to"
+            }
+          ],
+          "ads": [
+            {
+              "r": 2,
+              "t": "Shows ads in paid version",
+              "b": "No way to turn them off \ud83d\ude25"
+            },
+            {
+              "r": 1,
+              "t": "Full version full of ads",
+              "b": "Why are there more ads in the full version than the free?!"
+            },
+            {
+              "r": 1,
+              "t": "GARBAGE. DO NOT BUY.",
+              "b": "They ruined what was a good app, with the usual money-grubbing, greedy pop-up ads EVEN AFTER YOU BUY EVERY SINGLE VERSION!"
+            }
+          ],
+          "missing / limited": [
+            {
+              "r": 2,
+              "t": "Shows ads in paid version",
+              "b": "No way to turn them off \ud83d\ude25"
+            }
+          ],
+          "pricing / paywall": [
+            {
+              "r": 2,
+              "t": "Drains battery",
+              "b": "I\u2019ve used this app happily for years when I sleep at night with my phone plugged in and charging always to 100% overnight. But in the last 4 months I noticed my"
+            },
+            {
+              "r": 1,
+              "t": "GARBAGE. DO NOT BUY.",
+              "b": "They ruined what was a good app, with the usual money-grubbing, greedy pop-up ads EVEN AFTER YOU BUY EVERY SINGLE VERSION!"
+            }
+          ]
+        },
+        "loves": {
+          "love": 20,
+          "best": 17,
+          "easy": 9,
+          "free": 6,
+          "reliable": 3,
+          "simple": 2,
+          "fast": 2,
+          "customizable": 1
+        },
+        "wishes": [
+          "No way to turn them off \ud83d\ude25",
+          "need white noise to sleep",
+          "need to try something else",
+          "need to \ndrown out an annoying sounds",
+          "need from a noise-making app",
+          "wish it also supported my custom mixes, then i could rate it 5 stars for all five pl"
+        ]
+      }
+    },
+    {
+      "app": "BetterSleep: Relax and Sleep",
+      "id": 314498713,
+      "seller": "BetterSleep Health, LLC",
+      "rating": 4.74,
+      "count": 390582,
+      "price": "Free",
+      "updated": "2026-07",
+      "genre": "Health & Fitness",
+      "reviews": {
+        "n": 150,
+        "n_low": 127,
+        "n_high": 23,
+        "resent_frac": 0.98,
+        "gripes": {
+          "pricing / paywall": 97,
+          "got worse (enshittification)": 22,
+          "bugs / reliability": 6,
+          "missing / limited": 8,
+          "ads": 5
+        },
+        "quotes": {
+          "pricing / paywall": [
+            {
+              "r": 1,
+              "t": "Thanks for the paywall \ud83d\ude44",
+              "b": "I\u2019ve used this app forever and now it\u2019s all locked behind a paywall. Gross! GREEDY!!"
+            },
+            {
+              "r": 1,
+              "t": "To expensive",
+              "b": "When the app first came out it was great, so many free sounds. Now I just use shuteye because i can\u2019t use anything without purchasing something."
+            },
+            {
+              "r": 1,
+              "t": "Terrible.",
+              "b": "I used this app years ago and now you have to pay to even start using it. They ruined the app completely this is ridiculous and out of touch."
+            }
+          ],
+          "got worse (enshittification)": [
+            {
+              "r": 1,
+              "t": "Used to be good",
+              "b": "Loved this app before they started charging for everything."
+            },
+            {
+              "r": 1,
+              "t": "Terrible.",
+              "b": "I used this app years ago and now you have to pay to even start using it. They ruined the app completely this is ridiculous and out of touch."
+            },
+            {
+              "r": 1,
+              "t": "Subscription Only now",
+              "b": "I\u2019ve had the app for many years, and there used to be a handful of free sounds you could use which I appreciated. Now I log in to find out everything requires y"
+            }
+          ],
+          "bugs / reliability": [
+            {
+              "r": 3,
+              "t": "I am able to install on AVP but it crashes immediately",
+              "b": "I am able to install on AVP but it crashes immediately. Works great on all of my other devices. Would really like to enjoy this on AVP too - pretty please :)"
+            },
+            {
+              "r": 1,
+              "t": "Broken and not working",
+              "b": "I have had this app since it was Relax Melodies now it won\u2019t connect the Internet and it says that I have to pay for it even though I was grandfathered in years"
+            },
+            {
+              "r": 1,
+              "t": "Used to be great",
+              "b": "This app used to be an amazing app for sleep. But not anymore. I don\u2019t mind so much that there is a subscription - it\u2019s not ideal and feels very money-grabbing,"
+            }
+          ],
+          "missing / limited": [
+            {
+              "r": 1,
+              "t": "Paywall garage",
+              "b": "Wishing nothing but failure for this company. And so it will be. Money hungry sold out slugs."
+            },
+            {
+              "r": 1,
+              "t": "i used to LOVE this app",
+              "b": "i have always had issues with sleep, falling asleep and staying asleep, and this app was amazing! i decided to get the lifetime purchase because i used this app"
+            },
+            {
+              "r": 1,
+              "t": "Simplistic and now almost entirely behind a paywall",
+              "b": "This app has dozens of sounds. Many of them used to be available without having to pay for the subscription. Apparently there was recently an update because whe"
+            }
+          ],
+          "ads": [
+            {
+              "r": 1,
+              "t": "Was randomly charged $75??",
+              "b": "I had originally enjoyed the app and had been made aware of it through advertising on social media. The ads had discussed a 7 day free trial period with no fees"
+            },
+            {
+              "r": 1,
+              "t": "Misleading ads",
+              "b": "Saw this ad on Facebook and it played a sort of pulsing sound, with something about it taking anxiety away. I liked the sound and immediately went to the site a"
+            },
+            {
+              "r": 1,
+              "t": "Really disappointed in money grab",
+              "b": "This really used to be my favorite sleep app by far, with all the customizability and great sounds. I've used it for many years, but with the most recent update"
+            }
+          ]
+        },
+        "loves": {
+          "love": 6,
+          "free": 5,
+          "easy": 1,
+          "best": 1
+        },
+        "wishes": [
+          "wish i never dropped the money on this app",
+          "wish the devs knew how the hours (and nights) were of sleepless nights felt",
+          "needs improving and increase the price",
+          "need it every night to sleep",
+          "need it I realize they\u2019ve updated and locked almost every sound behind a paywall",
+          "NEEDS to be a subscription now days"
+        ]
+      }
+    },
+    {
+      "app": "White Noise HQ: sound machine",
+      "id": 888963581,
+      "seller": "Phase4 Mobile, Inc.",
+      "rating": 4.76,
+      "count": 11848,
+      "price": "Free",
+      "updated": "2026-07",
+      "genre": "Health & Fitness",
+      "reviews": {
+        "n": 150,
+        "n_low": 28,
+        "n_high": 122,
+        "resent_frac": 0.25,
+        "gripes": {
+          "ads": 3,
+          "pricing / paywall": 2,
+          "got worse (enshittification)": 2,
+          "bugs / reliability": 2,
+          "missing / limited": 1
+        },
+        "quotes": {
+          "ads": [
+            {
+              "r": 2,
+              "t": "Too many ads",
+              "b": "I use as a sleep machine. With a little adjustment to levels of the basic sounds, I have a nice sound for sleeping or to cover distracting sounds when I do devo"
+            },
+            {
+              "r": 1,
+              "t": "Full of spam and porn",
+              "b": "The app is effective, and the white noise is good, but the ads and the pornography is not a good thing. This is one of those apps that shoves pop-ups and paymen"
+            },
+            {
+              "r": 3,
+              "t": "Stops when pop up comes up",
+              "b": "I would have given this 5 stars as the sounds are the BEST I\u2019ve heard in a sleep app so far, HOWEVER-  every time a pop up comes up advertising one of their oth"
+            }
+          ],
+          "pricing / paywall": [
+            {
+              "r": 1,
+              "t": "Ruined by the \"new subscription option\"",
+              "b": "Have had this app for about a year and it was perfect. The sound restarted itself if there was an interruption by an incoming text or other function. Now you ha"
+            },
+            {
+              "r": 1,
+              "t": "Big layers",
+              "b": "All apps free only 5 song\nNot good quality \nNot good option \n\n\ud83d\ude29\ud83d\ude29\ud83d\ude29 only man you need money \nNot free"
+            }
+          ],
+          "got worse (enshittification)": [
+            {
+              "r": 1,
+              "t": "Ruined by the \"new subscription option\"",
+              "b": "Have had this app for about a year and it was perfect. The sound restarted itself if there was an interruption by an incoming text or other function. Now you ha"
+            },
+            {
+              "r": 1,
+              "t": "THEY CHANGED MY FAN",
+              "b": "been using this app for years and always fall asleep to the fan sound but they changed it today and now it sounds more static wooshy and has little TINKS IN IT "
+            }
+          ],
+          "bugs / reliability": [
+            {
+              "r": 1,
+              "t": "Was five up until tonight",
+              "b": "Ive been listening to this for 4 or 5 years. I was trying to go to sleep and this creepy laugh in the background started talking to me. I asked it a question I "
+            },
+            {
+              "r": 1,
+              "t": "Why is it pasting from my clipboard?",
+              "b": "Since upgrading to iOS 14, the OS shows when you paste anything into an app; and every time I open this app it is pasting whatever is in my clipboard into itsel"
+            }
+          ],
+          "missing / limited": [
+            {
+              "r": 3,
+              "t": "Stops when pop up comes up",
+              "b": "I would have given this 5 stars as the sounds are the BEST I\u2019ve heard in a sleep app so far, HOWEVER-  every time a pop up comes up advertising one of their oth"
+            }
+          ]
+        },
+        "loves": {
+          "love": 24,
+          "free": 10,
+          "best": 9,
+          "easy": 3,
+          "private": 2,
+          "beautiful": 2,
+          "customizable": 1,
+          "reliable": 1
+        },
+        "wishes": [
+          "need consistent noice and the little tinks ruin that",
+          "need to find a new white noise app for the second time now \ud83d\ude2d",
+          "need money \nNot free",
+          "need to work on usability",
+          "need to go find a new white noise generator that won\u2019t spy on me"
+        ]
+      }
+    },
+    {
+      "app": "White Noise Ambience Lite",
+      "id": 428075504,
+      "seller": "logicworks",
+      "rating": 4.72,
+      "count": 3375,
+      "price": "Free",
+      "updated": "2025-08",
+      "genre": "Health & Fitness",
+      "reviews": {
+        "n": 150,
+        "n_low": 41,
+        "n_high": 109,
+        "resent_frac": 0.44,
+        "gripes": {
+          "ads": 6,
+          "pricing / paywall": 6,
+          "got worse (enshittification)": 6,
+          "bugs / reliability": 9
+        },
+        "quotes": {
+          "ads": [
+            {
+              "r": 1,
+              "t": "Nudity in Ads \u2013 Not Acceptable",
+              "b": "Ads in this sleep app are displaying nudity/inappropriate content. This is unacceptable especially for an app that may be used by children. Please fix your ad f"
+            },
+            {
+              "r": 3,
+              "t": "App is good but showing x rated ads",
+              "b": "Really obscene looking images in the ads please fix this my kids use it."
+            },
+            {
+              "r": 2,
+              "t": "Watch out for pseudo pornographic ads",
+              "b": "This app features ads for a clothing company called Temu that are just regular pictures that are obviously mean to be optical illusions that look like pornograp"
+            }
+          ],
+          "pricing / paywall": [
+            {
+              "r": 1,
+              "t": "Long time user no more",
+              "b": "I have used this app for over a decade. Now it cannot restore my purchase which was my favorite sound even with an active subscription. So deleting app now."
+            },
+            {
+              "r": 1,
+              "t": "Loved this app",
+              "b": "Loved is the optimum word! Since it updated,  the app stops working hours before I turn it off. I had to turn it back on twice just tonight. Some days it works "
+            },
+            {
+              "r": 2,
+              "t": "Subscription REQUIRED!",
+              "b": "Love this app but after a few weeks it locks up almost every night to the point that it is unusable unless you purchase their subscription. VERY DISAPPOINTED!!"
+            }
+          ],
+          "got worse (enshittification)": [
+            {
+              "r": 1,
+              "t": "Stops for no reason",
+              "b": "Used to work great. Now it stops without warning. I\u2019ve tried everything but the problem persists."
+            },
+            {
+              "r": 2,
+              "t": "Used to be awesome",
+              "b": "Overheats my phone and sound stops randomly.  Thought it was just my phone but seems to be a common issue that they aren\u2019t fixing.  Deleting app now.  :-/"
+            },
+            {
+              "r": 2,
+              "t": "Used to work better",
+              "b": "Recently, when the subscription price went down, I would have subscribed; the price was a great deal, if what I was supporting was the product I first downloade"
+            }
+          ],
+          "bugs / reliability": [
+            {
+              "r": 3,
+              "t": "Bugs have taken over",
+              "b": "Was the BEST! In the past several months has gotten buggier and buggier! Please update with fixes!!!!!!!!!! Otherwise, I\u2019ll be moving on and would suggest the s"
+            },
+            {
+              "r": 1,
+              "t": "Barely useful",
+              "b": "Crashes every night. Sounds stop after a minute. Volume is not controllable after playing. Need to order more stability."
+            },
+            {
+              "r": 3,
+              "t": "Great but has problems",
+              "b": "I\u2019m not gonna type much but it\u2019s very great but has a few bugs these bugs include stopping playing, freezing, and more"
+            }
+          ]
+        },
+        "loves": {
+          "love": 29,
+          "best": 23,
+          "free": 7,
+          "easy": 6,
+          "beautiful": 2,
+          "reliable": 2,
+          "simple": 1,
+          "no ads": 1
+        },
+        "wishes": [
+          "need to add more",
+          "need to find another sleep app",
+          "Need to order more stability",
+          "need it to - even all night",
+          "no way to delete them or report them",
+          "need an on - the go noise maker"
+        ]
+      }
+    },
+    {
+      "app": "Rain Rain Sleep Sounds",
+      "id": 478687481,
+      "seller": "Tim Gostony",
+      "rating": 4.85,
+      "count": 136020,
+      "price": "Free",
+      "updated": "2025-01",
+      "genre": "Health & Fitness",
+      "reviews": {
+        "n": 150,
+        "n_low": 20,
+        "n_high": 130,
+        "resent_frac": 0.6,
+        "gripes": {
+          "pricing / paywall": 8,
+          "missing / limited": 2,
+          "bugs / reliability": 4,
+          "got worse (enshittification)": 3,
+          "ads": 1
+        },
+        "quotes": {
+          "pricing / paywall": [
+            {
+              "r": 1,
+              "t": "Paywall garbage",
+              "b": "Had this app for almost 10 years. Got a new phone and lost all my sounds I previously bought. Reached out to support and they never got back to me. Now you gott"
+            },
+            {
+              "r": 2,
+              "t": "NOT free.",
+              "b": "This is not a free app. You get a free trial, then you pay through the nose."
+            },
+            {
+              "r": 1,
+              "t": "Greedy",
+              "b": "If you wanted people to get a good nights rest, you wouldn\u2019t switch a previously free option to a paid subscription. Greedy corporations at their finest."
+            }
+          ],
+          "missing / limited": [
+            {
+              "r": 3,
+              "t": "fireworks",
+              "b": "wish it had a firework sound"
+            },
+            {
+              "r": 3,
+              "t": "Awesome",
+              "b": "Awesome app for getting good sleep. Just wish I could turn off it using background data. Love the app but it\u2019s a battery killer even when the app is closed."
+            }
+          ],
+          "bugs / reliability": [
+            {
+              "r": 1,
+              "t": "Good rain but its heavily buggy.",
+              "b": "Constsntly turns off when im watching something, volume levels get reset so it blasts in my ears, its weird how it doesnt stay on. would be geeat if it did."
+            },
+            {
+              "r": 3,
+              "t": "Glitch in the app",
+              "b": "Honestly I LOVE this app. It really helps me to sleep. HOWEVER, it is #%*^# irritating that is activates on my bluetooth every time I get in my car in the morni"
+            },
+            {
+              "r": 2,
+              "t": "Buggy",
+              "b": "I\u2019ve had this app for many years. It used to be free, then they had \u201cpremium sound\u201d that I paid for and then they went to a monthly pay system. How many times d"
+            }
+          ],
+          "got worse (enshittification)": [
+            {
+              "r": 2,
+              "t": "Miss the old version",
+              "b": "When it wasn\u2019t about making money and having every option as a paid option. I love this app and have used it since it came out but money is tight these days and"
+            },
+            {
+              "r": 2,
+              "t": "Buggy",
+              "b": "I\u2019ve had this app for many years. It used to be free, then they had \u201cpremium sound\u201d that I paid for and then they went to a monthly pay system. How many times d"
+            },
+            {
+              "r": 3,
+              "t": "Used to offer so much more.",
+              "b": "You used to offer two premium sounds for free. You also used to have the fan noises free. Now so many things are no longer free. It\u2019s saddening for me as I\u2019ve u"
+            }
+          ],
+          "ads": [
+            {
+              "r": 3,
+              "t": "Used to offer so much more.",
+              "b": "You used to offer two premium sounds for free. You also used to have the fan noises free. Now so many things are no longer free. It\u2019s saddening for me as I\u2019ve u"
+            }
+          ]
+        },
+        "loves": {
+          "love": 33,
+          "free": 18,
+          "best": 16,
+          "easy": 6,
+          "simple": 5,
+          "fast": 4,
+          "no ads": 3,
+          "customizable": 2
+        },
+        "wishes": [
+          "wish it had a firework sound",
+          "wish I could turn off it using background data",
+          "need to give myself a quiet space to focus or I need the noise in my brain to go qui",
+          "wish it was real though, very rare here in San Diego",
+          "need a free trial to get music I actually wanted to sleep with",
+          "wish they\u2019d ditch the subscription model"
+        ]
+      }
+    }
+  ],
+  "market_gripes": {
+    "ads": 40,
+    "missing / limited": 16,
+    "got worse (enshittification)": 47,
+    "bugs / reliability": 34,
+    "pricing / paywall": 137
+  },
+  "market_loves": {
+    "love": 185,
+    "best": 109,
+    "free": 65,
+    "easy": 30,
+    "simple": 13,
+    "fast": 10,
+    "reliable": 7,
+    "no ads": 5
+  },
+  "wishes": [
+    "can't keep it on with the phone being closed then trying to get more info and money f",
+    "need to fix whatever the latest OS update did",
+    "wish there were settings for the clock feature like that it would turn on immediatel",
+    "need to download another app, and create an account, and log in",
+    "need to upgrade, which it won\u2019t successfully do",
+    "need to be said",
+    "need to purchase to have all the sleep sounds",
+    "Needs to be louder",
+    "wish that you didn\u2019t have to pay because people would get a lot more use out of it",
+    "wish that we could set the time that the noise goes to because as soon as the noise"
+  ],
+  "wedge": [
+    "**Fix the money model** (137 gripes \u2014 the dominant complaint): win with a genuinely useful free tier or a one-time unlock, not another subscription/paywall-after-2-entries.",
+    "**Be the simple, un-bloated alternative** (47 gripes): users say the incumbents got worse / raised prices / removed basics \u2014 restore the clean original experience.",
+    "**Ship ad-free** (40 gripes): ads are a repeated complaint here, and 'no ads' is itself a selling point users praise.",
+    "**Make reliability the pitch** (34 gripes): recurring crashes / broken widgets / lost-data complaints \u2014 rock-solid sync + export/backup is a real differentiator.",
+    "**Keep what they love:** love, best, free, easy, simple \u2014 don't out-feature these into complexity."
+  ]
+}

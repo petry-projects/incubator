@@ -1,0 +1,485 @@
+<title>DemandRadar — Signal Console</title>
+<style>
+  :root{
+    --ground:#F4F7F8; --panel:#FFFFFF; --panel-2:#EAEFF1; --raise:#FDFEFE;
+    --ink:#15232B; --ink-2:#5A6C74; --ink-3:#8A9aa1; --line:#D9E1E4; --line-2:#E9EEF0;
+    --accent:#0C868F; --accent-2:#0A6970; --accent-wash:#0c868f14;
+    --good:#2C9560; --good-wash:#2c956018; --warn:#B77C1E; --warn-wash:#b77c1e18;
+    --info:#5C68B0; --info-wash:#5c68b016; --bad:#B4483F;
+    --shadow:0 1px 2px #16232b0a, 0 6px 20px #16232b0d;
+    --mono:ui-monospace,"SFMono-Regular","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --ground:#0C1317; --panel:#111C22; --panel-2:#18262D; --raise:#16242B;
+      --ink:#E7EEF1; --ink-2:#8DA1AA; --ink-3:#5E727B; --line:#213139; --line-2:#1A272E;
+      --accent:#2BC6BF; --accent-2:#7DE4DE; --accent-wash:#2bc6bf1a;
+      --good:#46C983; --good-wash:#46c98322; --warn:#E0B155; --warn-wash:#e0b15522;
+      --info:#96A2E0; --info-wash:#96a2e01f; --bad:#E5776C;
+      --shadow:0 1px 2px #0006, 0 8px 26px #0007;
+    }
+  }
+  :root[data-theme="light"]{
+    --ground:#F4F7F8; --panel:#FFFFFF; --panel-2:#EAEFF1; --raise:#FDFEFE;
+    --ink:#15232B; --ink-2:#5A6C74; --ink-3:#8A9aa1; --line:#D9E1E4; --line-2:#E9EEF0;
+    --accent:#0C868F; --accent-2:#0A6970; --accent-wash:#0c868f14;
+    --good:#2C9560; --good-wash:#2c956018; --warn:#B77C1E; --warn-wash:#b77c1e18;
+    --info:#5C68B0; --info-wash:#5c68b016; --bad:#B4483F; --shadow:0 1px 2px #16232b0a,0 6px 20px #16232b0d;
+  }
+  :root[data-theme="dark"]{
+    --ground:#0C1317; --panel:#111C22; --panel-2:#18262D; --raise:#16242B;
+    --ink:#E7EEF1; --ink-2:#8DA1AA; --ink-3:#5E727B; --line:#213139; --line-2:#1A272E;
+    --accent:#2BC6BF; --accent-2:#7DE4DE; --accent-wash:#2bc6bf1a;
+    --good:#46C983; --good-wash:#46c98322; --warn:#E0B155; --warn-wash:#e0b15522;
+    --info:#96A2E0; --info-wash:#96a2e01f; --bad:#E5776C; --shadow:0 1px 2px #0006,0 8px 26px #0007;
+  }
+
+  *{box-sizing:border-box}
+  html{scrollbar-gutter:stable}
+  body{margin:0}
+  .app{background:var(--ground);color:var(--ink);font-family:var(--sans);
+    min-height:100vh;font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+  .mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+  .eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+
+  /* ---- command bar ---- */
+  header.bar{position:sticky;top:0;z-index:30;background:color-mix(in srgb,var(--ground) 86%,transparent);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+  .bar-in{display:flex;align-items:center;gap:16px;padding:13px 20px;max-width:1180px;margin:0 auto;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:11px;margin-right:auto}
+  .radar{width:30px;height:30px;border-radius:50%;position:relative;flex:none;
+    border:1px solid color-mix(in srgb,var(--accent) 55%,var(--line));
+    background:
+      radial-gradient(circle,transparent 0 30%,color-mix(in srgb,var(--accent) 22%,transparent) 30% 31%,transparent 31%),
+      radial-gradient(circle,transparent 0 62%,color-mix(in srgb,var(--accent) 16%,transparent) 62% 63%,transparent 63%);
+    overflow:hidden}
+  .radar::after{content:"";position:absolute;inset:-1px;border-radius:50%;
+    background:conic-gradient(from 0deg,color-mix(in srgb,var(--accent) 60%,transparent),transparent 55deg 360deg);
+    animation:sweep 3.4s linear infinite}
+  .radar::before{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px;border-radius:50%;
+    background:var(--accent);z-index:2;box-shadow:0 0 6px var(--accent)}
+  @keyframes sweep{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion:reduce){.radar::after{animation:none;opacity:.5}}
+  .title{font-weight:680;font-size:16px;letter-spacing:-.01em;line-height:1.1}
+  .title span{color:var(--accent)}
+  .tag{font-size:11.5px;color:var(--ink-2);line-height:1.1;margin-top:2px}
+  .kpis{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+  .kpi{display:flex;flex-direction:column;line-height:1.15}
+  .kpi b{font-family:var(--mono);font-size:16px;font-weight:600;font-variant-numeric:tabular-nums}
+  .kpi small{font-family:var(--mono);font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3)}
+  .kpi.hot b{color:var(--accent)}
+  .theme-btn,.exp-btn{font-family:var(--mono);font-size:11px;color:var(--ink-2);background:var(--panel);
+    border:1px solid var(--line);border-radius:7px;padding:6px 10px;cursor:pointer;letter-spacing:.04em}
+  .theme-btn:hover,.exp-btn:hover{border-color:var(--accent);color:var(--ink)}
+  .exp-btn{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 40%,var(--line))}
+
+  /* ---- vertical signal strip ---- */
+  section.overview{padding:20px 20px 6px}
+  .ov-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .ov-head h2{font-size:13px;font-weight:640;margin:0;letter-spacing:.01em}
+  .ov-head p{margin:0;font-size:11.5px;color:var(--ink-2)}
+  .bars{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:7px 22px}
+  .vbar{display:grid;grid-template-columns:118px 1fr 30px;align-items:center;gap:9px;cursor:pointer;
+    padding:3px 4px;border-radius:6px;border:1px solid transparent}
+  .vbar:hover{background:var(--accent-wash);border-color:color-mix(in srgb,var(--accent) 25%,transparent)}
+  .vbar.on{background:var(--accent-wash);border-color:var(--accent)}
+  .vbar .vn{font-family:var(--mono);font-size:10.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .vbar.on .vn{color:var(--ink)}
+  .track{height:8px;border-radius:5px;background:var(--panel-2);overflow:hidden;position:relative}
+  .fill{height:100%;border-radius:5px;background:linear-gradient(90deg,color-mix(in srgb,var(--accent) 55%,transparent),var(--accent))}
+  .fill.strong{background:linear-gradient(90deg,color-mix(in srgb,var(--good) 55%,transparent),var(--good))}
+  .vbar .vc{font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums;color:var(--ink-2);text-align:right}
+
+  /* ---- controls ---- */
+  section.controls{position:sticky;top:57px;z-index:20;background:color-mix(in srgb,var(--ground) 92%,transparent);
+    backdrop-filter:blur(8px);border-top:1px solid var(--line-2);border-bottom:1px solid var(--line);margin-top:12px}
+  .ctrl-in{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 20px;max-width:1180px;margin:0 auto}
+  .search{flex:1;min-width:160px;display:flex;align-items:center;gap:8px;background:var(--panel);
+    border:1px solid var(--line);border-radius:8px;padding:8px 11px}
+  .search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-wash)}
+  .search input{border:0;background:none;outline:none;color:var(--ink);font-family:var(--sans);font-size:13px;width:100%}
+  .search svg{flex:none;color:var(--ink-3)}
+  .seg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{font-family:var(--mono);font-size:11px;letter-spacing:.03em;color:var(--ink-2);background:none;border:0;
+    padding:7px 11px;cursor:pointer;border-right:1px solid var(--line-2)}
+  .seg button:last-child{border-right:0}
+  .seg button:hover{color:var(--ink);background:var(--panel-2)}
+  .seg button.on{background:var(--accent);color:#fff}
+  :root[data-theme="dark"] .seg button.on,@media(prefers-color-scheme:dark){.seg button.on{color:#07131a}}
+  select.sort{font-family:var(--mono);font-size:11px;color:var(--ink);background:var(--panel);border:1px solid var(--line);
+    border-radius:8px;padding:7px 9px;cursor:pointer}
+  .toggle{font-family:var(--mono);font-size:11px;color:var(--ink-2);background:var(--panel);border:1px solid var(--line);
+    border-radius:8px;padding:7px 11px;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .toggle .dot{width:8px;height:8px;border-radius:50%;background:var(--line);flex:none}
+  .toggle.on{color:var(--ink);border-color:var(--info)}
+  .toggle.on .dot{background:var(--info)}
+  .count{margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--ink-2);white-space:nowrap}
+  .count b{color:var(--ink)}
+
+  /* ---- list ---- */
+  main{padding:16px 20px 60px}
+  .rows{display:flex;flex-direction:column;gap:7px}
+  .row{background:var(--panel);border:1px solid var(--line);border-radius:11px;box-shadow:var(--shadow);
+    display:grid;grid-template-columns:44px 1fr auto;gap:14px;align-items:center;padding:11px 14px;scroll-margin-top:120px}
+  .row.focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-wash),var(--shadow)}
+  .rank{font-family:var(--mono);font-size:11px;color:var(--ink-3);text-align:center;font-variant-numeric:tabular-nums}
+  .rank .sc{display:block;font-size:15px;color:var(--ink);font-weight:600;margin-top:2px}
+  .rank .meter{height:3px;border-radius:3px;background:var(--panel-2);margin-top:5px;overflow:hidden}
+  .rank .meter i{display:block;height:100%;background:var(--accent)}
+  .body{min-width:0}
+  .kw{font-size:15.5px;font-weight:620;letter-spacing:-.01em;line-height:1.2}
+  .kw button{all:unset;cursor:pointer}
+  .kw button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+  .chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;align-items:center}
+  .chip{font-family:var(--mono);font-size:10px;letter-spacing:.03em;padding:2.5px 7px;border-radius:20px;
+    border:1px solid var(--line);color:var(--ink-2);white-space:nowrap;display:inline-flex;align-items:center;gap:5px}
+  .chip .gd{width:7px;height:7px;border-radius:50%}
+  .chip.vert{color:var(--ink);background:var(--panel-2);border-color:transparent}
+  .chip.good{color:var(--good);border-color:color-mix(in srgb,var(--good) 40%,transparent);background:var(--good-wash)}
+  .chip.warn{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 40%,transparent);background:var(--warn-wash)}
+  .chip.info{color:var(--info);border-color:color-mix(in srgb,var(--info) 40%,transparent);background:var(--info-wash)}
+  .chip.mut{color:var(--ink-3)}
+  .chip.acc{color:var(--accent);border-color:color-mix(in srgb,var(--accent) 35%,transparent);background:var(--accent-wash)}
+
+  /* rating */
+  .rate{display:flex;gap:4px;flex:none}
+  .rate button{width:34px;height:34px;border-radius:9px;border:1px solid var(--line);background:var(--raise);cursor:pointer;
+    display:grid;place-items:center;color:var(--ink-3);font-size:15px;transition:transform .08s,border-color .12s,background .12s}
+  .rate button:hover{transform:translateY(-1px)}
+  .rate button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .rate button.pass.on{background:var(--bad);border-color:var(--bad);color:#fff}
+  .rate button.maybe.on{background:var(--warn);border-color:var(--warn);color:#fff}
+  .rate button.star.on{background:var(--good);border-color:var(--good);color:#fff}
+
+  /* detail */
+  .detail{grid-column:1/-1;margin-top:4px;padding-top:12px;border-top:1px dashed var(--line);
+    display:grid;grid-template-columns:1.3fr 1fr;gap:18px}
+  .detail h4{margin:0 0 8px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+  .apps{display:flex;flex-direction:column;gap:6px}
+  .appr{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;font-size:12.5px}
+  .appr .an{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .appr .ar{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--ink-2);font-size:11.5px}
+  .appr .au{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);text-align:right}
+  .stars{color:var(--warn);letter-spacing:1px;font-size:11px}
+  .sig{display:flex;flex-direction:column;gap:7px}
+  .sigrow{display:flex;justify-content:space-between;gap:10px;font-size:12px;border-bottom:1px solid var(--line-2);padding-bottom:6px}
+  .sigrow span:first-child{color:var(--ink-2)}
+  .sigrow b{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:600}
+  .note{margin-top:10px}
+  .note textarea{width:100%;resize:vertical;min-height:44px;font-family:var(--sans);font-size:12.5px;color:var(--ink);
+    background:var(--ground);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+  .note textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-wash)}
+
+  .empty{text-align:center;padding:60px 20px;color:var(--ink-2)}
+  footer{border-top:1px solid var(--line);color:var(--ink-2);font-size:12px;line-height:1.6}
+  .foot-in{max-width:1180px;margin:0 auto;padding:20px}
+  footer code{font-family:var(--mono);font-size:11px;color:var(--ink)}
+  .hint{font-family:var(--mono);font-size:10.5px;color:var(--ink-3)}
+  kbd{font-family:var(--mono);font-size:10px;background:var(--panel-2);border:1px solid var(--line);border-bottom-width:2px;
+    border-radius:4px;padding:1px 5px;color:var(--ink-2)}
+
+  @media (max-width:720px){
+    .row{grid-template-columns:38px 1fr;gap:10px}
+    .rate{grid-column:2;justify-content:flex-start;margin-top:2px}
+    .detail{grid-template-columns:1fr}
+    .kpis{gap:12px}
+  }
+  /* disruption lens */
+  :root{--disrupt:#B24A72}
+  @media (prefers-color-scheme:dark){:root{--disrupt:#E38AAC}}
+  :root[data-theme="dark"]{--disrupt:#E38AAC}
+  :root[data-theme="light"]{--disrupt:#B24A72}
+  .chip.disrupt{color:var(--disrupt);border-color:color-mix(in srgb,var(--disrupt) 48%,transparent);
+    background:color-mix(in srgb,var(--disrupt) 12%,transparent);font-weight:600}
+  .seg button.lens.on{background:var(--disrupt);color:#fff}
+  .row.dt{border-left:3px solid var(--disrupt)}
+  .chip.resent{color:var(--bad);border-color:color-mix(in srgb,var(--bad) 48%,transparent);
+    background:color-mix(in srgb,var(--bad) 12%,transparent);font-weight:600}
+  .gripes{margin-top:10px}
+  .gripe{font-size:11.5px;color:var(--ink-2);border-left:2px solid var(--bad);padding:2px 0 2px 9px;margin-bottom:7px}
+  .gripe b{color:var(--ink)}
+  .gripe .gr{font-family:var(--mono);color:var(--bad);font-size:10px}
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="bar-in">
+      <div class="brand">
+        <div class="radar" aria-hidden="true"></div>
+        <div>
+          <div class="title">Demand<span>Radar</span></div>
+          <div class="tag">Under-served app-idea signals — supply gap × demand</div>
+        </div>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><b id="k-cand">0</b><small>candidates</small></div>
+        <div class="kpi"><b>25</b><small>verticals</small></div>
+        <div class="kpi"><b class="mono">1,192</b><small>scored</small></div>
+        <div class="kpi hot"><b id="k-star">0</b><small>shortlisted</small></div>
+      </div>
+      <button class="exp-btn" id="export">Export ratings</button>
+      <button class="theme-btn" id="theme">◐ Theme</button>
+    </div>
+  </header>
+
+  <section class="overview wrap-none">
+    <div class="wrap" style="padding:0">
+      <div class="ov-head">
+        <h2>Signal by vertical</h2>
+        <p>bar = strong-signal candidates (score ≥ 8) · click to filter</p>
+      </div>
+      <div class="bars" id="bars"></div>
+    </div>
+  </section>
+
+  <section class="controls">
+    <div class="ctrl-in">
+      <label class="search">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="q" type="search" placeholder="Search ideas, verticals…" autocomplete="off">
+      </label>
+      <div class="seg" id="ch" data-key="ch">
+        <button class="on" data-v="">Both</button><button data-v="app-store">App&nbsp;Store</button><button data-v="community">Community</button>
+      </div>
+      <div class="seg" id="gap" data-key="gap">
+        <button class="on" data-v="">Any&nbsp;gap</button><button data-v="nascent">Emerging</button><button data-v="stale">Aging</button><button data-v="thin">Weak</button><button data-v="absent-in-store">Unmatched</button>
+      </div>
+      <button class="toggle" id="tMA"><span class="dot"></span>Needs MobileAction</button>
+      <div class="seg" id="lens" data-key="lens">
+        <button class="on" data-v="">Both lenses</button><button data-v="gap">Gaps</button><button class="lens" data-v="disrupt">🎯 Disrupt</button>
+      </div>
+      <div class="seg" id="rate" data-key="rate">
+        <button class="on" data-v="">All</button><button data-v="star">★ Shortlist</button><button data-v="maybe">~ Maybe</button><button data-v="none">Unrated</button>
+      </div>
+      <select class="sort" id="sort">
+        <option value="score">Sort: Signal score</option>
+        <option value="dscore">Sort: Disruption score</option>
+        <option value="comm">Sort: Community</option>
+        <option value="vert">Sort: Vertical</option>
+        <option value="kw">Sort: A–Z</option>
+      </select>
+      <div class="count" id="count"></div>
+    </div>
+  </section>
+
+  <main>
+    <div class="rows" id="rows"></div>
+    <div class="empty" id="empty" hidden>No signals match these filters. <button class="exp-btn" id="clear" style="margin-left:6px">Clear filters</button></div>
+    <p class="hint" style="margin-top:16px">Keyboard: <kbd>J</kbd>/<kbd>K</kbd> move · <kbd>S</kbd> shortlist · <kbd>M</kbd> maybe · <kbd>X</kbd> pass · <kbd>Enter</kbd> expand</p>
+  </main>
+
+  <footer>
+    <div class="foot-in">
+      <p style="margin:0 0 6px"><strong>Reading the signals.</strong> <span class="mono" style="color:var(--good)">Emerging/Aging</span> = a real but tiny or outdated app exists (trustworthy gap). <span class="mono" style="color:var(--ink-3)">Unmatched</span> on App&nbsp;Store is <em>unverified</em> — often a relevance miss (a real app under a different name), so it's down-weighted and needs a <span class="mono" style="color:var(--info)">MobileAction</span> volume check. <span class="mono" style="color:var(--disrupt)">🎯&nbsp;Disrupt</span> flips the logic — a <em>proven, crowded</em> market whose leader is beatable. The strongest version is <span class="mono" style="color:var(--bad)">🔥&nbsp;resented</span>: a <em>well-rated</em> giant (even 4.7★) whose recent 1-star reviews are dominated by <em>pricing / ads / "used-to-be-free"</em> gripes — the Quizlet play, mined from review <em>text</em> because stars can't see it. Community numbers this snapshot are HackerNews-heavy (quota-limited) — directional, not gospel.</p>
+      <p style="margin:6px 0 0" class="hint">Snapshot: 501 non-reject candidates of 1,192 scored across 25 verticals · supply = iTunes Search API · demand = DuckDuckGo autocomplete + community · ratings saved in this browser (Export to keep them).</p>
+    </div>
+  </footer>
+</div>
+
+<script>
+const DATA = __DATA__;
+const $ = s => document.querySelector(s);
+const RK = "demandradar.ratings.v1";
+let ratings = {};
+try{ ratings = JSON.parse(localStorage.getItem(RK)||"{}"); }catch(e){ ratings = {}; }
+const saveR = () => { try{ localStorage.setItem(RK, JSON.stringify(ratings)); }catch(e){} };
+
+const state = { q:"", ch:"", gap:"", rate:"", ma:false, lens:"", vert:"", sort:"score", expanded:null, focus:-1 };
+
+const GAP = {
+  "nascent":  {c:"good", d:"var(--good)", label:"emerging"},
+  "stale":    {c:"warn", d:"var(--warn)", label:"aging"},
+  "low-quality":{c:"warn",d:"var(--bad)", label:"poor"},
+  "thin":     {c:"info", d:"var(--info)", label:"weak-serve"},
+  "absent-in-store":{c:"mut",d:"var(--ink-3)",label:"unmatched"},
+  "absent":   {c:"mut", d:"var(--ink-3)",label:"absent"},
+};
+const esc = s => (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const cap = s => (s||"").replace(/-/g," ");
+const stars = r => { if(r==null) return ""; const n=Math.round(r); return "★".repeat(n)+"☆".repeat(5-n); };
+const days = d => d==null?"—":(d<31?d+"d":d<365?Math.round(d/30)+"mo":(d/365).toFixed(1)+"y");
+const fmt = n => n==null?"—":n.toLocaleString();
+
+function filtered(){
+  let a = DATA.filter(x=>{
+    if(state.ch && x.ch!==state.ch) return false;
+    if(state.gap && x.gap!==state.gap) return false;
+    if(state.vert && x.vert!==state.vert) return false;
+    if(state.ma && !x.needsMA) return false;
+    if(state.lens==="disrupt" && !x.disrupt) return false;
+    if(state.lens==="gap" && x.disrupt) return false;
+    const r = (ratings[x.kw]||{}).r || "none";
+    if(state.rate==="star" && r!=="star") return false;
+    if(state.rate==="maybe" && r!=="maybe") return false;
+    if(state.rate==="none" && r!=="none") return false;
+    if(state.q){ const q=state.q.toLowerCase(); if(!(x.kw.toLowerCase().includes(q)||x.vert.includes(q))) return false; }
+    return true;
+  });
+  const s = state.sort;
+  a.sort((x,y)=> s==="dscore" ? (y.dScore||0)-(x.dScore||0) || (y.score-x.score)
+    : s==="comm" ? (y.comm||0)-(x.comm||0)
+    : s==="vert" ? (x.vert<y.vert?-1:x.vert>y.vert?1: y.score-x.score)
+    : s==="kw" ? x.kw.localeCompare(y.kw)
+    : (y.score-x.score) || ((y.comm||0)-(x.comm||0)) );
+  return a;
+}
+
+function verticalBars(){
+  const strong={}, all={};
+  DATA.forEach(x=>{ all[x.vert]=(all[x.vert]||0)+1; if(x.score>=8) strong[x.vert]=(strong[x.vert]||0)+1; });
+  const rows = Object.keys(all).map(v=>({v, s:strong[v]||0, a:all[v]}))
+    .sort((p,q)=> q.s-p.s || q.a-p.a);
+  const max = Math.max(1,...rows.map(r=>r.s));
+  $("#bars").innerHTML = rows.map(r=>{
+    const pct = Math.max(4, r.s/max*100);
+    const on = state.vert===r.v ? " on":"";
+    const strong = r.s/r.a>0.34 ? " strong":"";
+    return `<div class="vbar${on}" data-v="${r.v}" role="button" tabindex="0" title="${r.a} candidates, ${r.s} strong">
+      <span class="vn">${cap(r.v)}</span>
+      <span class="track"><span class="fill${strong}" style="width:${pct}%"></span></span>
+      <span class="vc">${r.s}</span></div>`;
+  }).join("");
+}
+
+function rowHTML(x,i){
+  const g = GAP[x.gap]||{c:"mut",d:"var(--ink-3)",label:x.gap};
+  const r = (ratings[x.kw]||{});
+  const foc = i===state.focus ? " focus":"";
+  const open = state.expanded===x.kw;
+  const vpill = x.verdict.startsWith("CANDIDATE") ? "good" : "warn";
+  const chips = [
+    x.disrupt ? `<span class="chip disrupt">🎯 leader ${x.leaderR}★ · ${fmt(x.market)}</span>`:"",
+    x.resented ? `<span class="chip resent">🔥 ${Math.round(x.resentFrac*100)}% resent · ${(x.resentCats||[]).join("/")}</span>`:"",
+    `<span class="chip vert">${cap(x.vert)}</span>`,
+    `<span class="chip ${g.c}"><span class="gd" style="background:${g.d}"></span>${g.label}</span>`,
+    `<span class="chip mut">${x.ch==="app-store"?"app store":"community"}</span>`,
+    `<span class="chip mut">comp ${x.comp}</span>`,
+    x.comm!=null ? `<span class="chip acc">${fmt(x.comm)} <span style="color:var(--ink-3)">${x.commSrc||""}</span></span>`:"",
+    x.needsMA ? `<span class="chip info">needs MobileAction</span>`:"",
+    x.trust==="unverified-absent" ? `<span class="chip mut">unverified gap</span>`:"",
+    x.vol!=null ? `<span class="chip ${x.vol>=15?'good':'mut'}">MA vol ${x.vol}</span>`:"",
+  ].filter(Boolean).join("");
+
+  let detail="";
+  if(open){
+    const apps = (x.apps||[]).filter(a=>a.n).map(a=>`<div class="appr">
+      <span class="an">${esc(a.n)}</span>
+      <span class="ar">${a.r!=null?`<span class="stars">${stars(a.r)}</span> ${a.r.toFixed(2)}`:"no rating"} <span style="color:var(--ink-3)">· ${fmt(a.c)}</span></span>
+      <span class="au">${days(a.u)}</span></div>`).join("") || `<div class="hint">No relevant app matched on the App Store.</div>`;
+    detail = `<div class="detail">
+      <div><h4>Existing apps (the supply)</h4><div class="apps">${apps}</div></div>
+      <div><h4>Signals</h4><div class="sig">
+        <div class="sigrow"><span>Signal score</span><b>${x.score.toFixed(1)} / 10</b></div>
+        <div class="sigrow"><span>Best incumbent rating</span><b>${x.bestRating!=null?x.bestRating.toFixed(2)+"★":"—"}</b></div>
+        <div class="sigrow"><span>Freshest incumbent</span><b>${days(x.fresh)}</b></div>
+        <div class="sigrow"><span>Relevant incumbents</span><b>${x.relInc!=null?x.relInc:"—"}</b></div>
+        <div class="sigrow"><span>Market size · top incumbent reviews</span><b>${fmt(x.market)}</b></div>
+        <div class="sigrow"><span>Leader rating</span><b>${x.leaderR!=null?x.leaderR+"★":"—"}${x.leaderApp?` · <span style="font-weight:400;color:var(--ink-2)">${esc(x.leaderApp)}</span>`:""}</b></div>
+        ${x.disrupt?`<div class="sigrow"><span>Disruption score</span><b style="color:var(--disrupt)">${x.dScore}</b></div>`:""}
+        ${x.resented?`<div class="gripes"><h4 style="margin:10px 0 7px">🔥 Why users are leaving · ${Math.round(x.resentFrac*100)}% of recent 1–3★ reviews</h4>${(x.gripes||[]).map(g=>`<div class="gripe"><span class="gr">${(g.c||[]).join(" · ")}</span> <b>${esc(g.t||"")}</b> — ${esc(g.b||"")}</div>`).join("")}</div>`:""}
+        <div class="sigrow"><span>Demand (autocomplete)</span><b>${x.app? "app-intent ✓":"—"} · ${x.bi}</b></div>
+        <div class="sigrow"><span>Community (${x.commSrc||"—"})</span><b>${fmt(x.comm)}</b></div>
+        <div class="note"><textarea placeholder="Notes on ${x.kw}…" data-note="${x.kw}">${(r.note||"").replace(/"/g,'&quot;')}</textarea></div>
+      </div></div></div>`;
+  }
+  return `<article class="row${foc}${x.disrupt?' dt':''}" data-kw="${x.kw}" data-i="${i}">
+    <div class="rank">#${i+1}<span class="sc">${x.score.toFixed(1)}</span>
+      <span class="meter"><i style="width:${x.score/10*100}%"></i></span></div>
+    <div class="body">
+      <div class="kw"><button data-expand="${x.kw}">${esc(x.kw)}</button></div>
+      <div class="chips">${chips}</div>
+      ${detail}
+    </div>
+    <div class="rate" role="group" aria-label="Rate ${x.kw}">
+      <button class="pass${r.r==="pass"?" on":""}" data-r="pass" data-kw="${x.kw}" title="Pass (x)">✕</button>
+      <button class="maybe${r.r==="maybe"?" on":""}" data-r="maybe" data-kw="${x.kw}" title="Maybe (m)">~</button>
+      <button class="star${r.r==="star"?" on":""}" data-r="star" data-kw="${x.kw}" title="Shortlist (s)">★</button>
+    </div>
+  </article>`;
+}
+
+let cur = [];
+function render(){
+  cur = filtered();
+  const rows = $("#rows");
+  rows.innerHTML = cur.map(rowHTML).join("");
+  $("#empty").hidden = cur.length>0;
+  const stars = Object.values(ratings).filter(r=>r.r==="star").length;
+  const maybes = Object.values(ratings).filter(r=>r.r==="maybe").length;
+  const nd = DATA.filter(x=>x.disrupt).length;
+  $("#k-cand").textContent = DATA.length;
+  $("#k-star").textContent = stars;
+  $("#count").innerHTML = `<b>${cur.length}</b> shown · ${nd} 🎯 · ${stars}★ · ${maybes}~`;
+}
+
+function setRate(kw, val){
+  const r = ratings[kw] || {};
+  r.r = (r.r===val) ? undefined : val;
+  if(!r.r) delete r.r;
+  if(Object.keys(r).length) ratings[kw]=r; else delete ratings[kw];
+  saveR();
+  render(); verticalBars();
+}
+
+/* events */
+$("#rows").addEventListener("click", e=>{
+  const rb = e.target.closest("[data-r]");
+  if(rb){ setRate(rb.dataset.kw, rb.dataset.r); return; }
+  const ex = e.target.closest("[data-expand]");
+  if(ex){ const kw=ex.dataset.expand; state.expanded = state.expanded===kw?null:kw; render(); }
+});
+$("#rows").addEventListener("input", e=>{
+  const t = e.target.closest("[data-note]");
+  if(t){ const kw=t.dataset.note; const r=ratings[kw]||{}; r.note=t.value; ratings[kw]=r; saveR(); }
+});
+document.querySelectorAll(".seg").forEach(seg=>{
+  seg.addEventListener("click", e=>{
+    const b=e.target.closest("button"); if(!b) return;
+    state[seg.dataset.key]=b.dataset.v;
+    seg.querySelectorAll("button").forEach(x=>x.classList.toggle("on",x===b));
+    state.focus=-1; render();
+  });
+});
+$("#tMA").addEventListener("click", e=>{ state.ma=!state.ma; e.currentTarget.classList.toggle("on",state.ma); render(); });
+$("#sort").addEventListener("change", e=>{ state.sort=e.target.value; render(); });
+let qt; $("#q").addEventListener("input", e=>{ clearTimeout(qt); qt=setTimeout(()=>{ state.q=e.target.value.trim(); state.focus=-1; render(); },140); });
+$("#bars").addEventListener("click", e=>{ const b=e.target.closest(".vbar"); if(b){ state.vert = state.vert===b.dataset.v?"":b.dataset.v; verticalBars(); render(); } });
+$("#bars").addEventListener("keydown", e=>{ if((e.key==="Enter"||e.key===" ")&&e.target.closest(".vbar")){ e.preventDefault(); e.target.click(); }});
+$("#clear").addEventListener("click", ()=>{ Object.assign(state,{q:"",ch:"",gap:"",rate:"",ma:false,lens:"",vert:""});
+  $("#q").value=""; $("#tMA").classList.remove("on");
+  document.querySelectorAll(".seg").forEach(s=>s.querySelectorAll("button").forEach((b,i)=>b.classList.toggle("on",i===0)));
+  verticalBars(); render(); });
+
+/* keyboard rating */
+document.addEventListener("keydown", e=>{
+  if(/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)) return;
+  const k=e.key.toLowerCase();
+  if(k==="j"||k==="k"){ e.preventDefault(); if(!cur.length) return;
+    state.focus = k==="j" ? Math.min(cur.length-1,state.focus+1) : Math.max(0,state.focus-1);
+    render(); const el=$(`.row[data-i="${state.focus}"]`); if(el) el.scrollIntoView({block:"nearest",behavior:"smooth"});
+  } else if((k==="s"||k==="m"||k==="x")&&state.focus>=0&&cur[state.focus]){
+    e.preventDefault(); setRate(cur[state.focus].kw, k==="s"?"star":k==="m"?"maybe":"pass");
+  } else if(k==="enter"&&state.focus>=0&&cur[state.focus]){
+    e.preventDefault(); const kw=cur[state.focus].kw; state.expanded=state.expanded===kw?null:kw; render();
+  }
+});
+
+/* export */
+$("#export").addEventListener("click", ()=>{
+  const rated = DATA.filter(x=>ratings[x.kw]).map(x=>({keyword:x.kw,vertical:x.vert,channel:x.ch,gap:x.gap,
+    score:x.score,verdict:x.verdict,rating:ratings[x.kw].r||null,note:ratings[x.kw].note||""}));
+  const blob = new Blob([JSON.stringify({exported:new Date().toISOString(),count:rated.length,ratings:rated},null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="demandradar-ratings.json"; a.click();
+});
+
+/* theme */
+$("#theme").addEventListener("click", ()=>{
+  const cur = document.documentElement.getAttribute("data-theme");
+  const dark = cur ? cur==="dark" : matchMedia("(prefers-color-scheme:dark)").matches;
+  document.documentElement.setAttribute("data-theme", dark?"light":"dark");
+});
+
+verticalBars(); render();
+</script>

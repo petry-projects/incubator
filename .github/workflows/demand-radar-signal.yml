@@ -1,0 +1,68 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# DemandRadar — supply-signal pull (SPIKE, not an org-standard agent)
+#
+# Scheduled, headless, zero-secret extraction for the DemandRadar concept
+# (incubator Discussion #44). Runs pocs/demand-radar/extract.py, which pulls
+# FREE supply-side signal from Apple's public iTunes Search API and emits
+# opportunity_records + a summary. No API keys, no paid ASO dependency — the
+# calibration (#44) showed paid magnitude is a CONDITIONAL add-on, not required.
+#
+# This is a disposable POC workflow under pocs/. It is intentionally NOT a thin
+# caller to an org reusable (there is no reusable for this yet). If DemandRadar
+# graduates, this logic moves to a product repo per the incubator lifecycle.
+#
+# Output is uploaded as a build artifact (no repo writes → no contents:write).
+# ─────────────────────────────────────────────────────────────────────────────
+name: DemandRadar — signal pull (spike)
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'   # Monday 06:17 UTC — weekly refresh
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'iTunes results per keyword'
+        required: false
+        default: '25'
+        type: string
+
+permissions: {}            # default-deny; the job grants only what it needs
+
+concurrency:
+  group: demand-radar-signal
+  cancel-in-progress: false
+
+jobs:
+  pull-signal:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read       # checkout only
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Pull supply signal (stdlib only — no pip)
+        run: python3 pocs/demand-radar/extract.py --limit "${{ github.event.inputs.limit || '25' }}"
+
+      - name: Enrich with community signal (Reddit if secret present, else HN)
+        env:
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          # Reddit blocks datacenter IPs even for OAuth from some ranges — Actions
+          # runners may hit this. Falls back to hackernews on any failure.
+          DR_COMMUNITY_SOURCE: ${{ vars.DR_COMMUNITY_SOURCE || 'hackernews' }}
+        run: python3 pocs/demand-radar/enrich_community.py || echo "community enrich skipped/failed (non-fatal)"
+
+      - name: Rank into the idea starter list (merges manual MobileAction labels)
+        run: python3 pocs/demand-radar/rank_starter_list.py
+
+      - name: Show starter list in the run log
+        run: cat pocs/demand-radar/output/starter-list.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload records + summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: demand-radar-signal
+          path: pocs/demand-radar/output/
+          retention-days: 30

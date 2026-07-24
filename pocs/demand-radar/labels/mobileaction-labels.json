@@ -1,0 +1,259 @@
+{
+  "_comment": "Human-labeled set: MobileAction Keyword Inspector (App Store, iOS, US), pulled manually 2026-07-18/19. Ground-truth app-store MAGNITUDE the free extractor can't produce. Use it to (a) validate discovery_channel and (b) make the starter-list ranker demand-aware. 'volume': null = MobileAction N/A (below tracked threshold). Note the App Store 'Volume' floor appears to be ~5 \u2014 treat 5 as 'effectively no keyword demand'.",
+  "source": "mobileaction-keyword-inspector",
+  "store": "ios",
+  "country": "US",
+  "captured": "2026-07-18/22",
+  "labels": [
+    {
+      "keyword": "workout",
+      "note": "baseline sanity check",
+      "volume": 62,
+      "difficulty": 49,
+      "ranked_apps": 239
+    },
+    {
+      "keyword": "flashcards",
+      "discovery_channel": "app-store",
+      "volume": 48,
+      "difficulty": 24,
+      "ranked_apps": 227
+    },
+    {
+      "keyword": "flashcard maker",
+      "discovery_channel": "app-store",
+      "volume": 26,
+      "difficulty": 22,
+      "ranked_apps": 209
+    },
+    {
+      "keyword": "spaced repetition",
+      "discovery_channel": "app-store",
+      "volume": 22,
+      "difficulty": 18,
+      "ranked_apps": 242
+    },
+    {
+      "keyword": "watermark remover",
+      "discovery_channel": "app-store",
+      "volume": 48,
+      "difficulty": 25,
+      "ranked_apps": 230,
+      "note": "STANDOUT: real demand + low difficulty + weak supply (iTunes best 3.98)"
+    },
+    {
+      "keyword": "travel journal",
+      "discovery_channel": "app-store",
+      "volume": 17,
+      "difficulty": 20,
+      "ranked_apps": 225
+    },
+    {
+      "keyword": "fall alert",
+      "discovery_channel": "app-store",
+      "volume": 5,
+      "difficulty": null,
+      "ranked_apps": null
+    },
+    {
+      "keyword": "breathwork timer",
+      "discovery_channel": "app-store",
+      "volume": 5,
+      "difficulty": 29,
+      "ranked_apps": 233
+    },
+    {
+      "keyword": "green screen video",
+      "discovery_channel": "app-store",
+      "volume": 5,
+      "difficulty": 18,
+      "ranked_apps": 232
+    },
+    {
+      "keyword": "moving checklist",
+      "discovery_channel": "app-store",
+      "volume": 5,
+      "difficulty": 20,
+      "ranked_apps": 224
+    },
+    {
+      "keyword": "campsite finder",
+      "discovery_channel": "app-store",
+      "volume": 5,
+      "difficulty": 30,
+      "ranked_apps": 216
+    },
+    {
+      "keyword": "citation manager",
+      "discovery_channel": "app-store",
+      "volume": null,
+      "difficulty": null,
+      "ranked_apps": null,
+      "note": "N/A in store \u2014 really web-research channel"
+    },
+    {
+      "keyword": "reptile husbandry",
+      "discovery_channel": "app-store",
+      "volume": null,
+      "difficulty": null,
+      "ranked_apps": null
+    },
+    {
+      "keyword": "sourdough tracker",
+      "discovery_channel": "app-store",
+      "volume": null,
+      "difficulty": null,
+      "ranked_apps": null
+    },
+    {
+      "keyword": "firewood tracker",
+      "discovery_channel": "app-store",
+      "volume": null,
+      "difficulty": null,
+      "ranked_apps": null
+    },
+    {
+      "keyword": "large button dialer",
+      "discovery_channel": "app-store",
+      "volume": null,
+      "difficulty": null,
+      "ranked_apps": null
+    },
+    {
+      "keyword": "valheim base builder",
+      "discovery_channel": "community",
+      "volume": null,
+      "difficulty": null,
+      "ranked_apps": null
+    },
+    {
+      "keyword": "speedrun timer",
+      "discovery_channel": "community",
+      "volume": null,
+      "difficulty": null,
+      "ranked_apps": null
+    },
+    {
+      "keyword": "combo trainer",
+      "discovery_channel": "community",
+      "volume": null,
+      "difficulty": null,
+      "ranked_apps": null
+    },
+    {
+      "keyword": "couch co op",
+      "discovery_channel": "community",
+      "volume": null,
+      "difficulty": null,
+      "ranked_apps": null
+    },
+    {
+      "keyword": "warhammer army builder",
+      "discovery_channel": "community",
+      "volume": null,
+      "difficulty": null,
+      "ranked_apps": null
+    },
+    {
+      "keyword": "gacha pity tracker",
+      "discovery_channel": "community",
+      "volume": null,
+      "difficulty": null,
+      "ranked_apps": null
+    },
+    {
+      "keyword": "loadout randomizer",
+      "discovery_channel": "community",
+      "volume": null,
+      "difficulty": null,
+      "ranked_apps": null
+    },
+    {
+      "keyword": "raid dps meter",
+      "discovery_channel": "community",
+      "volume": null,
+      "difficulty": null,
+      "ranked_apps": null
+    },
+    {
+      "keyword": "mod manager",
+      "discovery_channel": "community",
+      "volume": null,
+      "difficulty": null,
+      "ranked_apps": null
+    },
+    {
+      "keyword": "fuel finder",
+      "discovery_channel": "app-store",
+      "volume": 5,
+      "difficulty": 32,
+      "ranked_apps": 226,
+      "note": "gap candidate \u2014 no real demand"
+    },
+    {
+      "keyword": "appointment manager",
+      "discovery_channel": "app-store",
+      "volume": 5,
+      "difficulty": 32,
+      "ranked_apps": 220,
+      "note": "gap candidate \u2014 no real demand"
+    },
+    {
+      "keyword": "emergency contact app",
+      "discovery_channel": "app-store",
+      "volume": null,
+      "difficulty": null,
+      "ranked_apps": null,
+      "note": "gap candidate \u2014 N/A"
+    },
+    {
+      "keyword": "lead generator",
+      "discovery_channel": "app-store",
+      "volume": null,
+      "difficulty": null,
+      "ranked_apps": null,
+      "note": "gap candidate \u2014 N/A"
+    },
+    {
+      "keyword": "white noise",
+      "discovery_channel": "app-store",
+      "volume": 64,
+      "difficulty": 39,
+      "ranked_apps": 230,
+      "note": "resented market: BetterSleep 80% resent"
+    },
+    {
+      "keyword": "mood tracker",
+      "discovery_channel": "app-store",
+      "volume": 48,
+      "difficulty": 32,
+      "ranked_apps": 234,
+      "note": "resented market: DailyBean 73% resent"
+    },
+    {
+      "keyword": "calorie counter",
+      "discovery_channel": "app-store",
+      "volume": 61,
+      "difficulty": 55,
+      "ranked_apps": 245,
+      "note": "resented market: MyFitnessPal/Lose It 46-66% resent; HIGH difficulty"
+    },
+    {
+      "keyword": "meditation",
+      "discovery_channel": "app-store",
+      "volume": 54,
+      "difficulty": 41,
+      "ranked_apps": 245,
+      "note": "resented market: Calm/Headspace 47-59% resent"
+    },
+    {
+      "keyword": "guitar chords",
+      "discovery_channel": "app-store",
+      "volume": 43,
+      "difficulty": 33,
+      "ranked_apps": 219,
+      "note": "resented market: Ultimate Guitar 69% resent"
+    }
+  ],
+  "finding": "Of 12 app-store-channel starter candidates checked, only 'watermark remover' (vol 48, diff 25) has meaningful App Store demand; 5 read the ~5 floor and 4 are N/A. MobileAction magnitude collapses the app-store worklist to ONE demand-validated candidate and demotes the rest as real-gap-but-no-demand \u2014 the exact value of layering demand on supply. Community-channel keywords remain N/A (as expected)."
+}

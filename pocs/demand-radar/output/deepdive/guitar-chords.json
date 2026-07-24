@@ -1,0 +1,576 @@
+{
+  "keyword": "guitar chords",
+  "mobileaction": {
+    "keyword": "guitar chords",
+    "discovery_channel": "app-store",
+    "volume": 43,
+    "difficulty": 33,
+    "ranked_apps": 219,
+    "note": "resented market: Ultimate Guitar 69% resent"
+  },
+  "competitors": [
+    {
+      "app": "Ultimate Guitar: Chords & Tabs",
+      "id": 357828853,
+      "seller": "Ultimate Guitar",
+      "rating": 4.74,
+      "count": 466865,
+      "price": "Free",
+      "updated": "2026-07",
+      "genre": "Music",
+      "reviews": {
+        "n": 150,
+        "n_low": 104,
+        "n_high": 46,
+        "resent_frac": 1.0,
+        "gripes": {
+          "pricing / paywall": 57,
+          "got worse (enshittification)": 17,
+          "ads": 30,
+          "bugs / reliability": 7,
+          "missing / limited": 10
+        },
+        "quotes": {
+          "pricing / paywall": [
+            {
+              "r": 1,
+              "t": "I do not recommend this to anyone",
+              "b": "Beware this app sucks. It\u2019s so slow and it will not let you play anything unless you pay for a membership. It doesn\u2019t have good options and frankly I am not imp"
+            },
+            {
+              "r": 1,
+              "t": "\ud83d\udc4e",
+              "b": "Have to pay to read tabs for a song"
+            },
+            {
+              "r": 1,
+              "t": "Free trial\u2026not",
+              "b": "Claims it\u2019s a free trial and only $3 a month and immediately I am charged $40.  That\u2019s not $3 a month, that\u2019s $40"
+            }
+          ],
+          "got worse (enshittification)": [
+            {
+              "r": 1,
+              "t": "Changed - not for better",
+              "b": "Unable to launch app without a time consuming barrage of questions aimed at selling me educational content that I don\u2019t want/need. If I even momentarily navigat"
+            },
+            {
+              "r": 2,
+              "t": "Enough with the ads",
+              "b": "Stop throwing a subscription plan ad in my face every single time I open the app. When I start up Ultimate Guitar, I want to look up songs and learn them. I don"
+            },
+            {
+              "r": 1,
+              "t": "Added some sort of unskippable AI garbage",
+              "b": "Well, the app is ruined. I started learning guitar to get away from this AI hellscape. This app has been a consistently decent place to learn new songs, but thi"
+            }
+          ],
+          "ads": [
+            {
+              "r": 2,
+              "t": "Enough with the ads",
+              "b": "Stop throwing a subscription plan ad in my face every single time I open the app. When I start up Ultimate Guitar, I want to look up songs and learn them. I don"
+            },
+            {
+              "r": 1,
+              "t": "Ads",
+              "b": "ads ads ads ads ads ads ads ads ads ads ads ads ads ads ads ads ads ads ads ads ads ads ads ads ads ads ads ads ads ads"
+            },
+            {
+              "r": 1,
+              "t": "Forced advertisements and annoying usage",
+              "b": "The website works fine but I\u2019m getting forced to use the app even if I don\u2019t want to, so they can try to trick you into subscribing the useless premium version."
+            }
+          ],
+          "bugs / reliability": [
+            {
+              "r": 3,
+              "t": "My favorite app now crashes",
+              "b": "Update:  The app now crashes after every 1 to 4 songs played.  Please fix it. \n\nI had to come back and add another star because of the addition of the SMART scr"
+            },
+            {
+              "r": 3,
+              "t": "Love the app when I can use it",
+              "b": "Love the app and I\u2019m fully updated but it keeps crashing (I\u2019m not on an old phone) if this could get fixed I\u2019ll change my review to 5 stars thanks!"
+            },
+            {
+              "r": 3,
+              "t": "Problems and glitches",
+              "b": "I love this app!! But there is a lot of problems and glitches! I don\u2019t get notifications when someone Dms me! Please fix this! This app can improve if we can ca"
+            }
+          ],
+          "missing / limited": [
+            {
+              "r": 3,
+              "t": "My favorite app now crashes",
+              "b": "Update:  The app now crashes after every 1 to 4 songs played.  Please fix it. \n\nI had to come back and add another star because of the addition of the SMART scr"
+            },
+            {
+              "r": 1,
+              "t": "Worthless",
+              "b": "I can't sign in when I think I'm signed in. It just keeps locking up and going back to the app to sign in again I've paid for their annual fee for Pro and it's "
+            },
+            {
+              "r": 1,
+              "t": "Greedy terrible app",
+              "b": "Scammy greedy app, First they ask you what songs you like then they specifically put those songs behind a paywall and try to trick you into signing up for a yea"
+            }
+          ]
+        },
+        "loves": {
+          "love": 10,
+          "free": 5,
+          "best": 5,
+          "easy": 3,
+          "reliable": 1,
+          "no ads": 1,
+          "fast": 1
+        },
+        "wishes": [
+          "need an assist learning new tunes",
+          "need a questionnaire and survey every single time I fire up the app",
+          "need to answer so much and give you so much info about myself",
+          "need to fill out questions and be inundated with ads to get to a tab I want to play",
+          "need to be babied like a newbie",
+          "can't sign in when I think I'm signed in"
+        ]
+      }
+    },
+    {
+      "app": "GtrLib Chords",
+      "id": 1394407011,
+      "seller": "Bijoy Thangaraj",
+      "rating": 4.75,
+      "count": 1317,
+      "price": "Free",
+      "updated": "2025-02",
+      "genre": "Music"
+    },
+    {
+      "app": "Chordify: Songs, Chords, Tuner",
+      "id": 1073624757,
+      "seller": "Chordify BV",
+      "rating": 4.73,
+      "count": 33168,
+      "price": "Free",
+      "updated": "2026-07",
+      "genre": "Music",
+      "reviews": {
+        "n": 150,
+        "n_low": 63,
+        "n_high": 87,
+        "resent_frac": 0.56,
+        "gripes": {
+          "bugs / reliability": 5,
+          "pricing / paywall": 25,
+          "ads": 6,
+          "missing / limited": 5,
+          "got worse (enshittification)": 4
+        },
+        "quotes": {
+          "bugs / reliability": [
+            {
+              "r": 3,
+              "t": "Bugs",
+              "b": "I\u2019m on version 8.33.1 and I\u2019m having issues with the Chordify Song function, with certain songs that haven\u2019t been played yet and you have to click Chordify now,"
+            },
+            {
+              "r": 1,
+              "t": "Broken",
+              "b": "Paid for a year, but app doesn\u2019t even work. With latest iOS on iPhone 17 pro max, the play button is greyed out on any song. The song starts playing (though the"
+            },
+            {
+              "r": 2,
+              "t": "Free Version Broken",
+              "b": "Literally wont let me play any songs even once without paying."
+            }
+          ],
+          "pricing / paywall": [
+            {
+              "r": 1,
+              "t": "It is not a free app",
+              "b": "They say it\u2019s free then won\u2019t let you use unless you buy premium. Seems like false advertising."
+            },
+            {
+              "r": 3,
+              "t": "Subscription issues.",
+              "b": "I have a subscription till September, and it treats me like a free account, I don\u2019t want to add another year yet, because it may do the same; why am I getting a"
+            },
+            {
+              "r": 1,
+              "t": "No support",
+              "b": "Have Premium subscription for many years. Having problems Can\u2019t access my library. Can\u2019t load new songs. Tried numerous times for help/support with no success ."
+            }
+          ],
+          "ads": [
+            {
+              "r": 3,
+              "t": "Commercial?",
+              "b": "Why all the commercials all of a sudden. Ever app wants to do commercials every 2 or 3 minutes.\ud83d\ude21"
+            },
+            {
+              "r": 3,
+              "t": "Subscription issues.",
+              "b": "I have a subscription till September, and it treats me like a free account, I don\u2019t want to add another year yet, because it may do the same; why am I getting a"
+            },
+            {
+              "r": 1,
+              "t": "Unusable",
+              "b": "Really?  So many emails, ads, communication, but nothing on delivery. Avoid."
+            }
+          ],
+          "missing / limited": [
+            {
+              "r": 3,
+              "t": "Subscription issues.",
+              "b": "I have a subscription till September, and it treats me like a free account, I don\u2019t want to add another year yet, because it may do the same; why am I getting a"
+            },
+            {
+              "r": 1,
+              "t": "Good overall.. but breaks my heart :(",
+              "b": "All companies are gonna use ai\u2014We cant stop the uprise.. gee sorry if this is edgy, just hurts my heart. -_-"
+            },
+            {
+              "r": 1,
+              "t": "App sucks it\u2019s not free!",
+              "b": "I\u2019m really sick and tired of having to create an account for one and two having to pay for every little micro transaction. It would be nice if the world would n"
+            }
+          ],
+          "got worse (enshittification)": [
+            {
+              "r": 1,
+              "t": "WTF",
+              "b": "Limited songs?!?!? We have to pay after a certain amount of songs now and it used to be free"
+            },
+            {
+              "r": 1,
+              "t": "This app used to be great",
+              "b": "This app used to be great. Now you can\u2019t listen to a single song without having to pay an absurd amount of money. This app used to be my favorite now it\u2019s just "
+            },
+            {
+              "r": 1,
+              "t": "STUPID APP",
+              "b": "This app used to be good and allowed for free access entirely. Now you can\u2019t play more than 3 songs for free without signing up gor Premium. STOP ASKING ME TO S"
+            }
+          ]
+        },
+        "loves": {
+          "love": 12,
+          "best": 10,
+          "easy": 7,
+          "free": 4,
+          "fast": 2,
+          "simple": 1,
+          "private": 1
+        },
+        "wishes": [
+          "cant stop the uprise",
+          "need the lyrics or something there to know where the heck the chords go",
+          "needs strumming patterns or I feel it\u2019s kinda useless",
+          "needs improvement is when you want to print an pdf of the chords",
+          "wish I knew about this when I first started playing because I would have definetly b",
+          "need everyday"
+        ]
+      }
+    },
+    {
+      "app": "ChordBank: Learn Guitar Chords",
+      "id": 397602509,
+      "seller": "Better Notes, LLC",
+      "rating": 4.7,
+      "count": 6275,
+      "price": "Free",
+      "updated": "2026-04",
+      "genre": "Music",
+      "reviews": {
+        "n": 150,
+        "n_low": 86,
+        "n_high": 64,
+        "resent_frac": 0.81,
+        "gripes": {
+          "pricing / paywall": 51,
+          "got worse (enshittification)": 12,
+          "ads": 7,
+          "missing / limited": 6,
+          "bugs / reliability": 6
+        },
+        "quotes": {
+          "pricing / paywall": [
+            {
+              "r": 1,
+              "t": "Subscription slop",
+              "b": "This use to be a useful app now they want you to pay so you can learn chord variations. Disgusting."
+            },
+            {
+              "r": 1,
+              "t": "Not free",
+              "b": "Subscription model slop"
+            },
+            {
+              "r": 1,
+              "t": "Subscription",
+              "b": "One star for going subscription. Bye bye. I\u2019d rather pay one time."
+            }
+          ],
+          "got worse (enshittification)": [
+            {
+              "r": 1,
+              "t": "Shame on you, ChordBank",
+              "b": "This app used to be great, then all of a sudden they removed the scales section over to a different app and are trying to charge a yearly subscription."
+            },
+            {
+              "r": 1,
+              "t": "Features now Paywalled",
+              "b": "Reverse finder, a feature which used to be free, is now paywalled in violation of the app store guidelines. So annoying. I can\u2019t even revert to an older version"
+            },
+            {
+              "r": 1,
+              "t": "Great app but pay system is trash",
+              "b": "Been using this app for YEARS and it\u2019s been fantastic however there\u2019s a subscription now so it\u2019s all been ruined. There\u2019s been no updates and this is a non inte"
+            }
+          ],
+          "ads": [
+            {
+              "r": 3,
+              "t": "It was Great Until Today 7-2025",
+              "b": "Used this for years for occasional chord reference; I guess it updated because today it was trying to make me sign up for free trial lessons (money later of cou"
+            },
+            {
+              "r": 1,
+              "t": "Subscription ruined it",
+              "b": "I had been using this since it was first released. I used simply as a chord dictionary. As soon as it went it went subscription, I was turned off. Without a sub"
+            },
+            {
+              "r": 1,
+              "t": "Garbage",
+              "b": "Pretty much unusable in the \u2018free\u2019 version \n\nThe number of CONSTANT pop ups and \u2018notifications\u2019 for you to buy the premium are beyond extreme. Looks elsewhere f"
+            }
+          ],
+          "missing / limited": [
+            {
+              "r": 3,
+              "t": "It was Great Until Today 7-2025",
+              "b": "Used this for years for occasional chord reference; I guess it updated because today it was trying to make me sign up for free trial lessons (money later of cou"
+            },
+            {
+              "r": 1,
+              "t": "Had this app on an old cell phone BUT...!",
+              "b": "Had this app on an old cell phone . I used it daily, because I really like how user friendly it is and the reverse chord finder, it was the best! ...until I tri"
+            },
+            {
+              "r": 3,
+              "t": "Good, but missing Major 7 barre chords!",
+              "b": "Otherwise great App, but I was shocked to discover that it\u2019s missing all the standard Major 7 barre chords rooted on the E string (from F Major 7, F# Major 7, G"
+            }
+          ],
+          "bugs / reliability": [
+            {
+              "r": 1,
+              "t": "Nope",
+              "b": "This app is pay to play on any features you need to add. It\u2019s a money grab to access all the normal things you would want to use on an app like this. By the tim"
+            },
+            {
+              "r": 3,
+              "t": "GLITCHES!\ud83d\ude24\ud83d\ude24\ud83d\ude24",
+              "b": "This one time I got a notification from ChordBank and it taught me how to use the strings but there was also this video I cold watch to get better at it. But th"
+            },
+            {
+              "r": 3,
+              "t": "Great app, but buggy.",
+              "b": "Nice app. \n\nOnly thing is, it\u2019s not wanting to register my guitar input.\n\nI can only seem to get it to work if I plug in an audio interface and even then it\u2019s a"
+            }
+          ]
+        },
+        "loves": {
+          "best": 9,
+          "love": 8,
+          "free": 4,
+          "easy": 3,
+          "intuitive": 2,
+          "beautiful": 1,
+          "clean": 1,
+          "simple": 1
+        },
+        "wishes": [
+          "need to be monitored from my guitar app as an artist this is really disappointing to",
+          "need to make money, but you should also reward your most loyal users",
+          "can't use it anymore",
+          "need your cloud access for a chord finding app",
+          "can't even view anything but the first couple rows out of the 12 or so",
+          "need I will never learn"
+        ]
+      }
+    },
+    {
+      "app": "Guitar Chords Mobile",
+      "id": 1584807086,
+      "seller": "DAVES BALTHAZAR CONSULTORIA EM TECNOLOGIA DA INFORMACAO LTDA",
+      "rating": 4.67,
+      "count": 3,
+      "price": "Free",
+      "updated": "2025-07",
+      "genre": "Music"
+    },
+    {
+      "app": "Strum - Play Guitar",
+      "id": 6749384181,
+      "seller": "W185 Holdings LLC",
+      "rating": 4.67,
+      "count": 18103,
+      "price": "Free",
+      "updated": "2026-07",
+      "genre": "Music",
+      "reviews": {
+        "n": 150,
+        "n_low": 114,
+        "n_high": 36,
+        "resent_frac": 0.7,
+        "gripes": {
+          "pricing / paywall": 74,
+          "missing / limited": 8,
+          "ads": 6,
+          "bugs / reliability": 6
+        },
+        "quotes": {
+          "pricing / paywall": [
+            {
+              "r": 1,
+              "t": "It\u2019s bad",
+              "b": "Dude don\u2019t even get it it locked me behind a paywall subscription FORCED mind you I couldn\u2019t even use the app without buying the subscription therefor I didn\u2019t "
+            },
+            {
+              "r": 1,
+              "t": "It seems cool",
+              "b": "It seems cool but I don\u2019t use apps that don\u2019t allow at least a limited use for free. Let me try it out. See if I even like it. Then I\u2019ll pay for a subscription."
+            },
+            {
+              "r": 2,
+              "t": "Great App - Too expensive",
+              "b": "This is honestly a great app, one of the first that I truly enjoy in regards to picking up random songs on the guitar. But seriously, 7 bucks a week is ridiculo"
+            }
+          ],
+          "missing / limited": [
+            {
+              "r": 1,
+              "t": "It seems cool",
+              "b": "It seems cool but I don\u2019t use apps that don\u2019t allow at least a limited use for free. Let me try it out. See if I even like it. Then I\u2019ll pay for a subscription."
+            },
+            {
+              "r": 1,
+              "t": "It\u2019s a SCAM",
+              "b": "It is marketed as a free and beginner friendly app to learn guitar, but if you even open up the app after about thirty seconds a page pops up. This page is aski"
+            },
+            {
+              "r": 1,
+              "t": "Crashes",
+              "b": "On the latest iOS it just crashes. Really frustrating because it\u2019s a great app, but it doesn\u2019t make sense for me to continue with the subscription if it won\u2019t a"
+            }
+          ],
+          "ads": [
+            {
+              "r": 1,
+              "t": "Subscription",
+              "b": "All of the ads for this app are avoiding the fact that to even use a single feature on it you have to do a \u201ctry me\u201dwith the free subscription.. And if you do no"
+            },
+            {
+              "r": 1,
+              "t": "bad app",
+              "b": "this app sucks. almost every song i tried to learn was not the correct song, had incorrect chords, or incomplete instructions. it costs an entire dollar every d"
+            },
+            {
+              "r": 1,
+              "t": "Need a subscription",
+              "b": "Strum, respectfully you would get more downloads if you could use it for free and just throw in some ads, but you just have to make it a subscription. I feel li"
+            }
+          ],
+          "bugs / reliability": [
+            {
+              "r": 1,
+              "t": "Nice app but expensive and laggy",
+              "b": "it\u2019s cool concept it really is but 7 bucks a week is excessive it really is. and for it to freeze up half the time or the chords don\u2019t match the beat. it\u2019s does"
+            },
+            {
+              "r": 1,
+              "t": "yeah",
+              "b": "app keeps crashing and i have no clue why\ud83d\ude13"
+            },
+            {
+              "r": 1,
+              "t": "Bad subscription",
+              "b": "I bought the subscription I canceled it through Apple and revoked it from allowing it to charge me but it still charges me I can\u2019t have money in my card without"
+            }
+          ]
+        },
+        "loves": {
+          "best": 6,
+          "free": 4,
+          "easy": 2,
+          "intuitive": 1,
+          "love": 1
+        },
+        "wishes": [
+          "need to pay a dollar a day to use the app",
+          "need to rework your pricing heavily",
+          "need no money so\u2026it\u2019s making me pay",
+          "no way to click out of it",
+          "Wish I could love it",
+          "need to be held ACCOUNTABLE and have this app 1000% SHUT DOWN"
+        ]
+      }
+    },
+    {
+      "app": "Guitar chords and tabs",
+      "id": 775795219,
+      "seller": "Xssemble s.r.o.",
+      "rating": 4.74,
+      "count": 798,
+      "price": "Free",
+      "updated": "2025-06",
+      "genre": "Music"
+    },
+    {
+      "app": "Pocket Guitar Chords",
+      "id": 1212952460,
+      "seller": "John Walbolt",
+      "rating": 4.78,
+      "count": 1356,
+      "price": "Free",
+      "updated": "2026-06",
+      "genre": "Music"
+    }
+  ],
+  "market_gripes": {
+    "pricing / paywall": 207,
+    "got worse (enshittification)": 33,
+    "ads": 49,
+    "bugs / reliability": 24,
+    "missing / limited": 29
+  },
+  "market_loves": {
+    "love": 31,
+    "best": 30,
+    "free": 17,
+    "easy": 15,
+    "fast": 3,
+    "intuitive": 3,
+    "simple": 2,
+    "reliable": 1
+  },
+  "wishes": [
+    "need an assist learning new tunes",
+    "need a questionnaire and survey every single time I fire up the app",
+    "need to answer so much and give you so much info about myself",
+    "need to fill out questions and be inundated with ads to get to a tab I want to play",
+    "need to be babied like a newbie",
+    "can't sign in when I think I'm signed in",
+    "cant stop the uprise",
+    "need the lyrics or something there to know where the heck the chords go",
+    "needs strumming patterns or I feel it\u2019s kinda useless",
+    "needs improvement is when you want to print an pdf of the chords"
+  ],
+  "wedge": [
+    "**Fix the money model** (207 gripes \u2014 the dominant complaint): win with a genuinely useful free tier or a one-time unlock, not another subscription/paywall-after-2-entries.",
+    "**Ship ad-free** (49 gripes): ads are a repeated complaint here, and 'no ads' is itself a selling point users praise.",
+    "**Keep what they love:** love, best, free, easy, fast \u2014 don't out-feature these into complexity."
+  ]
+}

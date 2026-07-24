@@ -1,0 +1,7 @@
+# secrets & transient
+*.env
+output/*.log
+# large regenerable artifacts (rebuild from scripts/data)
+output/*.v1.jsonl
+output/keywords.jsonl
+dashboard.html
