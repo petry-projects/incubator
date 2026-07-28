@@ -49,12 +49,12 @@ _ideate_permissions() {
 
 # Emit the child key: value lines of the `secrets:` block under the `ideate` job.
 _ideate_secrets() {
-  awk '/^    secrets:$/ {p=1; next} p && /^      [A-Z_]+:/ {print} p && !/^      [A-Z_]+:/ {p=0}' "$FI_YML"
+  awk '/^  ideate:$/ {ij=1; next} ij && /^    secrets:$/ {p=1; next} p && /^      [A-Z_]+:/ {print} p && !/^      [A-Z_]+:/ {p=0} ij && /^  [^ ]/ {exit}' "$FI_YML"
 }
 
 # Body lines of the `project_context: |` literal block (indented 8+ spaces).
 _project_context_body() {
-  awk '/^      project_context: \|/ {p=1; next} p { if ($0 ~ /^        /) print; else exit }' "$FI_YML"
+  awk '/^  ideate:$/ {ij=1; next} ij && /^  [^ ]/ {exit} ij && /^      project_context: \|/ {p=1; next} p { if ($0 ~ /^        /) print; else exit }' "$FI_YML"
 }
 
 @test "feature-ideation.yml exists" {
@@ -76,9 +76,18 @@ _project_context_body() {
   # schedule (weekly run), workflow_dispatch (manual + the redispatch bridge),
   # discussion (auto-enhance freshly-created ideas).
   local trigger
-  for trigger in schedule workflow_dispatch discussion; do
+  for trigger in workflow_dispatch discussion; do
     _on_block | grep -qE "^  ${trigger}:$"
   done
+
+  # Assert schedule: exists AND has at least one - cron: entry (a bare schedule:
+  # key with an empty block would pass the grep above but disable the weekly run).
+  _on_block | awk '
+    /^  schedule:$/ { in_schedule=1; next }
+    in_schedule && /^  [^ ]/ { exit }
+    in_schedule && /^    - cron:/ { found=1 }
+    END { exit !found }
+  '
 }
 
 @test "the discussion trigger fires on created" {
