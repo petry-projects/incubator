@@ -59,14 +59,16 @@ jobs:
         continue-on-error: true
       - name: Backoff before retry
         if: env.SONAR_TOKEN != '' && steps.sonar.outcome == 'failure'
-        # Wait long enough that the single retry lands *after* a typical transient
-        # clears. SonarCloud/API blips and rate-limit windows are usually
-        # minute-scale, so a 30s backoff re-hit the same outage and both attempts
-        # failed together — the driver behind the degraded failure rate. 60s
-        # outlasts a minute-scale transient while staying well inside the job's
-        # 25-minute backstop (10 + 1 + 10 ≈ 21 min worst case). Paid only on the
-        # failure path; the happy path (first scan succeeds) never waits.
-        run: sleep 60
+        # Wait long enough that the single retry lands *after* the transient
+        # clears. SonarCloud/API blips and rate-limit windows are minute-scale, so
+        # a 30s backoff re-hit the same outage and both attempts failed together.
+        # Issue #27 raised it to 60s (rate 43.8% -> 16.7%); the residual 1/6 failure
+        # (issue #80) was a transient that outlasted a single minute, so the retry
+        # still re-hit it. The org standard mandates a *single* retry, so the
+        # backoff is the only lever left: 120s gives two minutes of headroom while
+        # staying inside the job's 25-minute backstop (10 + 2 + 10 = 22 min worst
+        # case). Paid only on the failure path; the happy path never waits.
+        run: sleep 120
       - name: SonarCloud Scan (retry)
         if: env.SONAR_TOKEN != '' && steps.sonar.outcome == 'failure'
         uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1

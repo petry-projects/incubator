@@ -60,18 +60,22 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
   [ "$backoff_line" -lt "$retry_line" ]
 }
 
-# ── Backoff duration guard (issue #27) ────────────────────────────────────────
+# ── Backoff duration guard (issues #27, #80) ──────────────────────────────────
 # Failure rate was 43.8% with a hang signature already bounded by #21's timeout,
 # so the live driver was the single retry re-hitting the same transient: a 30s
 # backoff does not outlast a minute-scale SonarCloud/API blip, so the retry lands
-# inside the outage and both attempts fail together. This pins a backoff long
-# enough to clear a typical transient before the (single, standard-mandated) retry.
+# inside the outage and both attempts fail together. Issue #27 raised it 30s->60s,
+# cutting the rate to 16.7% (1/6). The residual failure (issue #80) is a transient
+# that outlasted a single minute, so the 60s retry still re-hit it; #80 doubled the
+# wait to 120s for two minutes of headroom. The org standard mandates a *single*
+# retry, so the backoff duration is the only lever left to widen. This pins a
+# backoff long enough to clear a multi-minute-scale transient before that retry.
 
-@test "the backoff is long enough to outlast a minute-scale transient (>= 60s)" {
+@test "the backoff is long enough to outlast a multi-minute transient (>= 120s)" {
   backoff_block="$(awk '/- name: Backoff before retry/{p=1} p && /^      - / && !/- name: Backoff before retry/{p=0} p' "$SONAR_YML")"
-  seconds="$(echo "$backoff_block" | sed -nE 's/.*sleep ([0-9]+).*/\1/p' | head -n 1)"
+  seconds="$(echo "$backoff_block" | grep -E '^\s*run: sleep [0-9]+' | sed -nE 's/.*sleep ([0-9]+).*/\1/p' | head -n 1)"
   [ -n "$seconds" ]
-  [ "$seconds" -ge 60 ]
+  [ "$seconds" -ge 120 ]
 }
 
 # ── Hang guard (issue #21) ────────────────────────────────────────────────────
@@ -101,13 +105,16 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
 }
 
 @test "the job timeout is large enough to cover both bounded scans plus backoff" {
-  # The job backstop must exceed initial-scan + retry step timeouts so a real
+  # The job backstop must exceed initial-scan + backoff + retry step timeouts so a real
   # (non-hung) retry is never killed by the job-level cap before it can recover.
   job_timeout="$(grep -E '^    timeout-minutes: [0-9]+$' "$SONAR_YML" | head -1 | grep -oE '[0-9]+')"
   initial_timeout="$(awk '/- name: SonarCloud Scan$/{p=1} p && /^      - / && !/- name: SonarCloud Scan$/{p=0} p' "$SONAR_YML" | grep -oE 'timeout-minutes: [0-9]+' | grep -oE '[0-9]+')"
   retry_timeout="$(awk 'index($0,"- name: SonarCloud Scan (retry)"){p=1} p && /^      - / && !index($0,"- name: SonarCloud Scan (retry)"){p=0} p' "$SONAR_YML" | grep -oE 'timeout-minutes: [0-9]+' | grep -oE '[0-9]+')"
+  backoff_seconds="$(awk '/- name: Backoff before retry/{p=1} p && /^      - / && !/- name: Backoff before retry/{p=0} p' "$SONAR_YML" | grep -E '^\s*run: sleep [0-9]+' | sed -nE 's/.*sleep ([0-9]+).*/\1/p' | head -n 1)"
   [ -n "$job_timeout" ]
   [ -n "$initial_timeout" ]
   [ -n "$retry_timeout" ]
-  [ "$job_timeout" -gt "$((initial_timeout + retry_timeout))" ]
+  [ -n "$backoff_seconds" ]
+  # Compare in seconds so the backoff (seconds) and scan timeouts (minutes) use the same unit
+  [ "$((job_timeout * 60))" -gt "$((initial_timeout * 60 + backoff_seconds + retry_timeout * 60))" ]
 }
