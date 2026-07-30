@@ -121,6 +121,8 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
 }
 
 @test "a single checkout retry step is gated on the initial checkout failing" {
+  retry_count="$(awk '/- name: Checkout repository \(retry\)/{c++} END{print c+0}' "$SONAR_YML")"
+  [ "$retry_count" -eq 1 ]
   retry_block="$(awk 'index($0,"- name: Checkout repository (retry)"){p=1} p && /^      - / && !index($0,"- name: Checkout repository (retry)"){p=0} p' "$SONAR_YML")"
   [ -n "$retry_block" ]
   echo "$retry_block" | grep -qF "name: Checkout repository (retry)"
@@ -128,8 +130,11 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
 }
 
 @test "the checkout retry also fetches full git history (fetch-depth: 0)" {
+  initial_block="$(awk '/- name: Checkout repository$/{p=1} p && /^      - / && !/- name: Checkout repository$/{p=0} p' "$SONAR_YML")"
   retry_block="$(awk 'index($0,"- name: Checkout repository (retry)"){p=1} p && /^      - / && !index($0,"- name: Checkout repository (retry)"){p=0} p' "$SONAR_YML")"
+  [ -n "$initial_block" ]
   [ -n "$retry_block" ]
+  echo "$initial_block" | grep -qE 'fetch-depth: 0'
   echo "$retry_block" | grep -qE 'fetch-depth: 0'
 }
 
@@ -139,6 +144,9 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
   echo "$backoff_block" | grep -qF "steps.checkout.outcome == 'failure'"
   # Pin the intent (a real wait precedes the retry), not a magic number.
   echo "$backoff_block" | grep -qE 'run: sleep [0-9]+'
+  # The backoff must not be continue-on-error so a failed backoff cannot silently
+  # bypass the retry gate.
+  ! echo "$backoff_block" | grep -qF 'continue-on-error: true'
 }
 
 @test "the checkout backoff step appears before the checkout retry step" {
@@ -160,10 +168,16 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
 }
 
 @test "the checkout retry runs before the SonarCloud scan" {
+  checkout_line="$(awk '/- name: Checkout repository$/{print NR; exit}' "$SONAR_YML")"
+  backoff_line="$(awk '/- name: Checkout backoff before retry/{print NR; exit}' "$SONAR_YML")"
   checkout_retry_line="$(awk '/- name: Checkout repository \(retry\)/{print NR; exit}' "$SONAR_YML")"
   scan_line="$(awk '/- name: SonarCloud Scan$/{print NR; exit}' "$SONAR_YML")"
+  [ -n "$checkout_line" ]
+  [ -n "$backoff_line" ]
   [ -n "$checkout_retry_line" ]
   [ -n "$scan_line" ]
+  [ "$checkout_line" -lt "$backoff_line" ]
+  [ "$checkout_line" -lt "$checkout_retry_line" ]
   [ "$checkout_retry_line" -lt "$scan_line" ]
 }
 
