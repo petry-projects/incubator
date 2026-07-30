@@ -44,7 +44,29 @@ jobs:
     env:
       SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
+      # Checkout resilience (issue #83): the residual 20% failure (1/5) ran fast
+      # (p50 45s, p95 47s) — it never entered the 120s scan backoff, and the initial
+      # scan is continue-on-error so it cannot fail the job. The remaining unguarded,
+      # network-bound step is this full-history fetch (fetch-depth: 0), whose ~45s
+      # runtime matches the failing run. So the checkout gets the same idiom as the
+      # scan: continue-on-error initial attempt, a short backoff, then a single gated
+      # retry. The backoff is only seconds (git/GitHub transients are momentary,
+      # unlike SonarCloud's minute-scale endpoint blips) and is paid only on failure.
       - name: Checkout repository
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+        continue-on-error: true
+      - name: Checkout backoff before retry
+        if: steps.checkout.outcome == 'failure'
+        # Short wait so a momentary DNS/TLS/GitHub blip clears before the single
+        # retry, without materially adding to the job's wall time.
+        run: sleep 15
+      - name: Checkout repository (retry)
+        if: steps.checkout.outcome == 'failure'
+        # Not continue-on-error: if even the retry cannot fetch the repo, fail the
+        # job fast rather than run the scan against an empty/partial checkout.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0

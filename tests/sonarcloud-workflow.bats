@@ -104,6 +104,67 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
   echo "$retry_block" | grep -qE '^        timeout-minutes: [0-9]+$'
 }
 
+# ── Checkout resilience guard (issue #83) ─────────────────────────────────────
+# Residual failure rate was 20% (1/5) with p50=45s and p95=47s — the failing run
+# was *fast*. It never entered the 120s scan backoff (that would push a failed run
+# past 165s), and the initial scan is continue-on-error so it can't fail the job.
+# The one remaining unguarded, network-bound step is the full-history checkout
+# (fetch-depth: 0), whose ~45s fetch matches the failing-run duration. These tests
+# pin a single gated retry on the checkout, mirroring the scan-retry idiom, so a
+# transient checkout blip no longer reds the whole run.
+
+@test "the initial checkout carries an id and is continue-on-error" {
+  checkout_block="$(awk '/- name: Checkout repository$/{p=1} p && /^      - / && !/- name: Checkout repository$/{p=0} p' "$SONAR_YML")"
+  [ -n "$checkout_block" ]
+  echo "$checkout_block" | grep -qE '^        id: checkout$'
+  echo "$checkout_block" | grep -qE '^        continue-on-error: true$'
+}
+
+@test "a single checkout retry step is gated on the initial checkout failing" {
+  retry_block="$(awk 'index($0,"- name: Checkout repository (retry)"){p=1} p && /^      - / && !index($0,"- name: Checkout repository (retry)"){p=0} p' "$SONAR_YML")"
+  [ -n "$retry_block" ]
+  echo "$retry_block" | grep -qF "name: Checkout repository (retry)"
+  echo "$retry_block" | grep -qF "steps.checkout.outcome == 'failure'"
+}
+
+@test "the checkout retry also fetches full git history (fetch-depth: 0)" {
+  retry_block="$(awk 'index($0,"- name: Checkout repository (retry)"){p=1} p && /^      - / && !index($0,"- name: Checkout repository (retry)"){p=0} p' "$SONAR_YML")"
+  [ -n "$retry_block" ]
+  echo "$retry_block" | grep -qE 'fetch-depth: 0'
+}
+
+@test "a backoff precedes the checkout retry, gated on the same failure condition" {
+  backoff_block="$(awk '/- name: Checkout backoff before retry/{p=1} p && /^      - / && !/- name: Checkout backoff before retry/{p=0} p' "$SONAR_YML")"
+  [ -n "$backoff_block" ]
+  echo "$backoff_block" | grep -qF "steps.checkout.outcome == 'failure'"
+  # Pin the intent (a real wait precedes the retry), not a magic number.
+  echo "$backoff_block" | grep -qE 'run: sleep [0-9]+'
+}
+
+@test "the checkout backoff step appears before the checkout retry step" {
+  backoff_line="$(grep -nF 'name: Checkout backoff before retry' "$SONAR_YML" | head -1 | cut -d: -f1)"
+  retry_line="$(grep -nF 'name: Checkout repository (retry)' "$SONAR_YML" | head -1 | cut -d: -f1)"
+  [ -n "$backoff_line" ]
+  [ -n "$retry_line" ]
+  [ "$backoff_line" -lt "$retry_line" ]
+}
+
+@test "both checkout steps pin the same SHA-pinned actions/checkout ref" {
+  # Never a tag/branch: every actions/checkout use must be pinned to a 40-char SHA,
+  # and the retry must use the same pinned ref as the initial checkout.
+  mapfile -t refs < <(grep -oE 'actions/checkout@[0-9a-f]{40}' "$SONAR_YML")
+  [ "${#refs[@]}" -eq 2 ]
+  [ "${refs[0]}" = "${refs[1]}" ]
+}
+
+@test "the checkout retry runs before the SonarCloud scan" {
+  checkout_retry_line="$(grep -nF 'name: Checkout repository (retry)' "$SONAR_YML" | head -1 | cut -d: -f1)"
+  scan_line="$(grep -nE '^      - name: SonarCloud Scan$' "$SONAR_YML" | head -1 | cut -d: -f1)"
+  [ -n "$checkout_retry_line" ]
+  [ -n "$scan_line" ]
+  [ "$checkout_retry_line" -lt "$scan_line" ]
+}
+
 @test "the job timeout is large enough to cover both bounded scans plus backoff" {
   # The job backstop must exceed initial-scan + backoff + retry step timeouts so a real
   # (non-hung) retry is never killed by the job-level cap before it can recover.
