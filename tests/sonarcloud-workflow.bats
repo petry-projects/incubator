@@ -167,6 +167,15 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
   [ "$initial_ref" = "$retry_ref" ]
 }
 
+@test "both checkout steps disable credential persistence (persist-credentials: false)" {
+  initial_block="$(awk '/- name: Checkout repository$/{p=1} p && /^      - / && !/- name: Checkout repository$/{p=0} p' "$SONAR_YML")"
+  retry_block="$(awk 'index($0,"- name: Checkout repository (retry)"){p=1} p && /^      - / && !index($0,"- name: Checkout repository (retry)"){p=0} p' "$SONAR_YML")"
+  [ -n "$initial_block" ]
+  [ -n "$retry_block" ]
+  echo "$initial_block" | grep -qF 'persist-credentials: false'
+  echo "$retry_block" | grep -qF 'persist-credentials: false'
+}
+
 @test "the checkout retry runs before the SonarCloud scan" {
   checkout_line="$(awk '/- name: Checkout repository$/{print NR; exit}' "$SONAR_YML")"
   backoff_line="$(awk '/- name: Checkout backoff before retry/{print NR; exit}' "$SONAR_YML")"

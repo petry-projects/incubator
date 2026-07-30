@@ -57,6 +57,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
         continue-on-error: true
       - name: Checkout backoff before retry
         if: steps.checkout.outcome == 'failure'
@@ -70,6 +71,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: SonarCloud Scan
         id: sonar
         if: env.SONAR_TOKEN != ''
