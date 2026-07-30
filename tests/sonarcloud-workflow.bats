@@ -142,8 +142,8 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
 }
 
 @test "the checkout backoff step appears before the checkout retry step" {
-  backoff_line="$(grep -nF 'name: Checkout backoff before retry' "$SONAR_YML" | head -1 | cut -d: -f1)"
-  retry_line="$(grep -nF 'name: Checkout repository (retry)' "$SONAR_YML" | head -1 | cut -d: -f1)"
+  backoff_line="$(awk '/- name: Checkout backoff before retry/{print NR; exit}' "$SONAR_YML")"
+  retry_line="$(awk '/- name: Checkout repository \(retry\)/{print NR; exit}' "$SONAR_YML")"
   [ -n "$backoff_line" ]
   [ -n "$retry_line" ]
   [ "$backoff_line" -lt "$retry_line" ]
@@ -152,14 +152,16 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
 @test "both checkout steps pin the same SHA-pinned actions/checkout ref" {
   # Never a tag/branch: every actions/checkout use must be pinned to a 40-char SHA,
   # and the retry must use the same pinned ref as the initial checkout.
-  mapfile -t refs < <(grep -oE 'actions/checkout@[0-9a-f]{40}' "$SONAR_YML")
-  [ "${#refs[@]}" -eq 2 ]
-  [ "${refs[0]}" = "${refs[1]}" ]
+  initial_ref="$(awk '/- name: Checkout repository$/{p=1} p && /^      - / && !/- name: Checkout repository$/{p=0} p' "$SONAR_YML" | grep -oE 'actions/checkout@[0-9a-f]{40}')"
+  retry_ref="$(awk '/- name: Checkout repository \(retry\)/{p=1} p && /^      - / && !/- name: Checkout repository \(retry\)/{p=0} p' "$SONAR_YML" | grep -oE 'actions/checkout@[0-9a-f]{40}')"
+  [ -n "$initial_ref" ]
+  [ -n "$retry_ref" ]
+  [ "$initial_ref" = "$retry_ref" ]
 }
 
 @test "the checkout retry runs before the SonarCloud scan" {
-  checkout_retry_line="$(grep -nF 'name: Checkout repository (retry)' "$SONAR_YML" | head -1 | cut -d: -f1)"
-  scan_line="$(grep -nE '^      - name: SonarCloud Scan$' "$SONAR_YML" | head -1 | cut -d: -f1)"
+  checkout_retry_line="$(awk '/- name: Checkout repository \(retry\)/{print NR; exit}' "$SONAR_YML")"
+  scan_line="$(awk '/- name: SonarCloud Scan$/{print NR; exit}' "$SONAR_YML")"
   [ -n "$checkout_retry_line" ]
   [ -n "$scan_line" ]
   [ "$checkout_retry_line" -lt "$scan_line" ]
