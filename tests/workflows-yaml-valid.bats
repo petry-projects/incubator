@@ -38,9 +38,9 @@ import yaml
 
 path = sys.argv[1]
 try:
-    with open(path) as fh:
+    with open(path, encoding="utf-8") as fh:
         doc = yaml.safe_load(fh)
-except yaml.YAMLError as exc:
+except Exception as exc:
     print(f"YAML parse error: {exc}")
     sys.exit(2)
 
@@ -53,6 +53,10 @@ if "jobs" not in doc:
 if not isinstance(doc["jobs"], dict) or not doc["jobs"]:
     print("'jobs:' is not a non-empty mapping")
     sys.exit(5)
+for job_name, job_val in doc["jobs"].items():
+    if not isinstance(job_val, dict):
+        print(f"job '{job_name}' is not a mapping")
+        sys.exit(6)
 sys.exit(0)
 PY
 }
@@ -115,4 +119,17 @@ jobs:
 YML
   run _validate_workflow "$fixed"
   [ "$status" -eq 0 ]
+}
+
+@test "validator flags a workflow where a job entry is not a mapping" {
+  local broken="$BATS_TEST_TMPDIR/broken-job.yml"
+  cat > "$broken" <<'YML'
+name: CI
+on: [push]
+jobs:
+  build: broken
+YML
+  run _validate_workflow "$broken"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"job"*"mapping"* ]]
 }
