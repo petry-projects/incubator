@@ -118,7 +118,7 @@ jobs:
           fi
           sudo apt-get update -qq
           sudo apt-get install -y -qq bats
-          pip3 install --quiet pyyaml
+          pip3 install --quiet --only-binary :all: "pyyaml==6.0.2"
           mkdir -p coverage
           if sudo apt-get install -y -qq kcov; then
             kcov --include-path=. --exclude-path=tests,coverage coverage bats "${bats_files[@]}"
