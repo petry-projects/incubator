@@ -48,6 +48,7 @@ class Result:
     url: str = ""
     price: float | None = None
     confidence: str = "high"  # high | low (social checks are low)
+    currency: str = "USD"
 
 
 def make_session() -> requests.Session:
@@ -65,17 +66,27 @@ def slugify(name: str) -> str:
 # Availability checks (all read-only)
 # --------------------------------------------------------------------------- #
 def rdap_domain(sess: requests.Session, domain: str) -> Result:
-    """Domain availability via RDAP (rdap.org bootstraps to the registry).
+    """Domain availability via RDAP (rdap.org bootstraps to the authoritative registry).
 
-    404 => no record => available. 200 => registered. Some ccTLDs (.ai) have
-    no RDAP; those come back UNKNOWN and should be checked via Cloudflare or by
-    hand.
+    rdap.org returns 302 to the authoritative RDAP server for TLDs it knows.
+    A bootstrap 404 means no RDAP authority exists for that TLD (UNKNOWN).
+    Only the authoritative server's 404 means the domain is unregistered (AVAILABLE).
     """
     url = f"https://rdap.org/domain/{domain}"
     try:
         r = sess.get(url, timeout=20, allow_redirects=False)
+        if r.status_code in (301, 302, 303, 307, 308):
+            redirect_url = r.headers.get("Location")
+            if not redirect_url:
+                return Result("domain", domain, UNKNOWN, "RDAP redirect without Location", f"https://{domain}")
+            r2 = sess.get(redirect_url, timeout=20, allow_redirects=True)
+            if r2.status_code == 404:
+                return Result("domain", domain, AVAILABLE, "RDAP: no record", f"https://{domain}")
+            if r2.status_code == 200:
+                return Result("domain", domain, TAKEN, "RDAP: registered", f"https://{domain}")
+            return Result("domain", domain, UNKNOWN, f"RDAP HTTP {r2.status_code} — verify manually", f"https://{domain}")
         if r.status_code == 404:
-            return Result("domain", domain, AVAILABLE, "RDAP: no record", f"https://{domain}")
+            return Result("domain", domain, UNKNOWN, "RDAP: no authority for TLD", f"https://{domain}")
         if r.status_code == 200:
             return Result("domain", domain, TAKEN, "RDAP: registered", f"https://{domain}")
         return Result("domain", domain, UNKNOWN, f"RDAP HTTP {r.status_code} — verify manually", f"https://{domain}")
@@ -87,8 +98,9 @@ def cloudflare_domain_check(sess, account_id, token, domains) -> dict:
     """POST /registrar/domain-check — authoritative availability + price.
 
     Returns {domain: Result}. On any API error, raises so the caller can fall
-    back to RDAP. NOTE: the registrar registration API is recent — if this 4xxs,
-    confirm the endpoint/payload in the current Cloudflare API docs and adjust.
+    back to RDAP. Response shape: result.domains[].{name, registrable, reason, pricing}.
+    Only reason=="domain_unavailable" maps to TAKEN; other non-registrable values
+    (e.g. extension_not_supported_via_api) map to UNKNOWN so callers fall back to RDAP.
     """
     base = f"https://api.cloudflare.com/client/v4/accounts/{account_id}"
     r = sess.post(
@@ -103,23 +115,25 @@ def cloudflare_domain_check(sess, account_id, token, domains) -> dict:
         errors = body.get("errors", [])
         raise RuntimeError(f"Cloudflare API error: {errors}")
     out: dict[str, Result] = {}
-    for item in body.get("result", []):
-        name = item.get("domain") or item.get("name")
+    for item in body.get("result", {}).get("domains", []):
+        name = item.get("name")
         if name is None:
             continue
-        available = item.get("available")
-        _p = item.get("price")
-        price = _p if _p is not None else item.get("registration_fee")
+        registrable = item.get("registrable")
+        reason = item.get("reason", "")
+        pricing = item.get("pricing") or {}
+        price_raw = pricing.get("registration_cost")
+        currency = pricing.get("currency", "USD")
         try:
-            price = float(price) if price is not None else None
+            price = float(price_raw) if price_raw is not None else None
         except (TypeError, ValueError):
             price = None
-        if available is True:
-            out[name] = Result("domain", name, AVAILABLE, "Cloudflare: available", f"https://{name}", price)
-        elif available is False:
-            out[name] = Result("domain", name, TAKEN, "Cloudflare: registered", f"https://{name}", price)
+        if registrable is True:
+            out[name] = Result("domain", name, AVAILABLE, "Cloudflare: available", f"https://{name}", price=price, currency=currency)
+        elif registrable is False and reason == "domain_unavailable":
+            out[name] = Result("domain", name, TAKEN, "Cloudflare: registered", f"https://{name}", price=price, currency=currency)
         else:
-            out[name] = Result("domain", name, UNKNOWN, "Cloudflare: indeterminate", f"https://{name}", price)
+            out[name] = Result("domain", name, UNKNOWN, f"Cloudflare: {reason or 'indeterminate'}", f"https://{name}", price=price, currency=currency)
     return out
 
 
@@ -198,7 +212,10 @@ def to_markdown(name: str, slug: str, results: list[Result]) -> str:
         lines.append("| | Target | Status | Detail | Price |")
         lines.append("|---|---|---|---|---|")
         for r in rows:
-            price = f"${r.price:.0f}" if r.price is not None else ""
+            if r.price is not None:
+                price = f"${r.price:.2f}" if r.currency == "USD" else f"{r.price:.2f} {r.currency}"
+            else:
+                price = ""
             tgt = f"[{r.target}]({r.url})" if r.url else r.target
             lines.append(f"| {ICON.get(r.status, '')} | {tgt} | {r.status} | {r.detail} | {price} |")
         lines.append("")

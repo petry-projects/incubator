@@ -37,21 +37,40 @@ class TestRdapDomain:
     """Test RDAP domain availability checks."""
 
     def test_available_domain(self, session):
-        """404 status means domain is available."""
-        session.get.return_value = Mock(status_code=404)
+        """Bootstrap 302 redirect followed by authoritative 404 means available."""
+        redirect_resp = Mock(status_code=302)
+        redirect_resp.headers = {"Location": "https://rdap.verisign.com/com/v1/domain/example.com"}
+        authoritative_resp = Mock(status_code=404)
+        session.get.side_effect = [redirect_resp, authoritative_resp]
         result = c.rdap_domain(session, "example.com")
         assert result.status == c.AVAILABLE
         assert result.channel == "domain"
+        assert session.get.call_count == 2
+        first_call = session.get.call_args_list[0]
+        assert first_call.kwargs["allow_redirects"] is False
+
+    def test_bootstrap_no_authority(self, session):
+        """Bootstrap 404 (no RDAP authority for TLD) means unknown, not available."""
+        session.get.return_value = Mock(status_code=404)
+        result = c.rdap_domain(session, "example.xyz")
+        assert result.status == c.UNKNOWN
         session.get.assert_called_once()
-        call_args = session.get.call_args
-        assert call_args.kwargs["allow_redirects"] is False
 
     def test_taken_domain(self, session):
-        """200 status means domain is registered."""
+        """200 status from bootstrap means domain is registered."""
         session.get.return_value = Mock(status_code=200)
         result = c.rdap_domain(session, "example.com")
         assert result.status == c.TAKEN
         assert result.channel == "domain"
+
+    def test_redirect_to_taken(self, session):
+        """Bootstrap 302 redirect followed by authoritative 200 means taken."""
+        redirect_resp = Mock(status_code=302)
+        redirect_resp.headers = {"Location": "https://rdap.verisign.com/com/v1/domain/example.com"}
+        authoritative_resp = Mock(status_code=200)
+        session.get.side_effect = [redirect_resp, authoritative_resp]
+        result = c.rdap_domain(session, "example.com")
+        assert result.status == c.TAKEN
 
     def test_unknown_status(self, session):
         """Other status codes mean unknown."""
@@ -74,39 +93,83 @@ class TestCloudflareCheck:
         session.post.return_value = Mock(
             status_code=200,
             json=lambda: {
-                "result": [
-                    {
-                        "domain": "example.com",
-                        "available": True,
-                        "price": 25.50,
-                    }
-                ]
+                "success": True,
+                "result": {
+                    "domains": [
+                        {
+                            "name": "example.com",
+                            "registrable": True,
+                            "pricing": {
+                                "registration_cost": "25.50",
+                                "renewal_cost": "15.00",
+                                "currency": "USD",
+                            },
+                        }
+                    ]
+                },
             },
         )
         results = c.cloudflare_domain_check(session, "account123", "token", ["example.com"])
         assert "example.com" in results
         assert results["example.com"].status == c.AVAILABLE
         assert results["example.com"].price == 25.50
+        assert results["example.com"].currency == "USD"
 
     def test_taken_domain(self, session):
-        """Parse Cloudflare response for taken domain."""
+        """Parse Cloudflare response for taken domain (reason=domain_unavailable)."""
         session.post.return_value = Mock(
             status_code=200,
             json=lambda: {
-                "result": [{"domain": "example.com", "available": False, "price": None}]
+                "success": True,
+                "result": {
+                    "domains": [
+                        {
+                            "name": "example.com",
+                            "registrable": False,
+                            "reason": "domain_unavailable",
+                        }
+                    ]
+                },
             },
         )
         results = c.cloudflare_domain_check(session, "account123", "token", ["example.com"])
         assert results["example.com"].status == c.TAKEN
+
+    def test_non_registrable_non_unavailable_returns_unknown(self, session):
+        """Non-registrable with non-domain-unavailable reason returns UNKNOWN for RDAP fallback."""
+        session.post.return_value = Mock(
+            status_code=200,
+            json=lambda: {
+                "success": True,
+                "result": {
+                    "domains": [
+                        {
+                            "name": "example.ai",
+                            "registrable": False,
+                            "reason": "extension_not_supported_via_api",
+                        }
+                    ]
+                },
+            },
+        )
+        results = c.cloudflare_domain_check(session, "account123", "token", ["example.ai"])
+        assert results["example.ai"].status == c.UNKNOWN
 
     def test_invalid_price(self, session):
         """Handle invalid price values."""
         session.post.return_value = Mock(
             status_code=200,
             json=lambda: {
-                "result": [
-                    {"domain": "example.com", "available": True, "price": "invalid"}
-                ]
+                "success": True,
+                "result": {
+                    "domains": [
+                        {
+                            "name": "example.com",
+                            "registrable": True,
+                            "pricing": {"registration_cost": "invalid", "currency": "USD"},
+                        }
+                    ]
+                },
             },
         )
         results = c.cloudflare_domain_check(session, "account123", "token", ["example.com"])
@@ -127,22 +190,36 @@ class TestCloudflareCheck:
             status_code=200,
             json=lambda: {
                 "success": True,
-                "result": [{"domain": "example.com", "available": True, "price": 0.0}],
+                "result": {
+                    "domains": [
+                        {
+                            "name": "example.com",
+                            "registrable": True,
+                            "pricing": {"registration_cost": "0.0", "currency": "USD"},
+                        }
+                    ]
+                },
             },
         )
         results = c.cloudflare_domain_check(session, "account123", "token", ["example.com"])
         assert results["example.com"].price == 0.0
 
     def test_item_without_name_skipped(self, session):
-        """Items with no domain/name field are skipped."""
+        """Items with no name field are skipped."""
         session.post.return_value = Mock(
             status_code=200,
             json=lambda: {
                 "success": True,
-                "result": [
-                    {"available": True},  # no domain or name
-                    {"domain": "ok.com", "available": True, "price": 10.0},
-                ],
+                "result": {
+                    "domains": [
+                        {"registrable": True},  # no name
+                        {
+                            "name": "ok.com",
+                            "registrable": True,
+                            "pricing": {"registration_cost": "10.0", "currency": "USD"},
+                        },
+                    ]
+                },
             },
         )
         results = c.cloudflare_domain_check(session, "account123", "token", ["ok.com"])
@@ -279,14 +356,25 @@ class TestToMarkdown:
         assert "TAKEN" in md
 
     def test_price_formatting(self):
-        """Format prices in output."""
+        """Format prices in output with currency and two decimal places."""
         results = [
             c.Result(
                 "domain", "acme.com", c.AVAILABLE, "Available", "https://acme.com", price=25.50
             ),
         ]
         md = c.to_markdown("Acme", "acme", results)
-        assert "$26" in md
+        assert "$25.50" in md
+
+    def test_non_usd_price_formatting(self):
+        """Non-USD prices show currency code rather than dollar sign."""
+        results = [
+            c.Result(
+                "domain", "acme.eu", c.AVAILABLE, "Available", "https://acme.eu", price=10.00, currency="EUR"
+            ),
+        ]
+        md = c.to_markdown("Acme", "acme", results)
+        assert "10.00 EUR" in md
+        assert "$" not in md
 
 
 class TestMakeSession:

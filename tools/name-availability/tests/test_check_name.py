@@ -16,6 +16,13 @@ def mock_session():
     return MagicMock()
 
 
+@pytest.fixture(autouse=True)
+def clear_cloudflare_credentials(monkeypatch):
+    """Remove CF credentials from env for ordinary tests to prevent hitting the CF path."""
+    monkeypatch.delenv("CLOUDFLARE_API_TOKEN", raising=False)
+    monkeypatch.delenv("CLOUDFLARE_ACCOUNT_ID", raising=False)
+
+
 class TestCheckNameMain:
     """Test check_name.py main function."""
 

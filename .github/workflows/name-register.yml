@@ -16,6 +16,7 @@ on:
       execute: { type: boolean, default: false }
       max_price: { type: number, default: 40 }
       skip_github: { type: boolean, default: false }
+      confirm: { type: string, default: "", description: "Must match the name exactly when execute is true (typo guard)" }
       source_ref: { type: string, default: "main", description: "Ref/SHA of petry-projects/incubator to check out — pin to a tag or SHA for reproducible runs" }
     secrets:
       CLOUDFLARE_API_TOKEN: { required: false }
@@ -79,10 +80,11 @@ jobs:
           INPUT_MAX_PRICE: ${{ inputs.max_price }}
           INPUT_SKIP_GITHUB: ${{ inputs.skip_github }}
           INPUT_EXECUTE: ${{ inputs.execute }}
+          INPUT_CONFIRM: ${{ inputs.confirm }}
         run: |
           args=("$INPUT_NAME" --tlds "$INPUT_TLDS" --max-price "$INPUT_MAX_PRICE")
           [[ "$INPUT_SKIP_GITHUB" == "true" ]] && args+=(--skip-github)
           if [[ "$INPUT_EXECUTE" == "true" ]]; then
-            args+=(--execute --confirm "$INPUT_NAME")
+            args+=(--execute --confirm "$INPUT_CONFIRM")
           fi
           python scripts/register_name.py "${args[@]}"

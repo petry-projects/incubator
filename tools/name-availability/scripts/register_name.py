@@ -79,7 +79,7 @@ def build_contact() -> dict | None:
 
 
 def cf_register(ctx: _RegCtx, domain: str, contact: dict) -> str:
-    payload = {"name": domain, "years": ctx.years, "auto_renew": True, "privacy": True, "contact": contact}
+    payload = {"name": domain, "years": ctx.years, "auto_renew": False, "privacy": True, "contact": contact}
     endpoint = f"{CF_API}/accounts/{ctx.cf_account}/registrar/registrations"
     if ctx.dry_run:
         safe = dict(payload, contact={"…": "REGISTRANT_* from env (hidden)"})
@@ -144,15 +144,22 @@ def log(summary: list[str], line: str) -> None:
 def _try_register_domain(ctx: _RegCtx, d: str, avail: dict, contact: dict | None) -> bool:
     """Returns True if a real (non-skip) error occurred."""
     res = avail.get(d)
-    if not res or res.status != c.AVAILABLE:
-        log(ctx.summary, f"- ⏭️ `{d}` — {res.detail if res else 'availability unknown'} (skip)")
+    if not res:
+        log(ctx.summary, f"- ❌ `{d}` — availability unknown")
+        return not ctx.dry_run
+    if res.status != c.AVAILABLE:
+        log(ctx.summary, f"- ⏭️ `{d}` — {res.detail} (skip)")
         return False
     price = res.price
+    currency = res.currency
     if price is None:
         log(ctx.summary, f"- 🛑 `{d}` — price unknown; skipping (cannot enforce price cap)")
         return False
+    if currency != "USD":
+        log(ctx.summary, f"- 🛑 `{d}` — price is in {currency}; cannot compare to --max-price (skip)")
+        return False
     if price > ctx.max_price:
-        log(ctx.summary, f"- 🛑 `{d}` — ${price:.0f} exceeds --max-price ${ctx.max_price:.0f} (skip)")
+        log(ctx.summary, f"- 🛑 `{d}` — ${price:.2f} exceeds --max-price ${ctx.max_price:.2f} (skip)")
         return False
     if not ctx.dry_run:
         # Gate 3 + contact presence
@@ -164,7 +171,7 @@ def _try_register_domain(ctx: _RegCtx, d: str, avail: dict, contact: dict | None
             return False
     try:
         msg = cf_register(ctx, d, contact)
-        price_s = f" (${price:.0f})"
+        price_s = f" (${price:.2f})" if currency == "USD" else f" ({price:.2f} {currency})"
         log(ctx.summary, f"- {'🟡' if ctx.dry_run else '✅'} `{d}`{price_s} — {msg}")
         return False
     except Exception as e:  # noqa: BLE001
@@ -183,7 +190,7 @@ def _register_domains(ctx: _RegCtx, slug: str, tlds: list[str]) -> bool:
         avail = c.cloudflare_domain_check(ctx.sess, ctx.cf_account, ctx.cf_token, domains)
     except Exception as e:  # noqa: BLE001
         log(ctx.summary, f"- ⚠️ domain-check failed ({e}); skipping domain registration")
-        avail = {}
+        return not ctx.dry_run
     contact = build_contact()
     had_error = False
     for d in domains:

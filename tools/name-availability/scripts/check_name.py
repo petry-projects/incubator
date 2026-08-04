@@ -29,9 +29,13 @@ def _resolve_domains(sess, slug, tlds, cf_token, cf_account) -> list[c.Result]:
     if cf_token and cf_account:
         try:
             cf_map = c.cloudflare_domain_check(sess, cf_account, cf_token, domains)
-            out = [cf_map[d] for d in domains if d in cf_map]
-            missing = [d for d in domains if d not in cf_map]
-            out.extend(c.rdap_domain(sess, d) for d in missing)
+            out = []
+            for d in domains:
+                cf_result = cf_map.get(d)
+                if cf_result is not None and cf_result.status != c.UNKNOWN:
+                    out.append(cf_result)
+                else:
+                    out.append(c.rdap_domain(sess, d))
             return out
         except Exception as e:  # noqa: BLE001 - fall back to RDAP on any CF failure
             print(f"[warn] Cloudflare domain-check failed ({e}); using RDAP", file=sys.stderr)

@@ -78,7 +78,8 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install Python dependencies
-        run: pip install --require-hashes --only-binary :all: -r tools/name-availability/requirements-lock.txt
+        run: |
+          pip install --require-hashes --only-binary :all: -r tools/name-availability/requirements-lock.txt
       - name: Run tests and generate coverage report
         run: |
           python -m pytest tools/name-availability/tests/ \

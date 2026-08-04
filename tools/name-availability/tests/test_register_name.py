@@ -93,14 +93,14 @@ class TestCfRegister:
     def test_successful_registration(self):
         """Successful 201 response."""
         sess = MagicMock()
-        sess.post.return_value = Mock(status_code=201)
+        sess.post.return_value = Mock(status_code=201, json=lambda: {"success": True})
         result = register_name.cf_register(_make_ctx(sess), "example.com", {"email": "test@example.com"})
         assert "REGISTERED" in result
 
     def test_successful_registration_200(self):
         """Successful 200 response."""
         sess = MagicMock()
-        sess.post.return_value = Mock(status_code=200)
+        sess.post.return_value = Mock(status_code=200, json=lambda: {"success": True})
         result = register_name.cf_register(_make_ctx(sess), "example.com", {"email": "test@example.com"})
         assert "REGISTERED" in result
 
@@ -287,9 +287,9 @@ class TestRegisterNameMain:
         """Test execution with spending allowed."""
         mock_session.return_value = MagicMock()
         mock_cf_check.return_value = {
-            "acme.com": c.Result(
-                "domain", "acme.com", c.AVAILABLE, price=25.0
-            )
+            "acme.com": c.Result("domain", "acme.com", c.AVAILABLE, price=25.0),
+            "acme.io": c.Result("domain", "acme.io", c.TAKEN, "Cloudflare: registered", "https://acme.io"),
+            "acme.ai": c.Result("domain", "acme.ai", c.TAKEN, "Cloudflare: registered", "https://acme.ai"),
         }
         mock_contact.return_value = {"email": "test@example.com"}
         mock_cf_reg.return_value = "REGISTERED acme.com"
