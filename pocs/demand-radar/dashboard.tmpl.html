@@ -201,6 +201,8 @@
   .gripe{font-size:11.5px;color:var(--ink-2);border-left:2px solid var(--bad);padding:2px 0 2px 9px;margin-bottom:7px}
   .gripe b{color:var(--ink)}
   .gripe .gr{font-family:var(--mono);color:var(--bad);font-size:10px}
+  .wedge{font-size:11.5px;color:var(--ink-2);border-left:2px solid var(--disrupt);padding:2px 0 2px 9px;margin-bottom:7px}
+  .wedge b{color:var(--ink)}
 </style>
 
 <div class="app">
@@ -219,7 +221,7 @@
         <div class="kpi"><b class="mono">1,250</b><small>scored</small></div>
         <div class="kpi hot"><b id="k-star">0</b><small>shortlisted</small></div>
       </div>
-      <button class="exp-btn" id="export">Export ratings</button>
+      <button class="exp-btn" id="export" title="Copy ratings JSON to clipboard">Copy ratings</button>
       <button class="theme-btn" id="theme">◐ Theme</button>
     </div>
   </header>
@@ -273,7 +275,7 @@
   <footer>
     <div class="foot-in">
       <p style="margin:0 0 6px"><strong>Reading the signals.</strong> <span class="mono" style="color:var(--good)">Emerging/Aging</span> = a real but tiny or outdated app exists (trustworthy gap). <span class="mono" style="color:var(--ink-3)">Unmatched</span> on App&nbsp;Store is <em>unverified</em> — often a relevance miss (a real app under a different name), so it's down-weighted and needs a <span class="mono" style="color:var(--info)">MobileAction</span> volume check. <span class="mono" style="color:var(--disrupt)">🎯&nbsp;Disrupt</span> flips the logic — a <em>proven, crowded</em> market whose leader is beatable. The strongest version is <span class="mono" style="color:var(--bad)">🔥&nbsp;resented</span>: a <em>well-rated</em> giant (even 4.7★) whose recent 1-star reviews are dominated by <em>pricing / ads / "used-to-be-free"</em> gripes — the Quizlet play, mined from review <em>text</em> because stars can't see it. Community numbers this snapshot are HackerNews-heavy (quota-limited) — directional, not gospel.</p>
-      <p style="margin:6px 0 0" class="hint">Snapshot: 792 candidates of 1,250 scored across 25 verticals · supply = iTunes Search API · demand = DuckDuckGo autocomplete + community · ratings saved in this browser (Export to keep them).</p>
+      <p style="margin:6px 0 0" class="hint">Snapshot: 834 candidates of 1,250 scored across 25 verticals · supply = iTunes Search API · demand = DuckDuckGo autocomplete + community · ratings saved in this browser (Export to keep them).</p>
     </div>
   </footer>
 </div>
@@ -379,6 +381,7 @@ function rowHTML(x,i){
         <div class="sigrow"><span>Leader rating</span><b>${x.leaderR!=null?x.leaderR+"★":"—"}${x.leaderApp?` · <span style="font-weight:400;color:var(--ink-2)">${esc(x.leaderApp)}</span>`:""}</b></div>
         ${x.disrupt?`<div class="sigrow"><span>Disruption score</span><b style="color:var(--disrupt)">${x.dScore}</b></div>`:""}
         ${x.resented?`<div class="gripes"><h4 style="margin:10px 0 7px">🔥 Why users are leaving · ${Math.round(x.resentFrac*100)}% of recent 1–3★ reviews</h4>${(x.gripes||[]).map(g=>`<div class="gripe"><span class="gr">${(g.c||[]).join(" · ")}</span> <b>${esc(g.t||"")}</b> — ${esc(g.b||"")}</div>`).join("")}</div>`:""}
+        ${x.wedge&&x.wedge.length?`<div class="gripes"><h4 style="margin:10px 0 7px">🎯 How to win · the wedge</h4>${x.wedge.map(w=>`<div class="wedge">${esc(w)}</div>`).join("")}</div>`:""}
         <div class="sigrow"><span>Demand (autocomplete)</span><b>${x.app? "app-intent ✓":"—"} · ${x.bi}</b></div>
         <div class="sigrow"><span>Community (${x.commSrc||"—"})</span><b>${fmt(x.comm)}</b></div>
         <div class="note"><textarea placeholder="Notes on ${x.kw}…" data-note="${x.kw}">${(r.note||"").replace(/"/g,'&quot;')}</textarea></div>
@@ -470,8 +473,13 @@ document.addEventListener("keydown", e=>{
 $("#export").addEventListener("click", ()=>{
   const rated = DATA.filter(x=>ratings[x.kw]).map(x=>({keyword:x.kw,vertical:x.vert,channel:x.ch,gap:x.gap,
     score:x.score,verdict:x.verdict,rating:ratings[x.kw].r||null,note:ratings[x.kw].note||""}));
-  const blob = new Blob([JSON.stringify({exported:new Date().toISOString(),count:rated.length,ratings:rated},null,2)],{type:"application/json"});
-  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="demandradar-ratings.json"; a.click();
+  const btn=document.getElementById("export"), orig=btn.textContent, flash=m=>{btn.textContent=m;setTimeout(()=>btn.textContent=orig,1600);};
+  if(!rated.length){flash("No ratings yet");return;}
+  const text=JSON.stringify({exported:new Date().toISOString(),count:rated.length,ratings:rated},null,2);
+  const ok=()=>flash("✓ Copied "+rated.length);
+  (navigator.clipboard&&navigator.clipboard.writeText(text).then(ok).catch(fallback))||fallback();
+  function fallback(){const ta=document.createElement("textarea");ta.value=text;ta.style.cssText="position:fixed;opacity:0";
+    document.body.appendChild(ta);ta.select();try{document.execCommand("copy");ok();}catch(e){flash("Copy failed");}ta.remove();}
 });
 
 /* theme */

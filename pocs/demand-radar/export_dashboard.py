@@ -48,6 +48,20 @@ def disruption(rec):
     lr = round(lr, 2) if lr else None
     return ms, lr, lead.get("app"), (ms >= DISRUPT_USERS and lr is not None and 1.0 < lr <= DISRUPT_RATING)
 
+def wedge_from(rg):
+    """Synthesize a 'how to win' wedge from a resented leader's gripe categories."""
+    if not rg: return None
+    ch = rg.get("cat_hits", {})
+    tmpl = {
+        "pricing": "Fix the money model \u2014 pricing/paywall is the top complaint; win with a genuinely free tier or a one-time unlock, not another subscription.",
+        "ads": "Ship ad-free \u2014 ads are a repeated gripe and 'no ads' is itself a selling point.",
+        "enshittification": "Be the simple, un-bloated alternative \u2014 users say it got worse / raised prices / removed basics; restore the clean original.",
+        "missing": "Restore the removed/basic features users keep citing.",
+    }
+    order = sorted([c for c in tmpl if ch.get(c)], key=lambda c: -ch.get(c, 0))
+    return [tmpl[c] for c in order[:3]] or None
+
+
 def main():
     src = os.path.join(HERE, "output", "records.enriched.jsonl")
     if not os.path.exists(src): src = os.path.join(HERE, "output", "records.jsonl")
@@ -91,6 +105,7 @@ def main():
             "resented": res_flag, "resentFrac": rg.get("resent_frac") if res_flag else None,
             "resentCats": [c for c in ("pricing", "ads", "enshittification") if res_flag and rg.get("cat_hits", {}).get(c)] if res_flag else None,
             "gripes": rg.get("gripes") if res_flag else None,
+            "wedge": wedge_from(rg) if res_flag else None,
             "bestRating": sup.get("best_existing_rating"), "fresh": sup.get("freshest_incumbent_days"),
             "relInc": sup.get("relevant_incumbents"),
             "apps": [{"n": a.get("app"), "r": a.get("rating"), "c": a.get("rating_count"),
