@@ -55,8 +55,10 @@ jobs:
       #   - run: npm run lint && npm run typecheck && npm test
       # See BOOTSTRAP.md and the CI standard. Until you add real steps, the
       # placeholder below keeps the required `build-and-test` check green.
-      - name: Placeholder — replace with real build/test steps
-        run: echo "CI stub — add your stack's lint/format/typecheck/test/coverage steps; see BOOTSTRAP.md."
+      - name: DemandRadar unit tests (pocs/demand-radar — pure pipeline logic)
+        run: |
+          python3 -m pip install --quiet --user pytest
+          python3 -m pytest pocs/demand-radar/tests -q
 
   # Canonical secret-scan job — copied verbatim from push-protection.md#required-ci-job.
   # Produces the `Secret scan (gitleaks)` required check. Uses the gitleaks CLI (not

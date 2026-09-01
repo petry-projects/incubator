@@ -109,3 +109,18 @@ architecture for a repeatable process anyway.
 - `rank_starter_list.py` — merges labels, demand-aware ranking → `starter-list.md`
 - `labels/mobileaction-labels.json` — manual MobileAction ground truth (app-store magnitude)
 - `output/` — generated `records.jsonl`, `records.enriched.jsonl`, `summary.md`, `starter-list.md`
+
+## Tests
+
+Pure pipeline logic (gap classification, disruption thresholds, relevance, resentment
+scoring, wedges, ranking) is unit-tested — the network `fetch` layer is separated from the
+logic, so no mocking is needed.
+
+```
+cd pocs/demand-radar && python3 -m pytest tests/ -q
+```
+
+CI runs these on every PR (the `build-and-test` job in `.github/workflows/ci.yml`).
+`tests/` covers `extract`, `resented_giants`, `broad_pass`, `export_dashboard`,
+`enrich_community`, `rank_starter_list`, and `deep_dive`. The fetch/orchestration layers
+(iTunes/DDG/reviews I/O, pacing, ban handling) are integration surface, exercised by real runs.
