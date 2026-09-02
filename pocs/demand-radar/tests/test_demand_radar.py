@@ -211,3 +211,26 @@ class TestSynthWedge:
 
     def test_no_gripes_no_loves(self):
         assert deep_dive.synth_wedge({"missing / limited": 1}, {}) == []
+
+
+# ───────────────────────── pipeline.py ─────────────────────────
+
+class TestPipelineBuild:
+    def test_build_injects_and_escapes_script(self, tmp_path):
+        import pipeline
+        tmpl = tmp_path / "t.html"; tmpl.write_text("<head></head><script>const D=__DATA__;</script>")
+        data = tmp_path / "d.json"; data.write_text('[{"x":"a</script>b"}]')
+        html = tmp_path / "o.html"
+        pipeline.build_dashboard(str(tmpl), str(data), str(html))
+        s = html.read_text()
+        assert "__DATA__" not in s
+        assert "<\\/script>" in s          # the data's </script> was neutralized
+        assert s.count("</script>") == 1    # only the real closing tag remains
+
+    def test_build_requires_placeholder(self, tmp_path):
+        import pipeline
+        import pytest
+        tmpl = tmp_path / "t.html"; tmpl.write_text("<script>no placeholder</script>")
+        data = tmp_path / "d.json"; data.write_text("[]")
+        with pytest.raises(ValueError):
+            pipeline.build_dashboard(str(tmpl), str(data), str(tmp_path / "o.html"))

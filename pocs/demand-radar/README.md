@@ -124,3 +124,18 @@ CI runs these on every PR (the `build-and-test` job in `.github/workflows/ci.yml
 `tests/` covers `extract`, `resented_giants`, `broad_pass`, `export_dashboard`,
 `enrich_community`, `rank_starter_list`, and `deep_dive`. The fetch/orchestration layers
 (iTunes/DDG/reviews I/O, pacing, ban handling) are integration surface, exercised by real runs.
+
+## Run it (one command)
+
+`pipeline.py` chains the whole funnel via the stage scripts (each resumes/paces on its own;
+network stages are non-fatal so a partial refresh still ships):
+
+```
+python3 pipeline.py --preset full     # bootstrap: generate→broad(DDG)→priority→extract→enrich→resented→export→build
+python3 pipeline.py --preset refresh  # scheduled cadence: priority→extract(bounded)→enrich→export→build
+python3 pipeline.py --preset export   # re-derive dashboard only (no network)
+```
+
+The scheduled Action (`.github/workflows/demand-radar-signal.yml`) runs `--preset refresh`
+weekly and uploads `dashboard.html` + data as a build artifact. Publishing that to the live
+claude.ai Artifact is a separate step (CI can't call the Artifact tool).

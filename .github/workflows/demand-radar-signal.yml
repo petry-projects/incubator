@@ -1,68 +1,81 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# DemandRadar — supply-signal pull (SPIKE, not an org-standard agent)
+# DemandRadar — scheduled refresh (SPIKE, not an org-standard agent)
 #
-# Scheduled, headless, zero-secret extraction for the DemandRadar concept
-# (incubator Discussion #44). Runs pocs/demand-radar/extract.py, which pulls
-# FREE supply-side signal from Apple's public iTunes Search API and emits
-# opportunity_records + a summary. No API keys, no paid ASO dependency — the
-# calibration (#44) showed paid magnitude is a CONDITIONAL add-on, not required.
+# Runs the whole funnel with one command: pocs/demand-radar/pipeline.py.
+#   refresh (default) : select_priority -> extract(bounded) -> enrich -> export -> build
+#   full              : + generate + broad(DDG) + resented scan  (slow/ban-prone; rare)
+# All data + the built dashboard.html are uploaded as a build artifact. Publishing to the
+# live claude.ai Artifact is a separate manual/LLM step (CI can't call the Artifact tool).
 #
-# This is a disposable POC workflow under pocs/. It is intentionally NOT a thin
-# caller to an org reusable (there is no reusable for this yet). If DemandRadar
-# graduates, this logic moves to a product repo per the incubator lifecycle.
-#
-# Output is uploaded as a build artifact (no repo writes → no contents:write).
+# Disposable POC workflow under pocs/. Not a thin caller to an org reusable (none exists).
+# Free data only; YOUTUBE_API_KEY / REDDIT_* secrets are optional (enrich falls back to
+# StackExchange/HackerNews). Every free endpoint IP-bans bursts — the scripts pace/resume.
 # ─────────────────────────────────────────────────────────────────────────────
-name: DemandRadar — signal pull (spike)
+name: DemandRadar — scheduled refresh (spike)
 
 on:
   schedule:
     - cron: '17 6 * * 1'   # Monday 06:17 UTC — weekly refresh
   workflow_dispatch:
     inputs:
-      limit:
-        description: 'iTunes results per keyword'
+      preset:
+        description: 'pipeline preset'
         required: false
-        default: '25'
+        default: 'refresh'
+        type: choice
+        options: [refresh, full, export]
+      max:
+        description: 'extract/enrich batch cap'
+        required: false
+        default: '240'
+        type: string
+      rate:
+        description: 'iTunes calls/min (stay <=~30 to avoid bans)'
+        required: false
+        default: '18'
         type: string
 
 permissions: {}            # default-deny; the job grants only what it needs
 
 concurrency:
-  group: demand-radar-signal
+  group: demand-radar-refresh
   cancel-in-progress: false
 
 jobs:
-  pull-signal:
+  refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     permissions:
-      contents: read       # checkout only
+      contents: read       # checkout only; results go to a build artifact, not the repo
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Pull supply signal (stdlib only — no pip)
-        run: python3 pocs/demand-radar/extract.py --limit "${{ github.event.inputs.limit || '25' }}"
-
-      - name: Enrich with community signal (Reddit if secret present, else HN)
+      - name: Run DemandRadar pipeline (stdlib only — no pip)
         env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-          # Reddit blocks datacenter IPs even for OAuth from some ranges — Actions
-          # runners may hit this. Falls back to hackernews on any failure.
-          DR_COMMUNITY_SOURCE: ${{ vars.DR_COMMUNITY_SOURCE || 'hackernews' }}
-        run: python3 pocs/demand-radar/enrich_community.py || echo "community enrich skipped/failed (non-fatal)"
+          DR_COMMUNITY_SOURCE: ${{ vars.DR_COMMUNITY_SOURCE || 'stackexchange' }}
+        run: |
+          python3 pocs/demand-radar/pipeline.py \
+            --preset "${{ github.event.inputs.preset || 'refresh' }}" \
+            --max "${{ github.event.inputs.max || '240' }}" \
+            --rate "${{ github.event.inputs.rate || '18' }}"
 
-      - name: Rank into the idea starter list (merges manual MobileAction labels)
-        run: python3 pocs/demand-radar/rank_starter_list.py
+      - name: Summarize in the run log
+        run: |
+          {
+            echo "### DemandRadar refresh"
+            head -c 4000 pocs/demand-radar/output/starter-list.md 2>/dev/null || true
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Show starter list in the run log
-        run: cat pocs/demand-radar/output/starter-list.md >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload records + summary
+      - name: Upload data + built dashboard
         uses: actions/upload-artifact@v4
         with:
-          name: demand-radar-signal
-          path: pocs/demand-radar/output/
+          name: demand-radar
+          path: |
+            pocs/demand-radar/output/dashboard-data.json
+            pocs/demand-radar/output/starter-list.md
+            pocs/demand-radar/dashboard.html
           retention-days: 30
