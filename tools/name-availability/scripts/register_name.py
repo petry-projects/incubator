@@ -78,11 +78,38 @@ def build_contact() -> dict | None:
     }
 
 
+def cf_contacts(contact: dict) -> dict:
+    """Map our flat REGISTRANT_* dict onto Cloudflare's nested contacts schema.
+
+    Cloudflare expects contacts.registrant.{email,phone,postal_info{name,
+    organization,address{street,city,state,postal_code,country_code}}}.
+    """
+    full_name = f"{contact['first_name']} {contact['last_name']}".strip()
+    postal_info = {
+        "name": full_name,
+        "address": {
+            "street": contact["address"],
+            "city": contact["city"],
+            "state": contact["state"],
+            "postal_code": contact["zip"],
+            "country_code": contact["country"],
+        },
+    }
+    if contact.get("organization"):
+        postal_info["organization"] = contact["organization"]
+    return {"registrant": {"email": contact["email"], "phone": contact["phone"], "postal_info": postal_info}}
+
+
 def cf_register(ctx: _RegCtx, domain: str, contact: dict) -> str:
-    payload = {"name": domain, "years": ctx.years, "auto_renew": False, "privacy": True, "contact": contact}
+    # Cloudflare's registration API registers for a single term and has no
+    # "years" field; refuse rather than silently registering for 1 year.
+    if ctx.years != 1:
+        raise RuntimeError(f"Cloudflare registration API does not accept a multi-year term (--years {ctx.years})")
+    # auto_renew/privacy_mode are left at Cloudflare's defaults (privacy on).
+    payload = {"domain_name": domain, "auto_renew": False, "contacts": cf_contacts(contact)}
     endpoint = f"{CF_API}/accounts/{ctx.cf_account}/registrar/registrations"
     if ctx.dry_run:
-        safe = dict(payload, contact={"…": "REGISTRANT_* from env (hidden)"})
+        safe = dict(payload, contacts={"registrant": "REGISTRANT_* from env (hidden)"})
         return f"DRY RUN — would POST {endpoint} :: {safe}"
     r = ctx.sess.post(
         endpoint,
@@ -96,7 +123,10 @@ def cf_register(ctx: _RegCtx, domain: str, contact: dict) -> str:
             errors = body.get("errors", [])
             raise RuntimeError(f"Cloudflare registration reported failure for {domain}: {errors}")
         return f"REGISTERED {domain}"
-    raise RuntimeError(f"Cloudflare registration failed for {domain}: HTTP {r.status_code}")
+    # Surface the body: the registration API is new, and a 4xx here is the
+    # first place a wrong payload or an unmet account prerequisite shows up.
+    detail = (r.text or "")[:500]
+    raise RuntimeError(f"Cloudflare registration failed for {domain}: HTTP {r.status_code}{': ' + detail if detail else ''}")
 
 
 def gh_create_repo(sess, token, org, slug, dry_run) -> str:

@@ -62,7 +62,21 @@ class TestBuildContact:
         assert result["organization"] == "ACME Corp"
 
 
-def _make_ctx(sess, *, cf_account="account123", cf_token="token", dry_run=False, **kwargs):
+_CONTACT = {
+    "first_name": "John",
+    "last_name": "Doe",
+    "organization": "Acme Inc",
+    "email": "john@example.com",
+    "phone": "+1.5555555555",
+    "address": "123 Main St",
+    "city": "Anytown",
+    "state": "CA",
+    "zip": "12345",
+    "country": "US",
+}
+
+
+def _make_ctx(sess, *, cf_account="account123", cf_token="token", dry_run=False, years=1, **kwargs):
     """Build a _RegCtx for tests with sensible defaults."""
     return register_name._RegCtx(
         sess=sess,
@@ -72,7 +86,7 @@ def _make_ctx(sess, *, cf_account="account123", cf_token="token", dry_run=False,
         dry_run=dry_run,
         allow_spend=False,
         max_price=40.0,
-        years=1,
+        years=years,
         summary=[],
         **kwargs,
     )
@@ -85,7 +99,7 @@ class TestCfRegister:
         """Dry run should not call API."""
         sess = MagicMock()
         ctx = _make_ctx(sess, dry_run=True)
-        result = register_name.cf_register(ctx, "example.com", {"email": "test@example.com"})
+        result = register_name.cf_register(ctx, "example.com", _CONTACT)
         assert "DRY RUN" in result
         assert "would POST" in result
         sess.post.assert_not_called()
@@ -94,14 +108,14 @@ class TestCfRegister:
         """Successful 201 response."""
         sess = MagicMock()
         sess.post.return_value = Mock(status_code=201, json=lambda: {"success": True})
-        result = register_name.cf_register(_make_ctx(sess), "example.com", {"email": "test@example.com"})
+        result = register_name.cf_register(_make_ctx(sess), "example.com", _CONTACT)
         assert "REGISTERED" in result
 
     def test_successful_registration_200(self):
         """Successful 200 response."""
         sess = MagicMock()
         sess.post.return_value = Mock(status_code=200, json=lambda: {"success": True})
-        result = register_name.cf_register(_make_ctx(sess), "example.com", {"email": "test@example.com"})
+        result = register_name.cf_register(_make_ctx(sess), "example.com", _CONTACT)
         assert "REGISTERED" in result
 
     def test_successful_registration_checks_json_body(self):
@@ -112,21 +126,80 @@ class TestCfRegister:
             json=lambda: {"success": False, "errors": [{"message": "Payment required"}]},
         )
         with pytest.raises(RuntimeError, match="reported failure"):
-            register_name.cf_register(_make_ctx(sess), "example.com", {"email": "test@example.com"})
+            register_name.cf_register(_make_ctx(sess), "example.com", _CONTACT)
 
     def test_registration_missing_success_field_raises(self):
         """200 response with no success field is treated as failure."""
         sess = MagicMock()
         sess.post.return_value = Mock(status_code=200, json=lambda: {})
         with pytest.raises(RuntimeError, match="reported failure"):
-            register_name.cf_register(_make_ctx(sess), "example.com", {"email": "test@example.com"})
+            register_name.cf_register(_make_ctx(sess), "example.com", _CONTACT)
 
     def test_failed_registration(self):
         """Failed registration raises error."""
         sess = MagicMock()
         sess.post.return_value = Mock(status_code=400, text="Invalid domain")
         with pytest.raises(RuntimeError, match="HTTP 400"):
-            register_name.cf_register(_make_ctx(sess), "example.com", {"email": "test@example.com"})
+            register_name.cf_register(_make_ctx(sess), "example.com", _CONTACT)
+
+
+class TestCfRegisterPayload:
+    """Pin the request to Cloudflare's documented registration schema.
+
+    The previous tests only mocked the response, so a payload using the wrong
+    field names passed CI while being rejected by the real API.
+    """
+
+    def _sent(self):
+        sess = MagicMock()
+        sess.post.return_value = Mock(status_code=201, json=lambda: {"success": True})
+        register_name.cf_register(_make_ctx(sess), "example.com", _CONTACT)
+        return sess.post.call_args
+
+    def test_endpoint_and_domain_field(self):
+        call = self._sent()
+        assert call.args[0] == "https://api.cloudflare.com/client/v4/accounts/account123/registrar/registrations"
+        assert call.kwargs["json"]["domain_name"] == "example.com"
+
+    def test_no_undocumented_fields(self):
+        body = self._sent().kwargs["json"]
+        # "name"/"years"/"privacy"/"contact" are NOT part of the API schema.
+        for bad in ("name", "years", "privacy", "contact"):
+            assert bad not in body, f"{bad} is not a documented Cloudflare field"
+
+    def test_registrant_contact_is_nested(self):
+        reg = self._sent().kwargs["json"]["contacts"]["registrant"]
+        assert reg["email"] == "john@example.com"
+        assert reg["phone"] == "+1.5555555555"
+        assert reg["postal_info"]["name"] == "John Doe"
+        assert reg["postal_info"]["organization"] == "Acme Inc"
+        assert reg["postal_info"]["address"] == {
+            "street": "123 Main St",
+            "city": "Anytown",
+            "state": "CA",
+            "postal_code": "12345",
+            "country_code": "US",
+        }
+
+    def test_organization_omitted_when_blank(self):
+        sess = MagicMock()
+        sess.post.return_value = Mock(status_code=201, json=lambda: {"success": True})
+        register_name.cf_register(_make_ctx(sess), "example.com", dict(_CONTACT, organization=""))
+        postal = sess.post.call_args.kwargs["json"]["contacts"]["registrant"]["postal_info"]
+        assert "organization" not in postal
+
+    def test_dry_run_hides_contact(self):
+        sess = MagicMock()
+        out = register_name.cf_register(_make_ctx(sess, dry_run=True), "example.com", _CONTACT)
+        assert "john@example.com" not in out
+        assert "123 Main St" not in out
+        assert "registrar/registrations" in out
+
+    def test_multi_year_rejected(self):
+        sess = MagicMock()
+        with pytest.raises(RuntimeError, match="multi-year"):
+            register_name.cf_register(_make_ctx(sess, years=2), "example.com", _CONTACT)
+        sess.post.assert_not_called()
 
 
 class TestGhCreateRepo:
@@ -291,7 +364,7 @@ class TestRegisterNameMain:
             "acme.io": c.Result("domain", "acme.io", c.TAKEN, "Cloudflare: registered", "https://acme.io"),
             "acme.ai": c.Result("domain", "acme.ai", c.TAKEN, "Cloudflare: registered", "https://acme.ai"),
         }
-        mock_contact.return_value = {"email": "test@example.com"}
+        mock_contact.return_value = _CONTACT
         mock_cf_reg.return_value = "REGISTERED acme.com"
 
         with patch("sys.argv", ["register_name.py", "Acme", "--execute", "--confirm", "Acme"]):
@@ -358,7 +431,7 @@ class TestRegisterNameMain:
         mock_cf_check.return_value = {
             "acme.com": c.Result("domain", "acme.com", c.AVAILABLE, price=25.0)
         }
-        mock_contact.return_value = {"email": "test@example.com"}
+        mock_contact.return_value = _CONTACT
         mock_cf_reg.side_effect = RuntimeError("Payment failed")
 
         with patch("sys.argv", ["register_name.py", "Acme", "--execute", "--confirm", "Acme"]):
