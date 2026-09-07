@@ -285,13 +285,11 @@ def main() -> int:
     )
 
     had_error = False
-    if not args.skip_domains:
-        if _register_domains(ctx, slug, tlds):
-            had_error = True
+    if not args.skip_domains and _register_domains(ctx, slug, tlds):
+        had_error = True
 
-    if not args.skip_github:
-        if _register_github(ctx, gh_org, slug):
-            had_error = True
+    if not args.skip_github and _register_github(ctx, gh_org, slug):
+        had_error = True
 
     # --- Packages (print, never auto-publish) -----------------------------
     summary.append("\n### Packages — reserve by hand (not auto-published)")

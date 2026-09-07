@@ -125,22 +125,25 @@ class TestCfRegister:
             status_code=200,
             json=lambda: {"success": False, "errors": [{"message": "Payment required"}]},
         )
+        ctx = _make_ctx(sess)
         with pytest.raises(RuntimeError, match="reported failure"):
-            register_name.cf_register(_make_ctx(sess), "example.com", _CONTACT)
+            register_name.cf_register(ctx, "example.com", _CONTACT)
 
     def test_registration_missing_success_field_raises(self):
         """200 response with no success field is treated as failure."""
         sess = MagicMock()
         sess.post.return_value = Mock(status_code=200, json=lambda: {})
+        ctx = _make_ctx(sess)
         with pytest.raises(RuntimeError, match="reported failure"):
-            register_name.cf_register(_make_ctx(sess), "example.com", _CONTACT)
+            register_name.cf_register(ctx, "example.com", _CONTACT)
 
     def test_failed_registration(self):
         """Failed registration raises error."""
         sess = MagicMock()
         sess.post.return_value = Mock(status_code=400, text="Invalid domain")
+        ctx = _make_ctx(sess)
         with pytest.raises(RuntimeError, match="HTTP 400"):
-            register_name.cf_register(_make_ctx(sess), "example.com", _CONTACT)
+            register_name.cf_register(ctx, "example.com", _CONTACT)
 
 
 class TestCfRegisterPayload:
@@ -197,8 +200,9 @@ class TestCfRegisterPayload:
 
     def test_multi_year_rejected(self):
         sess = MagicMock()
+        ctx = _make_ctx(sess, years=2)
         with pytest.raises(RuntimeError, match="multi-year"):
-            register_name.cf_register(_make_ctx(sess, years=2), "example.com", _CONTACT)
+            register_name.cf_register(ctx, "example.com", _CONTACT)
         sess.post.assert_not_called()
 
 

@@ -200,6 +200,17 @@ def social_handle(sess, platform, handle) -> Result:
 # --------------------------------------------------------------------------- #
 # Output
 # --------------------------------------------------------------------------- #
+def _format_price(r: Result) -> str:
+    if r.price is None:
+        return ""
+    return f"${r.price:.2f}" if r.currency == "USD" else f"{r.price:.2f} {r.currency}"
+
+
+def _render_row(r: Result) -> str:
+    tgt = f"[{r.target}]({r.url})" if r.url else r.target
+    return f"| {ICON.get(r.status, '')} | {tgt} | {r.status} | {r.detail} | {_format_price(r)} |"
+
+
 def to_markdown(name: str, slug: str, results: list[Result]) -> str:
     lines = [f"## Name check — `{name}`  (slug `{slug}`)", ""]
     order = ["domain", "github", "npm", "pypi", "social"]
@@ -211,13 +222,7 @@ def to_markdown(name: str, slug: str, results: list[Result]) -> str:
         lines.append(f"### {titles[ch]}")
         lines.append("| | Target | Status | Detail | Price |")
         lines.append("|---|---|---|---|---|")
-        for r in rows:
-            if r.price is not None:
-                price = f"${r.price:.2f}" if r.currency == "USD" else f"{r.price:.2f} {r.currency}"
-            else:
-                price = ""
-            tgt = f"[{r.target}]({r.url})" if r.url else r.target
-            lines.append(f"| {ICON.get(r.status, '')} | {tgt} | {r.status} | {r.detail} | {price} |")
+        lines.extend(_render_row(r) for r in rows)
         lines.append("")
     return "\n".join(lines)
 
