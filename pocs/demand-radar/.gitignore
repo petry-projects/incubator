@@ -5,3 +5,7 @@ output/*.log
 output/*.v1.jsonl
 output/keywords.jsonl
 dashboard.html
+# Python bytecode & test cache (see petry-projects/.github#1081)
+__pycache__/
+*.py[cod]
+.pytest_cache/
