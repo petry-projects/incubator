@@ -41,12 +41,17 @@ VERTICAL_SOURCE = {
     "health-fitness": "stackexchange", "food-cooking": "stackexchange", "home-diy": "stackexchange",
     "pets-animals": "stackexchange", "travel-outdoors": "stackexchange", "finance-money": "stackexchange",
     "parenting-kids": "stackexchange", "gardening-plants": "stackexchange", "music-audio": "stackexchange",
+    # aliases for the actual keyword-groups.json group names (else they fell back to hackernews)
+    "creator-utilities": "youtube", "student-tools": "stackexchange",
+    "finance-personal": "stackexchange", "pets": "stackexchange", "travel": "stackexchange",
 }
 SITE_MAP = {
     "gaming-companions": "gaming", "tabletop-ttrpg": "rpg", "student-education": "academia",
     "health-fitness": "fitness", "food-cooking": "cooking", "home-diy": "diy", "pets-animals": "pets",
     "travel-outdoors": "travel", "finance-money": "money", "parenting-kids": "parenting",
     "gardening-plants": "gardening", "creator-content": "video", "music-audio": "music",
+    # aliases for the actual keyword-groups.json group names (StackExchange site per vertical)
+    "student-tools": "academia", "finance-personal": "money", "pets": "pets", "travel": "travel",
 }
 THRESHOLDS = {  # (corroborate_at, too_thin_below) — units differ wildly by source
     "youtube": (50_000, 2_000),   # summed views of RELEVANT top videos (real demand)
@@ -102,6 +107,16 @@ def reddit_token(cid, secret):
     return json.loads(urllib.request.urlopen(req, timeout=20).read())["access_token"]
 
 
+def reddit_mentions(q, token):
+    """Community demand = number of relevant Reddit posts for the query (rough signal,
+    capped by `limit`; matches the small reddit THRESHOLDS). Needs an OAuth app token."""
+    params = urllib.parse.urlencode({"q": q, "limit": 25, "sort": "relevance", "type": "link"})
+    req = urllib.request.Request("https://oauth.reddit.com/search?" + params,
+                                 headers={"User-Agent": UA, "Authorization": f"bearer {token}"})
+    d = json.loads(urllib.request.urlopen(req, timeout=20).read())
+    return {"source": "reddit", "mentions": len(d.get("data", {}).get("children", [])), "query": q}
+
+
 def fetch_for(record, forced, budget_left, rtoken, dead):
     """Route a record to a community source (respecting forced source + budgets + dead sources)."""
     q, vert = record["canonical_query"], record.get("industry")
@@ -117,8 +132,10 @@ def fetch_for(record, forced, budget_left, rtoken, dead):
                 if not site:
                     continue
                 cm = se_mentions(q, site)
-            elif src == "reddit" and rtoken:
-                continue  # reddit path documented but gated/blocked from cloud
+            elif src == "reddit":
+                if not rtoken:
+                    continue  # needs an OAuth app token (often IP-blocked from cloud); skip
+                cm = reddit_mentions(q, rtoken)
             else:
                 cm = hn_mentions(q)
             budget_left[src] -= 1
@@ -177,6 +194,10 @@ def main():
 
     budget_left = dict(BUDGET)
     dead = set()  # sources that 429'd this run — skipped thereafter (circuit breaker)
+    if "YOUTUBE_API_KEY" not in os.environ:
+        # yt_mentions would KeyError on every record (not a 429/quota, so never circuit-broken)
+        dead.add("youtube")
+        print("  ~ YOUTUBE_API_KEY not found in environment; skipping youtube source", file=sys.stderr)
     changed = []
     for i, r in enumerate(targets):
         cm = fetch_for(r, args.source or None, budget_left, rtoken, dead)

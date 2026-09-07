@@ -33,7 +33,7 @@ def main():
 
     picked = []
     for vert, rows in by_vert.items():
-        rows.sort(key=lambda r: (r.get("app_intent", 0), r.get("broad_interest", 0),
+        rows.sort(key=lambda r: (r.get("broad_interest", 0), r.get("app_intent", 0),
                                  r.get("n_suggestions", 0)), reverse=True)
         picked.extend(rows[: args.per_vertical])
 
@@ -49,7 +49,7 @@ def main():
             }) + "\n")
 
     print(f"Selected {len(picked)} priority keywords ({args.per_vertical}/vertical x {len(by_vert)}) -> {args.out}")
-    top = sorted(picked, key=lambda r: (r.get("app_intent", 0), r.get("broad_interest", 0)), reverse=True)[:20]
+    top = sorted(picked, key=lambda r: (r.get("broad_interest", 0), r.get("app_intent", 0)), reverse=True)[:20]
     print("Top 20 by broad demand:")
     for r in top:
         print(f"  bi={r.get('broad_interest')} app={r.get('app_intent')}  {r['keyword']:<26} [{r['vertical']}]")

@@ -50,11 +50,22 @@ def run(label, script, argv, fatal):
 
 def build_dashboard(tmpl_path=TMPL, data_path=DATA, html_path=HTML):
     """Inject dashboard-data.json into the template (escaping </script>) -> dashboard.html."""
-    tmpl = open(tmpl_path).read()
-    data = open(data_path).read().replace("</script>", "<\\/script>")
-    if "__DATA__" not in tmpl:
+    try:
+        with open(tmpl_path, encoding="utf-8") as f:
+            tmpl = f.read()
+        with open(data_path, encoding="utf-8") as f:
+            data = f.read().replace("</script>", "<\\/script>")
+    except (OSError, UnicodeError) as e:  # file-access / encoding — report, don't traceback
+        print(f"Error building dashboard: {e}", file=sys.stderr)
+        sys.exit(1)
+    if "__DATA__" not in tmpl:  # a real programming error in the template — surface it
         raise ValueError("template missing __DATA__ placeholder")
-    open(html_path, "w").write(tmpl.replace("__DATA__", data))
+    try:
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(tmpl.replace("__DATA__", data))
+    except OSError as e:
+        print(f"Error building dashboard: {e}", file=sys.stderr)
+        sys.exit(1)
     return html_path
 
 

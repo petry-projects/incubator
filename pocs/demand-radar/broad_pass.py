@@ -20,6 +20,7 @@ import argparse
 import json
 import os
 import re
+import sys
 import threading
 import time
 import urllib.parse
@@ -27,6 +28,23 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, wait
 
 UA = "Mozilla/5.0 (research; petry-projects/incubator DemandRadar-spike)"
+
+# --- global rate limiter: space autocomplete calls regardless of worker count ---
+# Workers fire concurrently, so without this N workers could burst N requests at once
+# and trip the engine's throttle (biasing the scored subset). pace() reserves the next
+# slot atomically and sleeps OUTSIDE the lock, so calls stay >= _min_interval apart.
+_pace_lock = threading.Lock()
+_next_at = [0.0]
+_min_interval = [0.05]  # seconds between calls (~20/s across all workers)
+
+
+def pace():
+    with _pace_lock:
+        now = time.time()
+        wait_s = max(0.0, _next_at[0] - now)
+        _next_at[0] = max(now, _next_at[0]) + _min_interval[0]
+    if wait_s > 0:
+        time.sleep(wait_s)
 
 # Autocomplete engines. Both return [query, [suggestions]]. DDG is the default because it
 # has a different IP-ban profile than Google — swapping SOURCE beats rotating IP.
@@ -70,14 +88,24 @@ def main():
     ap.add_argument("--engine", default="ddg", choices=list(ENGINES))
     args = ap.parse_args()
 
-    kws = [json.loads(l) for l in open(args.inp)]
+    try:
+        with open(args.inp, encoding="utf-8") as f:
+            kws = [json.loads(l) for l in f]
+    except (OSError, ValueError) as e:  # file-access / malformed JSON — report, don't traceback
+        print(f"Error reading input keywords from {args.inp}: {e}", file=sys.stderr)
+        sys.exit(1)
     done = set()
     if os.path.exists(args.out):
-        for l in open(args.out):
-            try:
-                done.add(json.loads(l)["keyword"])
-            except Exception:  # noqa: BLE001
-                pass
+        try:
+            with open(args.out, encoding="utf-8") as f:
+                for l in f:
+                    try:
+                        done.add(json.loads(l)["keyword"])
+                    except Exception:  # noqa: BLE001
+                        pass
+        except OSError as e:
+            print(f"Error reading existing broad keywords from {args.out}: {e}", file=sys.stderr)
+            sys.exit(1)
     pending = [k for k in kws if k["keyword"] not in done]
     print(f"total={len(kws)} done={len(done)} pending={len(pending)} workers={args.workers}", flush=True)
 
@@ -86,6 +114,7 @@ def main():
     counts = {"n": 0, "fail": 0}
 
     def work(k):
+        pace()  # global rate limit BEFORE the request — spaces bursts across all workers
         try:
             sg = suggest(k["keyword"], engine=args.engine)
             rec = {**k, **score(k["keyword"], sg), "suggestions": sg[:6]}
@@ -101,7 +130,6 @@ def main():
                 counts["fail"] += 1
             if counts["n"] % 1000 == 0:
                 print(f"  {counts['n']}/{len(pending)}  fail={counts['fail']}", flush=True)
-        time.sleep(0.02)
         return okk
 
     with ThreadPoolExecutor(max_workers=args.workers) as ex:

@@ -251,11 +251,16 @@ def main():
     # RESUME: skip keywords already scored
     done = set()
     if os.path.exists(args.out):
-        for line in open(args.out):
-            try:
-                done.add(json.loads(line)["canonical_query"])
-            except Exception:  # noqa: BLE001
-                pass
+        try:
+            with open(args.out, encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        done.add(json.loads(line)["canonical_query"])
+                    except Exception:  # noqa: BLE001
+                        pass
+        except OSError as e:
+            print(f"Error reading existing records from {args.out}: {e}", file=sys.stderr)
+            sys.exit(1)
     pending = [k for k in kwrecs if k["keyword"] not in done]
     if args.max:
         pending = pending[: args.max]

@@ -49,7 +49,7 @@ jobs:
       contents: read       # checkout only; results go to a build artifact, not the repo
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Run DemandRadar pipeline (stdlib only — no pip)
         env:
@@ -57,11 +57,16 @@ jobs:
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
           DR_COMMUNITY_SOURCE: ${{ vars.DR_COMMUNITY_SOURCE || 'stackexchange' }}
+          # Pass dispatch inputs through the env (never interpolate ${{ }} into the shell
+          # body) so a crafted `max`/`rate` value can't inject commands on the runner.
+          DR_PRESET: ${{ github.event.inputs.preset || 'refresh' }}
+          DR_MAX: ${{ github.event.inputs.max || '240' }}
+          DR_RATE: ${{ github.event.inputs.rate || '18' }}
         run: |
           python3 pocs/demand-radar/pipeline.py \
-            --preset "${{ github.event.inputs.preset || 'refresh' }}" \
-            --max "${{ github.event.inputs.max || '240' }}" \
-            --rate "${{ github.event.inputs.rate || '18' }}"
+            --preset "$DR_PRESET" \
+            --max "$DR_MAX" \
+            --rate "$DR_RATE"
 
       - name: Summarize in the run log
         run: |
@@ -71,7 +76,7 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload data + built dashboard
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: demand-radar
           path: |
