@@ -197,3 +197,32 @@ class TestCheckNameMain:
         # CF was called (env vars were set), failed, and fell back to RDAP
         mock_cf.assert_called_once()
         assert result == 0
+
+    @patch("common.make_session")
+    @patch("common.cloudflare_domain_check")
+    @patch.dict("os.environ", {"CLOUDFLARE_API_TOKEN": "test-token", "CLOUDFLARE_ACCOUNT_ID": "test-account"})
+    def test_cloudflare_mixed_results_with_rdap_fallback(
+        self, mock_cf, mock_session_fn
+    ):
+        """Test when Cloudflare returns some results and others fallback to RDAP."""
+        mock_session_fn.return_value = MagicMock()
+        # Cloudflare returns result for .com, None for .io
+        mock_cf.return_value = {"acme.com": c.Result("domain", "acme.com", c.AVAILABLE)}
+
+        with patch("common.rdap_domain") as mock_rdap:
+            mock_rdap.return_value = c.Result("domain", "acme.io", c.AVAILABLE)
+            with patch("common.github_handle") as mock_gh:
+                mock_gh.return_value = c.Result("github", "acme", c.AVAILABLE)
+                with patch("common.npm_package") as mock_npm:
+                    mock_npm.return_value = c.Result("npm", "acme", c.AVAILABLE)
+                    with patch("common.pypi_package") as mock_pypi:
+                        mock_pypi.return_value = c.Result("pypi", "acme", c.AVAILABLE)
+                        with patch("common.to_markdown"):
+                            with patch("common.write_summary"):
+                                with patch("builtins.print"):
+                                    with patch("sys.argv", ["check_name.py", "Acme", "--tlds", "com,io"]):
+                                        result = check_name.main()
+
+        assert result == 0
+        # RDAP should be called for .io
+        assert mock_rdap.called

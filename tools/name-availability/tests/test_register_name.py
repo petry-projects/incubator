@@ -268,6 +268,19 @@ class TestGhCreateRepo:
         result = register_name.gh_create_repo(sess, "token", "orgname", "acme", False)
         assert "CREATED" in result
 
+    @patch("register_name._gh_login")
+    def test_creation_fails_invalid_json(self, mock_login):
+        """Repo creation with invalid JSON response."""
+        sess = MagicMock()
+        sess.get.return_value = Mock(status_code=404)
+        sess.post.return_value = Mock(
+            status_code=400,
+            json=lambda: (_ for _ in ()).throw(ValueError("Invalid JSON"))
+        )
+        mock_login.return_value = "testuser"
+        with pytest.raises(RuntimeError, match="HTTP 400"):
+            register_name.gh_create_repo(sess, "token", None, "acme", False)
+
 
 class TestGhLogin:
     """Test GitHub login API."""
@@ -443,3 +456,101 @@ class TestRegisterNameMain:
                 result = register_name.main()
 
         assert result == 1
+
+    @patch("common.make_session")
+    @patch("common.cloudflare_domain_check")
+    @patch("common.write_summary")
+    @patch.dict(
+        "os.environ",
+        {
+            "CLOUDFLARE_API_TOKEN": "token",
+            "CLOUDFLARE_ACCOUNT_ID": "account",
+        },
+    )
+    def test_non_usd_currency_skips_domain(self, mock_write, mock_cf_check, mock_session):
+        """Domain with non-USD price is skipped."""
+        mock_session.return_value = MagicMock()
+        mock_cf_check.return_value = {
+            "acme.com": c.Result("domain", "acme.com", c.AVAILABLE, price=25.0, currency="EUR")
+        }
+
+        with patch("sys.argv", ["register_name.py", "Acme"]):
+            result = register_name.main()
+
+        assert result == 0
+
+    @patch("common.make_session")
+    @patch("common.cloudflare_domain_check")
+    @patch("common.write_summary")
+    @patch.dict(
+        "os.environ",
+        {
+            "CLOUDFLARE_API_TOKEN": "token",
+            "CLOUDFLARE_ACCOUNT_ID": "account",
+        },
+    )
+    def test_domain_check_failure_in_execute_returns_nonzero(self, mock_write, mock_cf_check, mock_session):
+        """Domain check failure in execute mode returns non-zero."""
+        mock_session.return_value = MagicMock()
+        mock_cf_check.side_effect = Exception("API error")
+
+        with patch("sys.argv", ["register_name.py", "Acme", "--execute", "--confirm", "Acme"]):
+            with patch("register_name.gh_create_repo"):
+                result = register_name.main()
+
+        assert result == 1
+
+    @patch("common.make_session")
+    @patch("register_name.gh_create_repo")
+    @patch("common.write_summary")
+    def test_github_error_returns_nonzero(self, mock_write, mock_gh_create, mock_session):
+        """GitHub repo creation error in execute mode returns non-zero."""
+        mock_session.return_value = MagicMock()
+        mock_gh_create.side_effect = RuntimeError("GitHub API error")
+
+        with patch("sys.argv", ["register_name.py", "Acme", "--execute", "--confirm", "Acme", "--skip-domains"]):
+            with patch.dict("os.environ", {"BRAND_GH_TOKEN": "token"}):
+                result = register_name.main()
+
+        assert result == 1
+
+    @patch("common.make_session")
+    @patch("register_name.gh_create_repo")
+    @patch("common.write_summary")
+    def test_spend_not_allowed_skips_domain_in_execute(self, mock_write, mock_gh_create, mock_session):
+        """Domain registration skipped when BRAND_ALLOW_SPEND not set."""
+        mock_session.return_value = MagicMock()
+        mock_gh_create.return_value = "CREATED test/acme"
+
+        with patch("common.cloudflare_domain_check") as mock_cf_check:
+            mock_cf_check.return_value = {
+                "acme.com": c.Result("domain", "acme.com", c.AVAILABLE, price=25.0),
+                "acme.io": c.Result("domain", "acme.io", c.AVAILABLE, price=30.0),
+                "acme.ai": c.Result("domain", "acme.ai", c.AVAILABLE, price=35.0),
+            }
+            with patch("register_name.build_contact") as mock_contact:
+                mock_contact.return_value = {"first_name": "John", "last_name": "Doe", "email": "john@example.com"}
+                with patch("sys.argv", ["register_name.py", "Acme", "--execute", "--confirm", "Acme"]):
+                    with patch.dict("os.environ", {"CLOUDFLARE_API_TOKEN": "token", "CLOUDFLARE_ACCOUNT_ID": "account"}):
+                        result = register_name.main()
+
+        assert result == 0
+
+    @patch("common.make_session")
+    @patch("common.cloudflare_domain_check")
+    @patch("common.write_summary")
+    def test_missing_contact_skips_registration(self, mock_write, mock_cf_check, mock_session):
+        """Registration skipped when contact not set."""
+        mock_session.return_value = MagicMock()
+        mock_cf_check.return_value = {
+            "acme.com": c.Result("domain", "acme.com", c.AVAILABLE, price=25.0),
+            "acme.io": c.Result("domain", "acme.io", c.AVAILABLE, price=30.0),
+            "acme.ai": c.Result("domain", "acme.ai", c.AVAILABLE, price=35.0),
+        }
+
+        with patch("sys.argv", ["register_name.py", "Acme", "--execute", "--confirm", "Acme"]):
+            with patch.dict("os.environ", {"CLOUDFLARE_API_TOKEN": "token", "CLOUDFLARE_ACCOUNT_ID": "account", "BRAND_ALLOW_SPEND": "yes"}):
+                with patch("register_name.gh_create_repo"):
+                    result = register_name.main()
+
+        assert result == 0

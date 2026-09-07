@@ -84,6 +84,25 @@ class TestRdapDomain:
         result = c.rdap_domain(session, "example.com")
         assert result.status == c.UNKNOWN
 
+    def test_redirect_without_location(self, session):
+        """Redirect without Location header returns UNKNOWN."""
+        redirect_resp = Mock(status_code=302)
+        redirect_resp.headers = {}
+        session.get.return_value = redirect_resp
+        result = c.rdap_domain(session, "example.com")
+        assert result.status == c.UNKNOWN
+        assert "redirect without Location" in result.detail
+
+    def test_redirect_to_unexpected_status(self, session):
+        """Redirect to unexpected status code returns UNKNOWN."""
+        redirect_resp = Mock(status_code=302)
+        redirect_resp.headers = {"Location": "https://rdap.verisign.com/com/v1/domain/example.com"}
+        unexpected_resp = Mock(status_code=500)
+        session.get.side_effect = [redirect_resp, unexpected_resp]
+        result = c.rdap_domain(session, "example.com")
+        assert result.status == c.UNKNOWN
+        assert "HTTP 500" in result.detail
+
 
 class TestCloudflareCheck:
     """Test Cloudflare domain check."""
@@ -257,6 +276,19 @@ class TestGitHubHandle:
         call_args = session.get.call_args
         assert "Authorization" in call_args.kwargs["headers"]
 
+    def test_github_unexpected_status(self, session):
+        """Unexpected status codes return UNKNOWN."""
+        session.get.return_value = Mock(status_code=500)
+        result = c.github_handle(session, "acme", None)
+        assert result.status == c.UNKNOWN
+        assert "HTTP 500" in result.detail
+
+    def test_github_request_exception(self, session):
+        """Request exceptions return ERROR."""
+        session.get.side_effect = requests.RequestException("Connection failed")
+        result = c.github_handle(session, "acme", None)
+        assert result.status == c.ERROR
+
 
 class TestPackageRegistries:
     """Test npm and PyPI package checks."""
@@ -280,6 +312,31 @@ class TestPackageRegistries:
         result = c.pypi_package(session, "acme")
         assert result.status == c.AVAILABLE
         assert result.channel == "pypi"
+
+    def test_npm_unexpected_status(self, session):
+        """Unexpected status codes return UNKNOWN."""
+        session.get.return_value = Mock(status_code=500)
+        result = c.npm_package(session, "acme")
+        assert result.status == c.UNKNOWN
+        assert "HTTP 500" in result.detail
+
+    def test_npm_request_exception(self, session):
+        """Request exceptions return ERROR."""
+        session.get.side_effect = requests.RequestException("Connection failed")
+        result = c.npm_package(session, "acme")
+        assert result.status == c.ERROR
+
+    def test_pypi_unexpected_status(self, session):
+        """Unexpected status codes return UNKNOWN."""
+        session.get.return_value = Mock(status_code=500)
+        result = c.pypi_package(session, "acme")
+        assert result.status == c.UNKNOWN
+
+    def test_pypi_request_exception(self, session):
+        """Request exceptions return ERROR."""
+        session.get.side_effect = requests.RequestException("Connection failed")
+        result = c.pypi_package(session, "acme")
+        assert result.status == c.ERROR
 
 
 class TestSocialHandle:
