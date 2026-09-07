@@ -55,10 +55,14 @@ jobs:
       #   - run: npm run lint && npm run typecheck && npm test
       # See BOOTSTRAP.md and the CI standard. Until you add real steps, the
       # placeholder below keeps the required `build-and-test` check green.
-      - name: DemandRadar unit tests (pocs/demand-radar — pure pipeline logic)
-        run: |
-          python3 -m pip install --quiet --user pytest
-          python3 -m pytest pocs/demand-radar/tests -q
+      #
+      # NOTE: the DemandRadar spike (pocs/demand-radar) ships pytest-only unit tests but no
+      # stack-specific lint/format/typecheck/coverage pipeline yet, so per the CI standard we
+      # keep the passing placeholder here rather than wiring in a partial suite. The POC tests
+      # are run locally (`cd pocs/demand-radar && python3 -m pytest tests -q`); the full
+      # Python CI stack lands with a follow-up.
+      - name: Placeholder (no stack-specific CI configured yet)
+        run: echo "No stack-specific CI configured yet — see BOOTSTRAP.md and the CI standard."
 
   # Canonical secret-scan job — copied verbatim from push-protection.md#required-ci-job.
   # Produces the `Secret scan (gitleaks)` required check. Uses the gitleaks CLI (not

@@ -49,12 +49,15 @@ def run(label, script, argv, fatal):
 
 
 def build_dashboard(tmpl_path=TMPL, data_path=DATA, html_path=HTML):
-    """Inject dashboard-data.json into the template (escaping </script>) -> dashboard.html."""
+    """Inject dashboard-data.json into the template (escaping `<`) -> dashboard.html."""
     try:
         with open(tmpl_path, encoding="utf-8") as f:
             tmpl = f.read()
         with open(data_path, encoding="utf-8") as f:
-            data = f.read().replace("</script>", "<\\/script>")
+            # Escape EVERY '<' (not just a lowercase '</script>') so no cased/spaced HTML
+            # end tag in review text can terminate the <script> block. '<' is a valid
+            # JSON/JS escape that reads back as '<', so the payload is unchanged at runtime.
+            data = f.read().replace("<", "\\u003c")
     except (OSError, UnicodeError) as e:  # file-access / encoding — report, don't traceback
         print(f"Error building dashboard: {e}", file=sys.stderr)
         sys.exit(1)
@@ -80,23 +83,39 @@ def main():
     kw = os.path.join(OUT, "keywords.jsonl")
     prio = os.path.join(OUT, "keywords.priority.jsonl")
 
+    degraded = []  # non-fatal stages that failed — the run ships but must NOT report clean success
+
+    def stage(label, script, argv, fatal):
+        if not run(label, script, argv, fatal):
+            degraded.append(label)
+
     if a.preset == "full":
-        run("generate keywords", "generate_keywords.py", [], fatal=True)
-        run("broad demand (autocomplete)", "broad_pass.py", ["--engine", a.engine, "--workers", "2"], fatal=False)
+        stage("generate keywords", "generate_keywords.py", [], fatal=True)
+        stage("broad demand (autocomplete)", "broad_pass.py", ["--engine", a.engine, "--workers", "2"], fatal=False)
 
     if a.preset in ("full", "refresh"):
-        run("select priority", "select_priority.py", ["--per-vertical", str(a.per_vertical)], fatal=True)
-        run("supply (iTunes)", "extract.py",
-            ["--keywords", prio, "--workers", "2", "--rate", str(a.rate), "--max", str(a.max)], fatal=False)
-        run("community enrich", "enrich_community.py", ["--max", str(a.max)], fatal=False)
+        stage("select priority", "select_priority.py", ["--per-vertical", str(a.per_vertical)], fatal=True)
+        stage("supply (iTunes)", "extract.py",
+              ["--keywords", prio, "--workers", "2", "--rate", str(a.rate), "--max", str(a.max)], fatal=False)
+        stage("community enrich", "enrich_community.py", ["--max", str(a.max)], fatal=False)
         if a.preset == "full":
-            run("resented-giant scan", "resented_giants.py", [], fatal=False)
+            stage("resented-giant scan", "resented_giants.py", [], fatal=False)
 
-    run("export dashboard data", "export_dashboard.py", [], fatal=True)
+    stage("export dashboard data", "export_dashboard.py", [], fatal=True)
+    # Refresh the ranked starter list too — it's an uploaded deliverable, so exporting the
+    # dashboard data without re-ranking would ship a stale starter-list.md.
+    stage("rank starter list", "rank_starter_list.py", [], fatal=True)
 
     print("\n\033[1m━━ build dashboard.html ━━\033[0m", flush=True)
     build_dashboard()
     print(f"  ✓ wrote {HTML}")
+
+    if degraded:
+        # A network stage failed: the dashboard/starter-list were still rebuilt from whatever
+        # records survived, but that data may be stale/partial — do NOT report clean success.
+        print(f"\n⚠ pipeline finished DEGRADED — {len(degraded)} stage(s) failed: "
+              f"{', '.join(degraded)}. Published data may be stale or partial.", file=sys.stderr)
+        sys.exit(1)
     print("\n✓ pipeline complete. Publish dashboard.html via the Artifact tool to refresh the live board.")
 
 

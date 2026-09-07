@@ -26,8 +26,11 @@ SILENT — a job that keeps hitting a banned endpoint only extends the ban.
 `starter-list.md` is the ranked idea list: non-REJECT candidates by gap severity + supply
 scarcity + community corroboration + (app-store channel) MobileAction demand.
 
-Runs weekly + on demand via [`.github/workflows/demand-radar-signal.yml`](../../.github/workflows/demand-radar-signal.yml)
-(uploads `output/` as an artifact). Standard-library only, so CI is bare `python3` — no pip.
+Runs weekly + on demand via [`.github/workflows/demand-radar-signal.yml`](../../.github/workflows/demand-radar-signal.yml),
+which uploads exactly `output/dashboard-data.json`, `output/starter-list.md`, and `dashboard.html`
+as the `demand-radar` artifact. The pipeline itself is standard-library only, so it runs on bare
+`python3` (no pip). The separate repository test CI (`build-and-test` in `.github/workflows/ci.yml`)
+does `pip install pytest` to run the unit tests.
 
 ```
 python3 extract.py             # supply signal
@@ -78,7 +81,8 @@ community chatter confirms demand (the "≥2 independent mechanisms" rule, #44):
 The free **iTunes Search API hard-caps at ~20–30 calls/min and IP-bans bursts** (403 for ~an hour).
 So the 11,616-keyword space **cannot** be scored in one run — bulk scoring is inherently a **polite
 daily-batch** process. The pipeline is built for exactly this:
-- `extract.py` is **rate-limited** (`--rate`, default 35/min), **resumable** (skips already-scored
+- `extract.py` is **rate-limited** (`--rate`, default 20/min — within the ~20–30/min iTunes
+  limit above), **resumable** (skips already-scored
   keywords), **pollution-safe** (a throttled/failed fetch is skipped, never written as a false gap),
   and has a **403-storm circuit breaker** (pauses 300s, then resumes).
 - The scheduled Action should run a **bounded batch per day** (`--max ~500 --rate ~20`); over ~2–3
@@ -120,7 +124,8 @@ logic, so no mocking is needed.
 cd pocs/demand-radar && python3 -m pytest tests/ -q
 ```
 
-CI runs these on every PR (the `build-and-test` job in `.github/workflows/ci.yml`).
+Run them locally with the command above (the repo `build-and-test` CI job is still the
+stack-agnostic placeholder; a Python CI stack for this spike lands with a follow-up).
 `tests/` covers `extract`, `resented_giants`, `broad_pass`, `export_dashboard`,
 `enrich_community`, `rank_starter_list`, and `deep_dive`. The fetch/orchestration layers
 (iTunes/DDG/reviews I/O, pacing, ban handling) are integration surface, exercised by real runs.

@@ -100,7 +100,11 @@ def main():
             with open(args.out, encoding="utf-8") as f:
                 for l in f:
                     try:
-                        done.add(json.loads(l)["keyword"])
+                        rec = json.loads(l)
+                        # Only treat a keyword as done if it has a valid score; failed rows
+                        # (broad_interest is None) stay pending so a resume retries them.
+                        if rec.get("broad_interest") is not None:
+                            done.add(rec["keyword"])
                     except Exception:  # noqa: BLE001
                         pass
         except OSError as e:

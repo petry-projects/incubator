@@ -1,3 +1,7 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>DemandRadar — Signal Console</title>
 <style>
   :root{
@@ -107,7 +111,8 @@
   .seg button:last-child{border-right:0}
   .seg button:hover{color:var(--ink);background:var(--panel-2)}
   .seg button.on{background:var(--accent);color:#fff}
-  :root[data-theme="dark"] .seg button.on,@media(prefers-color-scheme:dark){.seg button.on{color:#07131a}}
+  :root[data-theme="dark"] .seg button.on{color:#07131a}
+  @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .seg button.on{color:#07131a}}
   select.sort{font-family:var(--mono);font-size:11px;color:var(--ink);background:var(--panel);border:1px solid var(--line);
     border-radius:8px;padding:7px 9px;cursor:pointer}
   .toggle{font-family:var(--mono);font-size:11px;color:var(--ink-2);background:var(--panel);border:1px solid var(--line);
@@ -240,7 +245,7 @@
     <div class="ctrl-in">
       <label class="search">
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-        <input id="q" type="search" placeholder="Search ideas, verticals…" autocomplete="off">
+        <input id="q" type="search" aria-label="Search ideas and verticals" placeholder="Search ideas, verticals…" autocomplete="off">
       </label>
       <div class="seg" id="ch" data-key="ch">
         <button class="on" data-v="">Both</button><button data-v="app-store">App&nbsp;Store</button><button data-v="community">Community</button>
@@ -298,7 +303,7 @@ const GAP = {
   "absent-in-store":{c:"mut",d:"var(--ink-3)",label:"unmatched"},
   "absent":   {c:"mut", d:"var(--ink-3)",label:"absent"},
 };
-const esc = s => (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const esc = s => String(s ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const cap = s => (s||"").replace(/-/g," ");
 const stars = r => { if(r==null) return ""; const n=Math.round(r); return "★".repeat(n)+"☆".repeat(5-n); };
 const days = d => d==null?"—":(d<31?d+"d":d<365?Math.round(d/30)+"mo":(d/365).toFixed(1)+"y");
@@ -339,7 +344,7 @@ function verticalBars(){
     const on = state.vert===r.v ? " on":"";
     const strong = r.s/r.a>0.34 ? " strong":"";
     return `<div class="vbar${on}" data-v="${r.v}" role="button" tabindex="0" title="${r.a} candidates, ${r.s} strong">
-      <span class="vn">${cap(r.v)}</span>
+      <span class="vn">${esc(cap(r.v))}</span>
       <span class="track"><span class="fill${strong}" style="width:${pct}%"></span></span>
       <span class="vc">${r.s}</span></div>`;
   }).join("");
@@ -350,15 +355,14 @@ function rowHTML(x,i){
   const r = (ratings[x.kw]||{});
   const foc = i===state.focus ? " focus":"";
   const open = state.expanded===x.kw;
-  const vpill = x.verdict.startsWith("CANDIDATE") ? "good" : "warn";
   const chips = [
     x.disrupt ? `<span class="chip disrupt">🎯 leader ${x.leaderR}★ · ${fmt(x.market)}</span>`:"",
     x.resented ? `<span class="chip resent">🔥 ${Math.round(x.resentFrac*100)}% resent · ${(x.resentCats||[]).join("/")}</span>`:"",
-    `<span class="chip vert">${cap(x.vert)}</span>`,
-    `<span class="chip ${g.c}"><span class="gd" style="background:${g.d}"></span>${g.label}</span>`,
+    `<span class="chip vert">${esc(cap(x.vert))}</span>`,
+    `<span class="chip ${g.c}"><span class="gd" style="background:${g.d}"></span>${esc(g.label)}</span>`,
     `<span class="chip mut">${x.ch==="app-store"?"app store":"community"}</span>`,
     `<span class="chip mut">comp ${x.comp}</span>`,
-    x.comm!=null ? `<span class="chip acc">${fmt(x.comm)} <span style="color:var(--ink-3)">${x.commSrc||""}</span></span>`:"",
+    x.comm!=null ? `<span class="chip acc">${fmt(x.comm)} <span style="color:var(--ink-3)">${esc(x.commSrc||"")}</span></span>`:"",
     x.needsMA ? `<span class="chip info">needs MobileAction</span>`:"",
     x.trust==="unverified-absent" ? `<span class="chip mut">unverified gap</span>`:"",
     x.vol!=null ? `<span class="chip ${x.vol>=15?'good':'mut'}">MA vol ${x.vol}</span>`:"",
@@ -383,22 +387,22 @@ function rowHTML(x,i){
         ${x.resented?`<div class="gripes"><h4 style="margin:10px 0 7px">🔥 Why users are leaving · ${Math.round(x.resentFrac*100)}% of recent 1–3★ reviews</h4>${(x.gripes||[]).map(g=>`<div class="gripe"><span class="gr">${(g.c||[]).join(" · ")}</span> <b>${esc(g.t||"")}</b> — ${esc(g.b||"")}</div>`).join("")}</div>`:""}
         ${x.wedge&&x.wedge.length?`<div class="gripes"><h4 style="margin:10px 0 7px">🎯 How to win · the wedge</h4>${x.wedge.map(w=>`<div class="wedge">${esc(w)}</div>`).join("")}</div>`:""}
         <div class="sigrow"><span>Demand (autocomplete)</span><b>${x.app? "app-intent ✓":"—"} · ${x.bi}</b></div>
-        <div class="sigrow"><span>Community (${x.commSrc||"—"})</span><b>${fmt(x.comm)}</b></div>
-        <div class="note"><textarea placeholder="Notes on ${x.kw}…" data-note="${x.kw}">${(r.note||"").replace(/"/g,'&quot;')}</textarea></div>
+        <div class="sigrow"><span>Community (${esc(x.commSrc||"—")})</span><b>${fmt(x.comm)}</b></div>
+        <div class="note"><textarea placeholder="Notes on ${esc(x.kw)}…" data-note="${esc(x.kw)}">${esc(r.note||"")}</textarea></div>
       </div></div></div>`;
   }
-  return `<article class="row${foc}${x.disrupt?' dt':''}" data-kw="${x.kw}" data-i="${i}">
+  return `<article class="row${foc}${x.disrupt?' dt':''}" data-kw="${esc(x.kw)}" data-i="${i}">
     <div class="rank">#${i+1}<span class="sc">${x.score.toFixed(1)}</span>
       <span class="meter"><i style="width:${x.score/10*100}%"></i></span></div>
     <div class="body">
-      <div class="kw"><button data-expand="${x.kw}">${esc(x.kw)}</button></div>
+      <div class="kw"><button data-expand="${esc(x.kw)}">${esc(x.kw)}</button></div>
       <div class="chips">${chips}</div>
       ${detail}
     </div>
-    <div class="rate" role="group" aria-label="Rate ${x.kw}">
-      <button class="pass${r.r==="pass"?" on":""}" data-r="pass" data-kw="${x.kw}" title="Pass (x)">✕</button>
-      <button class="maybe${r.r==="maybe"?" on":""}" data-r="maybe" data-kw="${x.kw}" title="Maybe (m)">~</button>
-      <button class="star${r.r==="star"?" on":""}" data-r="star" data-kw="${x.kw}" title="Shortlist (s)">★</button>
+    <div class="rate" role="group" aria-label="Rate ${esc(x.kw)}">
+      <button class="pass${r.r==="pass"?" on":""}" data-r="pass" data-kw="${esc(x.kw)}" title="Pass (x)">✕</button>
+      <button class="maybe${r.r==="maybe"?" on":""}" data-r="maybe" data-kw="${esc(x.kw)}" title="Maybe (m)">~</button>
+      <button class="star${r.r==="star"?" on":""}" data-r="star" data-kw="${esc(x.kw)}" title="Shortlist (s)">★</button>
     </div>
   </article>`;
 }

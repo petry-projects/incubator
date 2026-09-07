@@ -21,6 +21,7 @@ import argparse
 import json
 import os
 import random
+import re
 import sys
 import threading
 import time
@@ -84,12 +85,18 @@ def content_tokens(term):
     return [w for w in term.lower().split() if w not in STOP and len(w) >= 4]
 
 
+def _word_set(text):
+    return set(re.findall(r"[a-z0-9]+", (text or "").lower()))
+
+
 def relevance_score(term, app):
     toks = content_tokens(term)
     if not toks:
         return 1.0
-    name = (app.get("trackName") or "").lower()
-    desc = (app.get("description") or "").lower()
+    # Word-boundary match (not substring) so 'counter' no longer matches 'encounter'
+    # and admits an unrelated app: tokenize name/description and compare whole tokens.
+    name = _word_set(app.get("trackName"))
+    desc = _word_set(app.get("description"))
     score = sum(1.0 if t in name else 0.6 if t in desc else 0.0 for t in toks)
     return score / len(toks)
 
@@ -191,7 +198,9 @@ def to_record(group, term, signal, captured_at):
                    "market_size": signal["market_size"], "leader_rating": signal["leader_rating"],
                    "disruption": signal["disruption"],
                    "supply_confidence": signal["supply_confidence"],
-                   "solutions": signal["top_apps"][:5]},
+                   # persist all TOP_N (not just 5) so a leader ranked 6th-8th stays
+                   # available to resented_giants.py's market-leader lookup.
+                   "solutions": signal["top_apps"]},
         "verdict_heuristic": signal["verdict"],
         "provenance": [{"mechanism": "supply-mapping", "source": "itunes-search-api", "collected_at": captured_at}],
         "downstream": {"score": None, "rank": None, "market_research": None, "dedup_verdict": None},
@@ -210,6 +219,8 @@ def load_keywords(path):
              "vertical_dynamics": k.get("vertical_dynamics"), "keyword": k["keyword"]})
     # round-robin interleave across verticals so any partial run covers all 25
     recs, lists = [], list(by_vert.values())
+    if not lists:  # empty keyword file -> zero records (don't call max() on an empty seq)
+        return recs
     for i in range(max(len(v) for v in lists)):
         for v in lists:
             if i < len(v):
@@ -236,7 +247,7 @@ def main():
     ap.add_argument("--workers", type=int, default=3)
     ap.add_argument("--limit", type=int, default=20)
     ap.add_argument("--max", type=int, default=0)
-    ap.add_argument("--rate", type=float, default=35.0, help="max iTunes calls/min (Apple throttles ~>30)")
+    ap.add_argument("--rate", type=float, default=20.0, help="max iTunes calls/min (Apple throttles ~>30; stay 20–30)")
     ap.add_argument("--country", default="us")
     args = ap.parse_args()
     _min_interval[0] = 60.0 / max(1.0, args.rate)

@@ -62,7 +62,7 @@ BUDGET = {"youtube": 90, "stackexchange": 280, "hackernews": 10_000, "reddit": 9
 
 
 def hn_mentions(q):
-    url = "http://hn.algolia.com/api/v1/search?query=%s&hitsPerPage=1" % urllib.parse.quote(q)
+    url = "https://hn.algolia.com/api/v1/search?query=%s&hitsPerPage=1" % urllib.parse.quote(q)
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     return {"source": "hackernews", "mentions": json.loads(urllib.request.urlopen(req, timeout=20).read()).get("nbHits", 0), "query": q}
 
@@ -191,6 +191,13 @@ def main():
     if args.source == "reddit":
         cid, sec = os.environ.get("REDDIT_CLIENT_ID"), os.environ.get("REDDIT_CLIENT_SECRET")
         rtoken = reddit_token(cid, sec) if cid and sec else None
+        if not rtoken:
+            # forced Reddit mode with no usable token: reject up front rather than run the
+            # whole enrichment as a silent no-op (every record -> source "none"). Never
+            # substitute Hacker News for an explicitly forced source.
+            print("Error: --source reddit requires REDDIT_CLIENT_ID/REDDIT_CLIENT_SECRET "
+                  "(and a non-blocked IP). Aborting instead of falling back.", file=sys.stderr)
+            sys.exit(1)
 
     budget_left = dict(BUDGET)
     dead = set()  # sources that 429'd this run — skipped thereafter (circuit breaker)

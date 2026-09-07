@@ -32,6 +32,22 @@ CATS = {
 SWITCH = ("pricing", "ads", "enshittification")  # the gripes that actually drive users to leave
 
 
+def _cat_pattern(kws):
+    """Compile a category's terms into a boundary-aware regex so 'ads' matches 'ads'/'so
+    many ads' but not 'heads', and 'charge' doesn't match 'discharge'. Boundaries are added
+    only where the term edge is a word char (phrases and symbols still match literally)."""
+    parts = []
+    for k in kws:
+        esc = re.escape(k)
+        left = r"\b" if k[:1].isalnum() else ""
+        right = r"\b" if k[-1:].isalnum() else ""
+        parts.append(left + esc + right)
+    return re.compile("|".join(parts))
+
+
+CAT_RE = {c: _cat_pattern(kws) for c, kws in CATS.items()}
+
+
 def get(url):
     return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=15).read()
 
@@ -68,7 +84,7 @@ def scan(reviews):
     switch_hits = 0
     for rt, title, body in reviews:
         hay = (title + " . " + body).lower()
-        hit_cats = [c for c, kws in CATS.items() if any(k in hay for k in kws)]
+        hit_cats = [c for c, rx in CAT_RE.items() if rx.search(hay)]
         for c in hit_cats:
             cat_hits[c] += 1
         if any(c in SWITCH for c in hit_cats):

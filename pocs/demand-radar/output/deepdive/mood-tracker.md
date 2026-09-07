@@ -1,10 +1,14 @@
 # Deep dive — **mood tracker**
 
-**Market demand (MobileAction):** search volume `48` · difficulty `32` · 234 ranked apps. resented market: DailyBean 73% resent
+**Market demand (MobileAction):** search volume `48` · difficulty `32` · 234 ranked apps. resented market: DailyBean 73% unique-review switch-hit rate
+
+> Two *different* resentment metrics appear below and are **not** market share:
+> - The heading rate (e.g. DailyBean **73%**) is the *unique 1–3★ reviews that mention a switch-driving gripe* over one RSS page set.
+> - The table `1–3★ gripe-hit%` column counts *category hits* (pricing, ads, enshittification) across a wider RSS page set, so a review matching two categories is counted twice — it can read higher than the heading and is a per-category hit rate, not a share of resenting users.
 
 ## The market — who you're up against
 
-| App | ★ | Ratings | Price | Updated | Resent% |
+| App | ★ | Ratings | Price | Updated | 1–3★ gripe-hit% |
 |---|--:|--:|---|---|--:|
 | Daylio Journal - Mood Tracker | 4.77 | 60,723 | Free | 2026-07 | 57% |
 | DailyBean - simplest journal | 4.81 | 69,972 | Free | 2026-07 | 96% |

@@ -51,6 +51,11 @@ class TestRelevance:
         assert extract.relevance_score("citation manager", a) >= 0.6
         assert extract.is_relevant("citation manager", a)
 
+    def test_word_boundary_not_substring(self):
+        # 'counter' must NOT match inside 'encounter' (word-boundary, not substring)
+        assert extract.relevance_score("rep counter", app("Encounter Log")) == 0.0
+        assert not extract.is_relevant("rep counter", app("Encounter Log"))
+
 
 class TestAnalyze:
     def test_absent_in_store_when_nothing_relevant(self):
@@ -69,7 +74,9 @@ class TestAnalyze:
         assert sig["disruption"] is False  # market_size 5000 < 8000
 
     def test_nascent_when_relevant_but_tiny(self):
-        sig = extract.analyze("mood tracker", [app("Moodly Tracker", rating=5.0, count=8, days=10)])
+        # word-boundary relevance: use an exact-token name (not "Moodly", which no longer
+        # matches "mood" now that matching is whole-token, not substring)
+        sig = extract.analyze("mood tracker", [app("Mood Tracker", rating=5.0, count=8, days=10)])
         assert sig["gap_type"] == "nascent"
         assert sig["credible_incumbents"] == 0
 
@@ -113,6 +120,13 @@ class TestResentScan:
     def test_empty_reviews(self):
         out = rg.scan([])
         assert out["resent_frac"] == 0.0 and out["gripes"] == []
+
+    def test_gripe_terms_match_at_word_boundaries(self):
+        # 'ads' must not match 'heads'; 'charge' must not match 'discharge'
+        out = rg.scan([(1, "great", "nodding my heads while I discharge the battery")])
+        assert out["cat_hits"]["ads"] == 0
+        assert out["cat_hits"]["pricing"] == 0
+        assert out["switch_hits"] == 0
 
 
 # ───────────────────────── broad_pass.py ─────────────────────────
@@ -213,24 +227,54 @@ class TestSynthWedge:
         assert deep_dive.synth_wedge({"missing / limited": 1}, {}) == []
 
 
+class TestDeepDiveResentFrac:
+    def test_counts_each_low_review_at_most_once(self):
+        # one review hitting pricing+ads+enshittification must count once, so resent_frac
+        # can't exceed 1.0 (the old sum-of-category-hits bug returned 1.5/… here)
+        revs = [(1, "bad", "paywall and ads and it got worse"), (2, "meh", "just fine")]
+        out = deep_dive.analyze_reviews(revs)
+        assert out["resent_frac"] == 0.5
+
+    def test_resent_frac_zero_when_no_low(self):
+        assert deep_dive.analyze_reviews([(5, "love", "great")])["resent_frac"] == 0
+
+
 # ───────────────────────── pipeline.py ─────────────────────────
 
 class TestPipelineBuild:
     def test_build_injects_and_escapes_script(self, tmp_path):
         import pipeline
-        tmpl = tmp_path / "t.html"; tmpl.write_text("<head></head><script>const D=__DATA__;</script>")
-        data = tmp_path / "d.json"; data.write_text('[{"x":"a</script>b"}]')
+        tmpl = tmp_path / "t.html"
+        tmpl.write_text("<head></head><script>const D=__DATA__;</script>")
+        data = tmp_path / "d.json"
+        data.write_text('[{"x":"a</script>b"}]')
         html = tmp_path / "o.html"
         pipeline.build_dashboard(str(tmpl), str(data), str(html))
         s = html.read_text()
         assert "__DATA__" not in s
-        assert "<\\/script>" in s          # the data's </script> was neutralized
-        assert s.count("</script>") == 1    # only the real closing tag remains
+        assert "\\u003c/script>" in s         # the data's '<' (of </script>) was neutralized
+        assert s.count("</script>") == 1      # only the real (template) closing tag remains
+
+    def test_build_escapes_mixed_case_script_delimiter(self, tmp_path):
+        import pipeline
+        tmpl = tmp_path / "t.html"
+        tmpl.write_text("<script>const D=__DATA__;</script>")
+        data = tmp_path / "d.json"
+        data.write_text('[{"x":"a</ScRiPt><script>alert(1)</script>b"}]')
+        html = tmp_path / "o.html"
+        pipeline.build_dashboard(str(tmpl), str(data), str(html))
+        s = html.read_text()
+        # every '<' from the data is neutralized regardless of tag casing/spacing
+        assert "</ScRiPt>" not in s
+        assert s.count("<script>") == 1       # only the template's real opening tag
+        assert s.count("</script>") == 1      # only the template's real closing tag
 
     def test_build_requires_placeholder(self, tmp_path):
         import pipeline
         import pytest
-        tmpl = tmp_path / "t.html"; tmpl.write_text("<script>no placeholder</script>")
-        data = tmp_path / "d.json"; data.write_text("[]")
+        tmpl = tmp_path / "t.html"
+        tmpl.write_text("<script>no placeholder</script>")
+        data = tmp_path / "d.json"
+        data.write_text("[]")
         with pytest.raises(ValueError):
             pipeline.build_dashboard(str(tmpl), str(data), str(tmp_path / "o.html"))

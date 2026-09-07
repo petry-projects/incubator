@@ -31,6 +31,8 @@ GRIPES = {
     "missing / limited": ["wish", "missing", "no way to", "can't", "cant", "needs a", "would be nice",
         "please add", "add a", "no option", "lacks", "limited"],
 }
+# the gripe categories that actually drive users to abandon/switch (resentment signal)
+RESENT_CATS = ("pricing / paywall", "ads", "got worse (enshittification)")
 LOVES = ["simple", "easy", "clean", "love it", "love this", "best", "intuitive", "private", "offline",
          "no ads", "free", "cute", "aesthetic", "minimal", "beautiful", "fast", "reliable", "customizable"]
 WISH_RE = re.compile(r"(?:wish|would love|needs?|please add|no way to|can'?t)\b[^.!?]{0,80}", re.I)
@@ -43,9 +45,11 @@ def get(url):
 def load_ma_label(kw):
     p = os.path.join(HERE, "labels", "mobileaction-labels.json")
     if os.path.exists(p):
-        for l in json.load(open(p)).get("labels", []):
-            if l["keyword"].lower() == kw.lower():
-                return l
+        with open(p, encoding="utf-8") as fh:
+            labels = json.load(fh).get("labels", [])
+        for label in labels:
+            if label["keyword"].lower() == kw.lower():
+                return label
     return None
 
 
@@ -75,13 +79,19 @@ def analyze_reviews(revs):
     high = [x for x in revs if x[0] >= 4]
     gcat = collections.Counter()
     quotes = collections.defaultdict(list)
+    resenting = 0  # count each low review AT MOST ONCE toward resent_frac (not per category)
     for rt, t, b in low:
         hay = (t + " . " + b).lower()
+        hit_resent = False
         for c, kws in GRIPES.items():
             if any(k in hay for k in kws):
                 gcat[c] += 1
+                if c in RESENT_CATS:
+                    hit_resent = True
                 if len(quotes[c]) < 3:
                     quotes[c].append({"r": rt, "t": t[:70], "b": b[:160]})
+        if hit_resent:
+            resenting += 1
     loves = collections.Counter()
     for rt, t, b in high:
         hay = (t + " . " + b).lower()
@@ -95,7 +105,7 @@ def analyze_reviews(revs):
             if 12 < len(s) < 90 and s.lower() not in [w.lower() for w in wishes]:
                 wishes.append(s)
     return {"n": len(revs), "n_low": len(low), "n_high": len(high),
-            "resent_frac": round(sum(gcat[c] for c in ("pricing / paywall", "ads", "got worse (enshittification)")) / len(low), 2) if low else 0,
+            "resent_frac": round(resenting / len(low), 2) if low else 0,
             "gripes": dict(gcat), "quotes": {k: v for k, v in quotes.items()},
             "loves": dict(loves.most_common(8)), "wishes": wishes[:6]}
 
@@ -162,7 +172,8 @@ def main():
     result = {"keyword": kw, "mobileaction": ma, "competitors": comps,
               "market_gripes": dict(market_gripes), "market_loves": dict(loves.most_common(8)),
               "wishes": all_wishes[:10], "wedge": wedge}
-    json.dump(result, open(os.path.join(outdir, slug + ".json"), "w"), indent=2)
+    with open(os.path.join(outdir, slug + ".json"), "w", encoding="utf-8") as fh:
+        json.dump(result, fh, indent=2)
 
     # ---- markdown brief ----
     L = []
@@ -176,15 +187,18 @@ def main():
         rv = c.get("reviews")
         res = f"{int(rv['resent_frac']*100)}%" if rv else "—"
         L.append(f"| {c['app']} | {c['rating']} | {c['count']:,} | {c['price']} | {c['updated']} | {res} |")
-    stale = [c["app"] for c in comps if c["updated"] and c["updated"] < "2025-07"]
+    cutoff = time.strftime("%Y-%m", time.gmtime(time.time() - 365 * 86400))
+    stale = [c["app"] for c in comps if c["updated"] and c["updated"] < cutoff]
     if stale:
-        L.append(f"\n*Aging (not updated in ~1yr+):* {', '.join(stale)} — softer targets.")
+        L.append(f"\n*Aging (no update since {cutoff}):* {', '.join(stale)} — softer targets.")
     L.append("\n## What the market gets wrong — the openings\n")
     for cat, n in sorted(market_gripes.items(), key=lambda x: -x[1]):
         L.append(f"- **{cat}** — {n} complaint(s) across leaders")
         for c in comps:
             for q in (c.get("reviews", {}).get("quotes", {}).get(cat, []))[:1]:
-                L.append(f"    - *\"{q['t']}\"* — {q['b']}")
+                # collapse literal newlines so a multi-line review body stays one list item
+                L.append("    - *\"{}\"* — {}".format(
+                    " ".join(q["t"].split()), " ".join(q["b"].split())))
                 break
     L.append("\n## What users love — preserve these\n")
     L.append(", ".join(f"**{k}** ({v})" for k, v in loves.most_common(8)) or "—")
@@ -195,7 +209,8 @@ def main():
     L.append("\n## The wedge — how to win\n")
     for b in wedge:
         L.append(f"- {b}")
-    open(os.path.join(outdir, slug + ".md"), "w").write("\n".join(L) + "\n")
+    with open(os.path.join(outdir, slug + ".md"), "w", encoding="utf-8") as fh:
+        fh.write("\n".join(L) + "\n")
     print(f"wrote {outdir}/{slug}.md (+ .json)")
     print("\n".join(L))
 
