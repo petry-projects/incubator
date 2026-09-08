@@ -60,7 +60,9 @@ jobs:
       - name: DemandRadar unit tests
         run: |
           cd pocs/demand-radar
-          python3 -m pip install -q pytest
+          # Pinned + wheels-only: lock the resolved version (S8544) and skip source
+          # setup scripts (S8541) for a reproducible, tamper-resistant install.
+          python3 -m pip install -q --only-binary :all: pytest==9.1.1
           python3 -m pytest tests/ -q --tb=short
           echo "✓ DemandRadar tests passed"
 
@@ -130,7 +132,9 @@ jobs:
           # Python coverage (DemandRadar)
           if [ -d "pocs/demand-radar/tests" ]; then
             cd pocs/demand-radar
-            pip3 install -q pytest-cov
+            # Pinned + wheels-only: lock the resolved version (S8544) and skip source
+            # setup scripts (S8541) for a reproducible, tamper-resistant install.
+            pip3 install -q --only-binary :all: pytest-cov==7.1.0
             python3 -m pytest tests/ --cov=. --cov-report=xml:coverage.xml --cov-report=term-missing
             cd ../..
           fi
