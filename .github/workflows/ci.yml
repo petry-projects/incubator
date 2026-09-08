@@ -60,6 +60,7 @@ jobs:
       - name: DemandRadar unit tests
         run: |
           cd pocs/demand-radar
+          python3 -m pip install -q pytest
           python3 -m pytest tests/ -q --tb=short
           echo "✓ DemandRadar tests passed"
 
