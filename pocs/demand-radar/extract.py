@@ -209,14 +209,15 @@ def to_record(group, term, signal, captured_at):
 
 def load_keywords(path):
     by_vert = {}
-    for line in open(path):
-        line = line.strip()
-        if not line:
-            continue
-        k = json.loads(line)
-        by_vert.setdefault(k["vertical"], []).append(
-            {"name": k["vertical"], "discovery_channel": k.get("discovery_channel"),
-             "vertical_dynamics": k.get("vertical_dynamics"), "keyword": k["keyword"]})
+    with open(path, encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            k = json.loads(line)
+            by_vert.setdefault(k["vertical"], []).append(
+                {"name": k["vertical"], "discovery_channel": k.get("discovery_channel"),
+                 "vertical_dynamics": k.get("vertical_dynamics"), "keyword": k["keyword"]})
     # round-robin interleave across verticals so any partial run covers all 25
     recs, lists = [], list(by_vert.values())
     if not lists:  # empty keyword file -> zero records (don't call max() on an empty seq)
@@ -229,7 +230,8 @@ def load_keywords(path):
 
 
 def load_groups_json(path):
-    cfg = json.load(open(path))
+    with open(path, encoding='utf-8') as f:
+        cfg = json.load(f)
     recs = []
     for g in cfg["groups"]:
         for kw in g["keywords"]:
@@ -280,38 +282,36 @@ def main():
 
     lock = threading.Lock()
     counts = {"ok": 0, "fail": 0, "n": 0}
-    out_f = open(args.out, "a")
-
     abort = threading.Event()  # set on a 403-storm → bail the batch fast (ban is active)
 
-    def work(kw):
-        if abort.is_set():
-            return False
-        pace()  # global rate limit — stay under Apple's throttle
-        results, ok = fetch(kw["keyword"], country=country, limit=args.limit)
-        with lock:
-            counts["n"] += 1
-            counts["consec"] = 0 if ok else counts.get("consec", 0) + 1
-            if not ok:
-                # throttled/failed fetch: DO NOT write (avoids false 'absent'); pending preserved
-                counts["fail"] += 1
-                if counts["consec"] >= 15 and not abort.is_set():
-                    abort.set()
-                    print(f"  ~~ 403-storm: ABORTING batch after {counts['fail']} fails (ban active); "
-                          f"{counts['ok']} scored this batch, pending preserved for next cooldown ~~", flush=True)
+    with open(args.out, "a", encoding='utf-8') as out_f:
+        def work(kw):
+            if abort.is_set():
                 return False
-            sig = analyze(kw["keyword"], results, discovery_channel=kw.get("discovery_channel"))
-            rec = to_record(kw, kw["keyword"], sig, captured_at)
-            out_f.write(json.dumps(rec) + "\n")
-            out_f.flush()
-            counts["ok"] += 1
-            if counts["ok"] % 100 == 0:
-                print(f"  {counts['ok']} scored / {counts['fail']} fail  ({kw['keyword']})", flush=True)
-        return True
+            pace()  # global rate limit — stay under Apple's throttle
+            results, ok = fetch(kw["keyword"], country=country, limit=args.limit)
+            with lock:
+                counts["n"] += 1
+                counts["consec"] = 0 if ok else counts.get("consec", 0) + 1
+                if not ok:
+                    # throttled/failed fetch: DO NOT write (avoids false 'absent'); pending preserved
+                    counts["fail"] += 1
+                    if counts["consec"] >= 15 and not abort.is_set():
+                        abort.set()
+                        print(f"  ~~ 403-storm: ABORTING batch after {counts['fail']} fails (ban active); "
+                              f"{counts['ok']} scored this batch, pending preserved for next cooldown ~~", flush=True)
+                    return False
+                sig = analyze(kw["keyword"], results, discovery_channel=kw.get("discovery_channel"))
+                rec = to_record(kw, kw["keyword"], sig, captured_at)
+                out_f.write(json.dumps(rec) + "\n")
+                out_f.flush()
+                counts["ok"] += 1
+                if counts["ok"] % 100 == 0:
+                    print(f"  {counts['ok']} scored / {counts['fail']} fail  ({kw['keyword']})", flush=True)
+            return True
 
-    with ThreadPoolExecutor(max_workers=args.workers) as ex:
-        list(as_completed([ex.submit(work, k) for k in pending]))
-    out_f.close()
+        with ThreadPoolExecutor(max_workers=args.workers) as ex:
+            list(as_completed([ex.submit(work, k) for k in pending]))
     print(f"DONE. wrote {counts['n']} records (ok={counts['ok']} fail={counts['fail']}) -> {args.out}", flush=True)
 
 

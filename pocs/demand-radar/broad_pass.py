@@ -114,31 +114,30 @@ def main():
     print(f"total={len(kws)} done={len(done)} pending={len(pending)} workers={args.workers}", flush=True)
 
     lock = threading.Lock()
-    out_f = open(args.out, "a")
     counts = {"n": 0, "fail": 0}
 
-    def work(k):
-        pace()  # global rate limit BEFORE the request — spaces bursts across all workers
-        try:
-            sg = suggest(k["keyword"], engine=args.engine)
-            rec = {**k, **score(k["keyword"], sg), "suggestions": sg[:6]}
-            okk = True
-        except Exception:  # noqa: BLE001
-            rec = {**k, "broad_interest": None, "n_suggestions": None, "error": True}
-            okk = False
-        with lock:
-            out_f.write(json.dumps(rec) + "\n")
-            out_f.flush()
-            counts["n"] += 1
-            if not okk:
-                counts["fail"] += 1
-            if counts["n"] % 1000 == 0:
-                print(f"  {counts['n']}/{len(pending)}  fail={counts['fail']}", flush=True)
-        return okk
+    with open(args.out, "a", encoding='utf-8') as out_f:
+        def work(k):
+            pace()  # global rate limit BEFORE the request — spaces bursts across all workers
+            try:
+                sg = suggest(k["keyword"], engine=args.engine)
+                rec = {**k, **score(k["keyword"], sg), "suggestions": sg[:6]}
+                okk = True
+            except Exception:  # noqa: BLE001
+                rec = {**k, "broad_interest": None, "n_suggestions": None, "error": True}
+                okk = False
+            with lock:
+                out_f.write(json.dumps(rec) + "\n")
+                out_f.flush()
+                counts["n"] += 1
+                if not okk:
+                    counts["fail"] += 1
+                if counts["n"] % 1000 == 0:
+                    print(f"  {counts['n']}/{len(pending)}  fail={counts['fail']}", flush=True)
+            return okk
 
-    with ThreadPoolExecutor(max_workers=args.workers) as ex:
-        wait([ex.submit(work, k) for k in pending])
-    out_f.close()
+        with ThreadPoolExecutor(max_workers=args.workers) as ex:
+            wait([ex.submit(work, k) for k in pending])
     print(f"DONE broad pass: {counts['n']} scored (fail={counts['fail']}) -> {args.out}", flush=True)
 
 

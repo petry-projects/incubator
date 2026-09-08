@@ -80,7 +80,9 @@ def yt_mentions(q):
     """Community demand = summed VIEWS of the top videos whose title actually matches the
     query. totalResults was useless (capped at ~1M, inflated for any common word); view
     counts of *relevant* videos are a real engagement/demand signal."""
-    key = os.environ["YOUTUBE_API_KEY"]
+    key = os.environ.get("YOUTUBE_API_KEY")
+    if not key:
+        raise ValueError("YOUTUBE_API_KEY environment variable not set")
     p = urllib.parse.urlencode({"part": "snippet", "type": "video", "maxResults": 8,
                                 "order": "relevance", "q": q, "key": key})
     d = json.loads(urllib.request.urlopen(
@@ -181,7 +183,8 @@ def main():
     ap.add_argument("--sleep", type=float, default=0.25)
     args = ap.parse_args()
 
-    records = [json.loads(l) for l in open(args.inp)]
+    with open(args.inp, encoding='utf-8') as f:
+        records = [json.loads(l) for l in f]
     survivors = [r for r in records if not r.get("verdict_heuristic", "").startswith("REJECT")]
     survivors.sort(key=supply_score, reverse=True)
     targets = survivors[: args.max]

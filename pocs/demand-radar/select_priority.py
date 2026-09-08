@@ -25,11 +25,12 @@ def main():
     args = ap.parse_args()
 
     by_vert = defaultdict(list)
-    for l in open(args.inp):
-        r = json.loads(l)
-        if r.get("broad_interest") is None:
-            continue
-        by_vert[r["vertical"]].append(r)
+    with open(args.inp, encoding='utf-8') as f:
+        for l in f:
+            r = json.loads(l)
+            if r.get("broad_interest") is None:
+                continue
+            by_vert[r["vertical"]].append(r)
 
     picked = []
     for vert, rows in by_vert.items():
@@ -38,7 +39,7 @@ def main():
         picked.extend(rows[: args.per_vertical])
 
     # keep the schema extract.py --keywords expects, carry broad signal through
-    with open(args.out, "w") as f:
+    with open(args.out, "w", encoding='utf-8') as f:
         for r in picked:
             f.write(json.dumps({
                 "keyword": r["keyword"], "vertical": r["vertical"],

@@ -104,7 +104,8 @@ def main():
     ap.add_argument("--sleep", type=float, default=2.2)
     args = ap.parse_args()
 
-    records = [json.loads(l) for l in open(args.inp)]
+    with open(args.inp, encoding='utf-8') as f:
+        records = [json.loads(l) for l in f]
     leaders = {}
     for r in records:
         ms = r["supply"].get("market_size") or 0
@@ -118,7 +119,11 @@ def main():
             leaders[k] = {"app": lead["app"], "id": lead.get("id"), "market": ms,
                           "vert": r["industry"], "kw": r["canonical_query"], "leaderR": r["supply"].get("leader_rating")}
 
-    out = json.load(open(args.out)) if os.path.exists(args.out) else {}
+    if os.path.exists(args.out):
+        with open(args.out, encoding='utf-8') as f:
+            out = json.load(f)
+    else:
+        out = {}
     todo = [k for k in leaders if k not in out]
     if args.max:
         todo = todo[: args.max]
@@ -136,10 +141,12 @@ def main():
         resented = L["market"] >= args.min_market and sc["switch_hits"] >= 4 and sc["resent_frac"] >= 0.25
         out[k] = {**L, "id": tid, **sc, "resented": resented}
         if (i + 1) % 10 == 0:
-            json.dump(out, open(args.out, "w"))
+            with open(args.out, "w", encoding='utf-8') as f:
+                json.dump(out, f)
             print(f"  {i+1}/{len(todo)}  (resented so far: {sum(1 for v in out.values() if v.get('resented'))})", flush=True)
 
-    json.dump(out, open(args.out, "w"))
+    with open(args.out, "w", encoding='utf-8') as f:
+        json.dump(out, f)
     rg = sorted([v for v in out.values() if v.get("resented")],
                 key=lambda v: -(v["resent_frac"] * (v["market"] ** 0.5)))
     print(f"\nRESENTED GIANTS: {len(rg)}")

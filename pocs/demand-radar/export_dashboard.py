@@ -16,22 +16,29 @@ def name_rel(name, q):
 
 def load_labels():
     p = os.path.join(HERE, "labels", "mobileaction-labels.json")
-    return {l["keyword"].lower(): l for l in json.load(open(p)).get("labels", [])} if os.path.exists(p) else {}
+    if os.path.exists(p):
+        with open(p, encoding='utf-8') as f:
+            return {l["keyword"].lower(): l for l in json.load(f).get("labels", [])}
+    return {}
 
 def load_broad():
     p = os.path.join(HERE, "output", "keywords.broad.jsonl"); out = {}
     if os.path.exists(p):
-        for line in open(p):
-            r = json.loads(line)
-            if r.get("broad_interest") is not None:
-                out[r["keyword"].lower()] = (r.get("broad_interest") or 0, r.get("app_intent") or 0)
+        with open(p, encoding='utf-8') as f:
+            for line in f:
+                r = json.loads(line)
+                if r.get("broad_interest") is not None:
+                    out[r["keyword"].lower()] = (r.get("broad_interest") or 0, r.get("app_intent") or 0)
     return out
 
 def cbonus(m): return 0 if m is None else 2 if m >= 300 else 1 if m >= 50 else 0
 
 def load_resented():
     p = os.path.join(HERE, "output", "resented.json")
-    return json.load(open(p)) if os.path.exists(p) else {}
+    if os.path.exists(p):
+        with open(p, encoding='utf-8') as f:
+            return json.load(f)
+    return {}
 
 def disruption(rec):
     """(market_size, leader_rating, leader_app, is_target). Uses detector fields if present,
@@ -67,53 +74,55 @@ def main():
     if not os.path.exists(src): src = os.path.join(HERE, "output", "records.jsonl")
     labels, broad, resented = load_labels(), load_broad(), load_resented()
     out = []
-    for line in open(src):
-        r = json.loads(line); v = r.get("verdict_heuristic", "")
-        ms, lr, lapp, star_dis = disruption(r)
-        rg = resented.get((lapp or "").lower()) if lapp else None
-        res_flag = bool(rg and rg.get("resented"))
-        dis = star_dis or res_flag  # disruption = low-rated giant OR well-rated-but-RESENTED giant
-        if v.startswith("REJECT") and not dis:  # keep gap-candidates OR disruption targets
-            continue
-        gap = r["gap"]["gap_type"]; comp = r["supply"]["competition_intensity"]; ch = r["discovery_channel"]
-        cm = (r.get("demand") or {}).get("community_metric") or {}
-        m = cm.get("mentions"); m = m if isinstance(m, int) else None
-        bi, app_intent = broad.get(r["canonical_query"].lower(), (0, 0))
-        gap_w = GAP_W.get(gap, 0); trust = None
-        if gap == "absent-in-store":
-            if ch == "app-store": gap_w = 1.0; trust = "unverified-absent"
-            elif not (app_intent or bi >= 6): gap_w = 0.5
-        score = gap_w + COMP_W.get(comp, 0) + cbonus(m) + app_intent + min(bi, 8) / 4.0
-        lab = labels.get(r["canonical_query"].lower()); vol = lab["volume"] if lab else None
-        magnote = None
-        if ch == "app-store" and lab is not None:
-            if vol is not None and vol >= 40: score += 2; magnote = "demand-validated"
-            elif vol is not None and vol >= 15: score += 1
-            else: score -= 3; magnote = "no-store-demand"
-        ds_star = math.log10(ms) * max(0.0, 4.6 - lr) if star_dis and ms > 0 and lr else 0.0
-        ds_res = math.log10(ms) * rg["resent_frac"] if res_flag and ms > 0 else 0.0
-        dscore = round(max(ds_star, ds_res), 2)
-        verdict = "DISRUPT" if dis else v
-        sup = r["supply"]
-        out.append({
-            "kw": r["canonical_query"], "vert": r["industry"], "ch": ch, "gap": gap,
-            "comp": comp, "sat": sup["best_existing_satisfaction"], "verdict": verdict,
-            "score": round(score, 1), "comm": m, "commSrc": cm.get("source"),
-            "app": app_intent, "bi": bi, "vol": vol, "magnote": magnote, "trust": trust,
-            "needsMA": (ch == "app-store" and lab is None and not dis),
-            "market": ms or None, "leaderR": lr, "leaderApp": lapp, "disrupt": dis, "dScore": dscore,
-            "resented": res_flag, "resentFrac": rg.get("resent_frac") if res_flag else None,
-            "resentCats": [c for c in ("pricing", "ads", "enshittification") if res_flag and rg.get("cat_hits", {}).get(c)] if res_flag else None,
-            "gripes": rg.get("gripes") if res_flag else None,
-            "wedge": wedge_from(rg) if res_flag else None,
-            "bestRating": sup.get("best_existing_rating"), "fresh": sup.get("freshest_incumbent_days"),
-            "relInc": sup.get("relevant_incumbents"),
-            "apps": [{"n": a.get("app"), "r": a.get("rating"), "c": a.get("rating_count"),
-                      "u": a.get("last_updated_days")} for a in sup.get("solutions", [])[:5]],
-        })
+    with open(src, encoding='utf-8') as f:
+        for line in f:
+            r = json.loads(line); v = r.get("verdict_heuristic", "")
+            ms, lr, lapp, star_dis = disruption(r)
+            rg = resented.get((lapp or "").lower()) if lapp else None
+            res_flag = bool(rg and rg.get("resented"))
+            dis = star_dis or res_flag  # disruption = low-rated giant OR well-rated-but-RESENTED giant
+            if v.startswith("REJECT") and not dis:  # keep gap-candidates OR disruption targets
+                continue
+            gap = r["gap"]["gap_type"]; comp = r["supply"]["competition_intensity"]; ch = r["discovery_channel"]
+            cm = (r.get("demand") or {}).get("community_metric") or {}
+            m = cm.get("mentions"); m = m if isinstance(m, int) else None
+            bi, app_intent = broad.get(r["canonical_query"].lower(), (0, 0))
+            gap_w = GAP_W.get(gap, 0); trust = None
+            if gap == "absent-in-store":
+                if ch == "app-store": gap_w = 1.0; trust = "unverified-absent"
+                elif not (app_intent or bi >= 6): gap_w = 0.5
+            score = gap_w + COMP_W.get(comp, 0) + cbonus(m) + app_intent + min(bi, 8) / 4.0
+            lab = labels.get(r["canonical_query"].lower()); vol = lab["volume"] if lab else None
+            magnote = None
+            if ch == "app-store" and lab is not None:
+                if vol is not None and vol >= 40: score += 2; magnote = "demand-validated"
+                elif vol is not None and vol >= 15: score += 1
+                else: score -= 3; magnote = "no-store-demand"
+            ds_star = math.log10(ms) * max(0.0, 4.6 - lr) if star_dis and ms > 0 and lr else 0.0
+            ds_res = math.log10(ms) * rg["resent_frac"] if res_flag and ms > 0 else 0.0
+            dscore = round(max(ds_star, ds_res), 2)
+            verdict = "DISRUPT" if dis else v
+            sup = r["supply"]
+            out.append({
+                "kw": r["canonical_query"], "vert": r["industry"], "ch": ch, "gap": gap,
+                "comp": comp, "sat": sup["best_existing_satisfaction"], "verdict": verdict,
+                "score": round(score, 1), "comm": m, "commSrc": cm.get("source"),
+                "app": app_intent, "bi": bi, "vol": vol, "magnote": magnote, "trust": trust,
+                "needsMA": (ch == "app-store" and lab is None and not dis),
+                "market": ms or None, "leaderR": lr, "leaderApp": lapp, "disrupt": dis, "dScore": dscore,
+                "resented": res_flag, "resentFrac": rg.get("resent_frac") if res_flag else None,
+                "resentCats": [c for c in ("pricing", "ads", "enshittification") if res_flag and rg.get("cat_hits", {}).get(c)] if res_flag else None,
+                "gripes": rg.get("gripes") if res_flag else None,
+                "wedge": wedge_from(rg) if res_flag else None,
+                "bestRating": sup.get("best_existing_rating"), "fresh": sup.get("freshest_incumbent_days"),
+                "relInc": sup.get("relevant_incumbents"),
+                "apps": [{"n": a.get("app"), "r": a.get("rating"), "c": a.get("rating_count"),
+                          "u": a.get("last_updated_days")} for a in sup.get("solutions", [])[:5]],
+            })
     out.sort(key=lambda x: (-max(x["score"], x["dScore"]*2), x["kw"]))
     dest = os.path.join(HERE, "output", "dashboard-data.json")
-    json.dump(out, open(dest, "w"), separators=(",", ":"))
+    with open(dest, "w", encoding='utf-8') as f:
+        json.dump(out, f, separators=(",", ":"))
     nd = sum(1 for x in out if x["disrupt"])
     print(f"wrote {len(out)} candidates ({nd} disruption targets) -> {dest} ({os.path.getsize(dest)//1024} KB)")
 

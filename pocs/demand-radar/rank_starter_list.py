@@ -25,8 +25,9 @@ def load_labels():
     path = os.path.join(HERE, "labels", "mobileaction-labels.json")
     out = {}
     if os.path.exists(path):
-        for lab in json.load(open(path)).get("labels", []):
-            out[lab["keyword"].lower()] = lab
+        with open(path, encoding='utf-8') as f:
+            for lab in json.load(f).get("labels", []):
+                out[lab["keyword"].lower()] = lab
     return out
 
 
@@ -47,10 +48,11 @@ def load_broad():
     path = os.path.join(HERE, "output", "keywords.broad.jsonl")
     out = {}
     if os.path.exists(path):
-        for l in open(path):
-            r = json.loads(l)
-            if r.get("broad_interest") is not None:
-                out[r["keyword"].lower()] = (r.get("broad_interest") or 0, r.get("app_intent") or 0)
+        with open(path, encoding='utf-8') as f:
+            for l in f:
+                r = json.loads(l)
+                if r.get("broad_interest") is not None:
+                    out[r["keyword"].lower()] = (r.get("broad_interest") or 0, r.get("app_intent") or 0)
     return out
 
 
@@ -58,7 +60,8 @@ def main():
     src = os.path.join(HERE, "output", "records.enriched.jsonl")
     if not os.path.exists(src):
         src = os.path.join(HERE, "output", "records.jsonl")
-    records = [json.loads(l) for l in open(src)]
+    with open(src, encoding='utf-8') as f:
+        records = [json.loads(l) for l in f]
     labels = load_labels()
     broad = load_broad()
 
