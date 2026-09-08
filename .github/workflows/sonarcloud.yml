@@ -35,9 +35,14 @@ jobs:
     runs-on: ubuntu-latest
     # Job-level backstop: bound the whole job so a hang anywhere (checkout, a
     # scan that stalls before its own step timeout, etc.) fails fast instead of
-    # running to GitHub's 6-hour default. Kept above the sum of the two scan
-    # step timeouts + backoff so a genuine retry is never killed prematurely.
-    timeout-minutes: 25
+    # running to GitHub's 6-hour default. Sized above the sum of the two 10-min
+    # scan timeouts + the 240s backoff (24 min) PLUS headroom for the network-
+    # bound checkout path (initial ~47s + 15s checkout backoff + retry ~47s ≈ 2
+    # min) and action setup overhead, so a genuine retry is never killed by the
+    # cap mid-scan. At 25 the 1-min margin was too thin to cover that checkout
+    # path (issue #122 review): worst case reached ~25.8 min and terminated the
+    # retry. 28 restores ~2 min of real headroom above the checkout worst case.
+    timeout-minutes: 28
     permissions:
       contents: read
       pull-requests: read
@@ -93,9 +98,10 @@ jobs:
         # p95 ~= 288s ~= initial scan + 120s backoff + retry — the signature of both
         # attempts failing together because the transient outlasted the 120s wait.
         # The org standard mandates a *single* retry, so the backoff is the only lever
-        # left: #122 doubled it again to 240s (four minutes of headroom) while staying
-        # inside the job's 25-minute backstop (10 + 4 + 10 = 24 min worst case). Paid
-        # only on the failure path; the happy path never waits.
+        # left: #122 doubled it again to 240s (four minutes of headroom). The two 10-min
+        # scans + this backoff sum to 24 min; the job's 28-minute backstop sits above
+        # that plus the ~2-min checkout path + action overhead. Paid only on the failure
+        # path; the happy path never waits.
         run: sleep 240
       - name: SonarCloud Scan (retry)
         if: env.SONAR_TOKEN != '' && steps.sonar.outcome == 'failure'

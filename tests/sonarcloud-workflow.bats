@@ -76,8 +76,10 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
 # the signature of both attempts failing together because the transient outlasted
 # the 120s wait, so the single mandated retry still landed inside the outage. The
 # org standard mandates a *single* retry, so the backoff duration remains the only
-# lever: #122 doubled it 120s -> 240s (four minutes of headroom), still inside the
-# 25-minute job backstop (10 + 4 + 10 = 24 min worst case). This pins that floor.
+# lever: #122 doubled it 120s -> 240s (four minutes of headroom). The two 10-min
+# scans + backoff sum to 24 min; the job backstop (raised to 28 min after the #122
+# review) sits above that plus the network-bound checkout path + action overhead.
+# This pins that floor.
 
 @test "the backoff is long enough to outlast a multi-minute transient (>= 240s)" {
   backoff_block="$(awk '/- name: Backoff before retry/{p=1} p && /^      - / && !/- name: Backoff before retry/{p=0} p' "$SONAR_YML")"
@@ -198,9 +200,13 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
   [ "$checkout_retry_line" -lt "$scan_line" ]
 }
 
-@test "the job timeout is large enough to cover both bounded scans plus backoff" {
-  # The job backstop must exceed initial-scan + backoff + retry step timeouts so a real
-  # (non-hung) retry is never killed by the job-level cap before it can recover.
+@test "the job timeout covers both bounded scans, backoff, and the checkout path" {
+  # The job backstop must exceed initial-scan + backoff + retry step timeouts AND
+  # leave headroom for the network-bound checkout path (initial checkout + its own
+  # backoff + retry) plus action setup overhead, so a real (non-hung) retry is never
+  # killed by the job-level cap before it can recover. A margin that only clears the
+  # scan+backoff sum (as the old 25-min cap did, 60s spare) was too thin to cover the
+  # ~2-min checkout path (issue #122 review). Require >= 120s of headroom.
   job_timeout="$(grep -E '^    timeout-minutes: [0-9]+$' "$SONAR_YML" | head -1 | grep -oE '[0-9]+')"
   initial_timeout="$(awk '/- name: SonarCloud Scan$/{p=1} p && /^      - / && !/- name: SonarCloud Scan$/{p=0} p' "$SONAR_YML" | grep -oE 'timeout-minutes: [0-9]+' | grep -oE '[0-9]+')"
   retry_timeout="$(awk 'index($0,"- name: SonarCloud Scan (retry)"){p=1} p && /^      - / && !index($0,"- name: SonarCloud Scan (retry)"){p=0} p' "$SONAR_YML" | grep -oE 'timeout-minutes: [0-9]+' | grep -oE '[0-9]+')"
@@ -209,6 +215,7 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
   [ -n "$initial_timeout" ]
   [ -n "$retry_timeout" ]
   [ -n "$backoff_seconds" ]
-  # Compare in seconds so the backoff (seconds) and scan timeouts (minutes) use the same unit
-  [ "$((job_timeout * 60))" -gt "$((initial_timeout * 60 + backoff_seconds + retry_timeout * 60))" ]
+  # Compare in seconds so the backoff (seconds) and scan timeouts (minutes) use the same unit.
+  step_sum="$((initial_timeout * 60 + backoff_seconds + retry_timeout * 60))"
+  [ "$((job_timeout * 60))" -ge "$((step_sum + 120))" ]
 }
