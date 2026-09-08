@@ -70,12 +70,20 @@ SONAR_YML="${BATS_TEST_DIRNAME}/../.github/workflows/sonarcloud.yml"
 # wait to 120s for two minutes of headroom. The org standard mandates a *single*
 # retry, so the backoff duration is the only lever left to widen. This pins a
 # backoff long enough to clear a multi-minute-scale transient before that retry.
+#
+# Issue #122: at a 120s backoff the workflow was still DEGRADED (33.3%, 4/12).
+# Failing runs clustered at p95 ~= 288s ~= initial scan + 120s backoff + retry,
+# the signature of both attempts failing together because the transient outlasted
+# the 120s wait, so the single mandated retry still landed inside the outage. The
+# org standard mandates a *single* retry, so the backoff duration remains the only
+# lever: #122 doubled it 120s -> 240s (four minutes of headroom), still inside the
+# 25-minute job backstop (10 + 4 + 10 = 24 min worst case). This pins that floor.
 
-@test "the backoff is long enough to outlast a multi-minute transient (>= 120s)" {
+@test "the backoff is long enough to outlast a multi-minute transient (>= 240s)" {
   backoff_block="$(awk '/- name: Backoff before retry/{p=1} p && /^      - / && !/- name: Backoff before retry/{p=0} p' "$SONAR_YML")"
   seconds="$(echo "$backoff_block" | grep -E '^\s*run: sleep [0-9]+' | sed -nE 's/.*sleep ([0-9]+).*/\1/p' | head -n 1)"
   [ -n "$seconds" ]
-  [ "$seconds" -ge 120 ]
+  [ "$seconds" -ge 240 ]
 }
 
 # ── Hang guard (issue #21) ────────────────────────────────────────────────────

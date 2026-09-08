@@ -88,11 +88,15 @@ jobs:
         # a 30s backoff re-hit the same outage and both attempts failed together.
         # Issue #27 raised it to 60s (rate 43.8% -> 16.7%); the residual 1/6 failure
         # (issue #80) was a transient that outlasted a single minute, so the retry
-        # still re-hit it. The org standard mandates a *single* retry, so the
-        # backoff is the only lever left: 120s gives two minutes of headroom while
-        # staying inside the job's 25-minute backstop (10 + 2 + 10 = 22 min worst
-        # case). Paid only on the failure path; the happy path never waits.
-        run: sleep 120
+        # still re-hit it, and #80 doubled the wait to 120s. At 120s the workflow was
+        # still DEGRADED (issue #122: 33.3%, 4/12), with failing runs clustering at
+        # p95 ~= 288s ~= initial scan + 120s backoff + retry — the signature of both
+        # attempts failing together because the transient outlasted the 120s wait.
+        # The org standard mandates a *single* retry, so the backoff is the only lever
+        # left: #122 doubled it again to 240s (four minutes of headroom) while staying
+        # inside the job's 25-minute backstop (10 + 4 + 10 = 24 min worst case). Paid
+        # only on the failure path; the happy path never waits.
+        run: sleep 240
       - name: SonarCloud Scan (retry)
         if: env.SONAR_TOKEN != '' && steps.sonar.outcome == 'failure'
         uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
