@@ -114,7 +114,7 @@ def main():
     rows.sort(key=lambda x: (-x["score"], x["group"]))
 
     out = os.path.join(HERE, "output", "starter-list.md")
-    with open(out, "w") as f:
+    with open(out, "w", encoding='utf-8') as f:
         f.write("# DemandRadar — idea starter list (ranked)\n\n")
         f.write(f"{len(rows)} non-REJECT candidates from {len(records)} keywords. ")
         f.write("Score = gap severity + supply scarcity + community corroboration (legible, untuned).\n\n")

@@ -152,7 +152,7 @@ def main():
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     n = 0
     per_vertical = {}
-    with open(args.out, "w") as f:
+    with open(args.out, "w", encoding='utf-8') as f:
         for vert, (channel, dyn, domains) in VERTICALS.items():
             c = 0
             # Dedup WITHIN a vertical only. A phrase that recurs across verticals is a

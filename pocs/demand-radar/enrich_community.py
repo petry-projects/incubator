@@ -70,7 +70,7 @@ def hn_mentions(q):
 def se_mentions(q, site):
     params = urllib.parse.urlencode({"order": "desc", "sort": "activity", "q": q, "site": site, "filter": "total"})
     if os.environ.get("STACKEXCHANGE_KEY"):
-        params += "&key=" + urllib.parse.quote(os.environ["STACKEXCHANGE_KEY"])
+        params += "&key=" + urllib.parse.quote(os.environ["STACKEXCHANGE_KEY"])  # noqa: S106
     req = urllib.request.Request("https://api.stackexchange.com/2.3/search/advanced?" + params, headers={"User-Agent": UA})
     d = json.loads(urllib.request.urlopen(req, timeout=20).read())
     return {"source": "stackexchange", "site": site, "mentions": d.get("total"), "quota_remaining": d.get("quota_remaining"), "query": q}
@@ -84,7 +84,7 @@ def yt_mentions(q):
     if not key:
         raise ValueError("YOUTUBE_API_KEY environment variable not set")
     p = urllib.parse.urlencode({"part": "snippet", "type": "video", "maxResults": 8,
-                                "order": "relevance", "q": q, "key": key})
+                                "order": "relevance", "q": q, "key": key})  # noqa: S106
     d = json.loads(urllib.request.urlopen(
         urllib.request.Request("https://www.googleapis.com/youtube/v3/search?" + p, headers={"User-Agent": UA}), timeout=20).read())
     toks = [w for w in q.lower().split() if len(w) >= 4]
@@ -93,7 +93,7 @@ def yt_mentions(q):
     relevant = [vid for vid, t in id_title.items() if all(tok in t for tok in toks)] if toks else list(id_title)
     views = 0
     if relevant:
-        p2 = urllib.parse.urlencode({"part": "statistics", "id": ",".join(relevant), "key": key})
+        p2 = urllib.parse.urlencode({"part": "statistics", "id": ",".join(relevant), "key": key})  # noqa: S106
         d2 = json.loads(urllib.request.urlopen(
             urllib.request.Request("https://www.googleapis.com/youtube/v3/videos?" + p2, headers={"User-Agent": UA}), timeout=20).read())
         views = sum(int(v.get("statistics", {}).get("viewCount", 0)) for v in d2.get("items", []))
@@ -222,7 +222,7 @@ def main():
             print(f"  {i+1}/{len(targets)}  budgets={budget_left}", flush=True)
         time.sleep(args.sleep)
 
-    with open(args.out, "w") as f:
+    with open(args.out, "w", encoding='utf-8') as f:
         for r in records:
             f.write(json.dumps(r) + "\n")
     print(f"\nEnriched {len(targets)} survivors -> {args.out}")

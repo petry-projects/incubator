@@ -57,7 +57,7 @@ def resolve_id(name):
         d = json.loads(get("https://itunes.apple.com/search?" + urllib.parse.urlencode(
             {"term": name, "country": "us", "entity": "software", "limit": 1})))
         return (d.get("results") or [{}])[0].get("trackId")
-    except Exception:
+    except Exception:  # noqa: BLE001
         return None
 
 
@@ -67,7 +67,7 @@ def fetch_low_reviews(tid):
     for page in (1, 2):
         try:
             r = json.loads(get(f"https://itunes.apple.com/us/rss/customerreviews/page={page}/id={tid}/sortBy=mostRecent/json"))
-        except Exception:
+        except Exception:  # noqa: BLE001
             break
         for e in r.get("feed", {}).get("entry", []):
             rt = e.get("im:rating", {}).get("label")

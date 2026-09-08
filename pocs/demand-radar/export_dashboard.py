@@ -43,10 +43,13 @@ def load_resented():
 def disruption(rec):
     """(market_size, leader_rating, leader_app, is_target). Uses detector fields if present,
     else derives from stored top-5 via name-relevance (lossy for pre-detector records)."""
-    sup = rec["supply"]; q = rec["canonical_query"]
+    sup = rec.get("supply"); q = rec["canonical_query"]
+    if sup is None: return 0, None, None, False
     if sup.get("market_size") is not None:  # scored with the new detector
         lr = sup.get("leader_rating")
-        lead = max((sup.get("solutions") or []), key=lambda a: a.get("rating_count") or 0, default=None)
+        # Filter solutions by relevance to query before picking the leader (consistent with else case)
+        apps = [a for a in sup.get("solutions", []) if name_rel(a.get("app"), q) and a.get("rating")]
+        lead = max(apps, key=lambda a: a.get("rating_count") or 0, default=None) if apps else None
         return sup["market_size"], lr, (lead or {}).get("app"), bool(sup.get("disruption"))
     apps = [a for a in sup.get("solutions", []) if name_rel(a.get("app"), q) and a.get("rating")]
     if not apps: return 0, None, None, False

@@ -64,7 +64,7 @@ def reviews(tid, pages):
     for pg in range(1, pages + 1):
         try:
             r = json.loads(get(f"https://itunes.apple.com/us/rss/customerreviews/page={pg}/id={tid}/sortBy=mostRecent/json"))
-        except Exception:
+        except Exception:  # noqa: BLE001
             break
         for e in r.get("feed", {}).get("entry", []):
             rt = e.get("im:rating", {}).get("label")

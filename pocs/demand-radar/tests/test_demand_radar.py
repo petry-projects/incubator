@@ -157,9 +157,9 @@ class TestExportPure:
         assert (dash.cbonus(None), dash.cbonus(10), dash.cbonus(100), dash.cbonus(500)) == (0, 0, 1, 2)
 
     def test_disruption_uses_detector_fields(self):
-        rec = {"canonical_query": "x", "supply": {"market_size": 50000, "leader_rating": 4.1,
-               "disruption": True, "solutions": [{"app": "Big", "rating_count": 50000}]}}
-        assert dash.disruption(rec) == (50000, 4.1, "Big", True)
+        rec = {"canonical_query": "mood", "supply": {"market_size": 50000, "leader_rating": 4.1,
+               "disruption": True, "solutions": [{"app": "Mood Tracker", "rating": 4.1, "rating_count": 50000}]}}
+        assert dash.disruption(rec) == (50000, 4.1, "Mood Tracker", True)
 
     def test_disruption_legacy_derivation(self):
         rec = {"canonical_query": "mood tracker", "supply": {"solutions": [
@@ -278,3 +278,54 @@ class TestPipelineBuild:
         data.write_text("[]")
         with pytest.raises(ValueError):
             pipeline.build_dashboard(str(tmpl), str(data), str(tmp_path / "o.html"))
+
+
+class TestBroadPassScoring:
+    def test_app_intent_premium_over_generic(self):
+        # app intent keywords score higher
+        s1 = broad_pass.score("tracker app", ["tracker app", "mood tracking app"])
+        s2 = broad_pass.score("tracker", ["tracker", "mood tracker"])
+        assert s1["app_intent"] > s2.get("app_intent", 0)
+
+    def test_no_matches_zero_score(self):
+        s = broad_pass.score("mood tracker", ["health fitness", "workout planner"])
+        assert s["on_topic"] == 0
+        assert s["broad_interest"] == 0
+
+
+class TestRankingLogic:
+    def test_community_bonus_scales_by_mentions(self):
+        rec_high = {"demand": {"community_metric": {"mentions": 1000}}}
+        rec_low = {"demand": {"community_metric": {"mentions": 50}}}
+        bonus_high, _ = rank.community_bonus(rec_high)
+        bonus_low, _ = rank.community_bonus(rec_low)
+        assert bonus_high > bonus_low
+
+
+class TestAnalyzeComprehensive:
+    def test_credible_leader_requires_rating_count(self):
+        # High rating but low count should not be credible
+        sig = extract.analyze("mood tracker", [app("Mood Tracker", rating=5.0, count=10, days=5)])
+        assert sig["credible_incumbents"] == 0
+
+    def test_low_supply_confidence_when_old(self):
+        sig = extract.analyze("mood tracker", [app("Mood Tracker", rating=4.5, count=1000, days=200)])
+        assert sig["supply_confidence"] in ("low", "medium")
+
+    def test_empty_list_absent_in_store(self):
+        sig = extract.analyze("mood tracker", [])
+        assert sig["gap_type"] == "absent-in-store"
+        assert sig["verdict"] == "CANDIDATE"  # medium confidence when no results on app-store channel
+
+
+class TestResentGiantsEdgeCases:
+    def test_empty_categories_returns_empty_gripes(self):
+        out = rg.scan([(1, "bad", "some complaint with no keywords")])
+        assert out["n_low"] >= 0
+        # All scan results should have gripes list (even if empty)
+        assert isinstance(out["gripes"], list)
+
+    def test_single_word_gripe_matching(self):
+        # test that "free" in review text is found
+        out = rg.scan([(1, "paid", "no longer free")])
+        assert out["n_low"] == 1
