@@ -82,7 +82,7 @@ def days_since(iso):
 
 
 def content_tokens(term):
-    return [w for w in term.lower().split() if w not in STOP and len(w) >= 4]
+    return [w for w in re.findall(r"[a-z0-9]+", (term or "").lower()) if w not in STOP and len(w) >= 4]
 
 
 def _word_set(text):

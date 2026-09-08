@@ -25,10 +25,20 @@ import json
 import os
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
 UA = "DemandRadar-spike/0.4 (+petry-projects/incubator; research)"
+
+
+class HTTPSOnlyRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Reject redirects unless they remain HTTPS on oauth.reddit.com."""
+
+    def redirect_request(self, req, fp, code, msg, hdrs, newurl):
+        if not newurl.startswith("https://oauth.reddit.com/"):
+            raise urllib.error.HTTPError(newurl, code, "Redirect to non-HTTPS or non-oauth.reddit.com URL blocked", hdrs, fp)
+        return super().redirect_request(req, fp, code, msg, hdrs, newurl)
 
 # preferred community backend per vertical
 VERTICAL_SOURCE = {
@@ -106,7 +116,8 @@ def reddit_token(cid, secret):
     auth = base64.b64encode(f"{cid}:{secret}".encode()).decode()
     req = urllib.request.Request("https://www.reddit.com/api/v1/access_token", data=data,
                                  headers={"User-Agent": UA, "Authorization": f"Basic {auth}"})
-    return json.loads(urllib.request.urlopen(req, timeout=20).read())["access_token"]
+    opener = urllib.request.build_opener(HTTPSOnlyRedirectHandler())
+    return json.loads(opener.open(req, timeout=20).read())["access_token"]
 
 
 def reddit_mentions(q, token):
@@ -115,7 +126,8 @@ def reddit_mentions(q, token):
     params = urllib.parse.urlencode({"q": q, "limit": 25, "sort": "relevance", "type": "link"})
     req = urllib.request.Request("https://oauth.reddit.com/search?" + params,
                                  headers={"User-Agent": UA, "Authorization": f"bearer {token}"})
-    d = json.loads(urllib.request.urlopen(req, timeout=20).read())
+    opener = urllib.request.build_opener(HTTPSOnlyRedirectHandler())
+    d = json.loads(opener.open(req, timeout=20).read())
     return {"source": "reddit", "mentions": len(d.get("data", {}).get("children", [])), "query": q}
 
 

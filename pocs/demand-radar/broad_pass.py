@@ -90,7 +90,7 @@ def main():
 
     try:
         with open(args.inp, encoding="utf-8") as f:
-            kws = [json.loads(l) for l in f]
+            kws = [json.loads(line) for line in f]
     except (OSError, ValueError) as e:  # file-access / malformed JSON — report, don't traceback
         print(f"Error reading input keywords from {args.inp}: {e}", file=sys.stderr)
         sys.exit(1)
@@ -98,9 +98,9 @@ def main():
     if os.path.exists(args.out):
         try:
             with open(args.out, encoding="utf-8") as f:
-                for l in f:
+                for line in f:
                     try:
-                        rec = json.loads(l)
+                        rec = json.loads(line)
                         # Only treat a keyword as done if it has a valid score; failed rows
                         # (broad_interest is None) stay pending so a resume retries them.
                         if rec.get("broad_interest") is not None:
