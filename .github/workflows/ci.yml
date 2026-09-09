@@ -81,9 +81,20 @@ jobs:
           # matching *SHA256* containing hex strings as Security Hotspots (false positive).
           GITLEAKS_CHECKSUM: "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb"
         run: |
+          # Single retry after a short backoff for transient network blips (issue
+          # #124; org standard mandates exactly one retry — see sonarcloud.yml). The
+          # backoff is paid only on failure, so the happy path never waits. The
+          # checksum verification below still guards integrity if a retry lands a
+          # different byte stream.
+          retry() {
+            "$@" && return 0
+            echo "::warning::'$*' failed (momentary network blip) — retrying once in 15s"
+            sleep 15
+            "$@"
+          }
           tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
           url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/${tarball}"
-          curl --proto '=https' --proto-redir '=https' --tlsv1.2 -sSfL "${url}" -o /tmp/gitleaks.tar.gz
+          retry curl --proto '=https' --proto-redir '=https' --tlsv1.2 -sSfL "${url}" -o /tmp/gitleaks.tar.gz
           echo "${GITLEAKS_CHECKSUM}  /tmp/gitleaks.tar.gz" | sha256sum -c
           tar -xzf /tmp/gitleaks.tar.gz -C /tmp gitleaks
           sudo mv /tmp/gitleaks /usr/local/bin
@@ -116,9 +127,20 @@ jobs:
             echo "No bats tests found — coverage is green until tests exist."
             exit 0
           fi
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq bats
-          pip3 install --quiet --only-binary :all: "pyyaml==6.0.2"
+          # Single retry after a short backoff for transient network blips (issue
+          # #124; org standard mandates exactly one retry — see sonarcloud.yml). Paid
+          # only on failure, so the happy path never waits. kcov below is already
+          # non-fatal (it falls back to running bats without coverage), so it is
+          # intentionally left unwrapped.
+          retry() {
+            "$@" && return 0
+            echo "::warning::'$*' failed (momentary network blip) — retrying once in 15s"
+            sleep 15
+            "$@"
+          }
+          retry sudo apt-get update -qq
+          retry sudo apt-get install -y -qq bats
+          retry pip3 install --quiet --only-binary :all: "pyyaml==6.0.2"
           mkdir -p coverage
           if sudo apt-get install -y -qq kcov; then
             kcov --include-path=. --exclude-path=tests,coverage coverage bats "${bats_files[@]}"
