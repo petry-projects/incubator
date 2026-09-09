@@ -51,7 +51,7 @@ retry_helper() {
 
 @test "the gitleaks tarball download is wrapped in the retry helper" {
   local block="$(job_block secret-scan)"
-  echo "$block" | grep -qE '- name: Install gitleaks'
+  echo "$block" | grep -qE -e '- name: Install gitleaks'
   echo "$block" | grep -qE 'retry curl .*-o /tmp/gitleaks\.tar\.gz'
 }
 
