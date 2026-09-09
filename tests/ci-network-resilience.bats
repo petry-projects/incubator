@@ -41,16 +41,18 @@ retry_helper() {
 
 @test "the retry helper performs a single backoff before retrying once" {
   # Target the helper body, not just any indented `sleep`. Assert the helper backs
-  # off (sleep) between attempts, contains no loop construct (while/until/for) that
-  # would mean unbounded retries, and invokes the command exactly twice — the first
-  # attempt plus a single retry.
-  retry_helper | grep -qE '^ *sleep '
+  # off with a 15-second delay between attempts, contains no loop construct
+  # (while/until/for) that would mean unbounded retries, and invokes the command
+  # exactly twice — the first attempt plus a single retry.
+  retry_helper | grep -qE '^ *sleep 15'
   ! retry_helper | grep -qE '\b(while|until|for)\b'
   [ "$(retry_helper | grep -cE '"\$@"')" -eq 2 ]
 }
 
 @test "the gitleaks tarball download is wrapped in the retry helper" {
-  job_block secret-scan | grep -qE 'retry curl .*-o /tmp/gitleaks\.tar\.gz'
+  local block="$(job_block secret-scan)"
+  echo "$block" | grep -qE '- name: Install gitleaks'
+  echo "$block" | grep -qE 'retry curl .*-o /tmp/gitleaks\.tar\.gz'
 }
 
 @test "no bare (un-retried) curl download of the gitleaks tarball remains" {
