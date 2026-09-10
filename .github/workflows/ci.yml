@@ -74,8 +74,16 @@ jobs:
       #   - run: npm run lint && npm run typecheck && npm test
       # See BOOTSTRAP.md and the CI standard. Until you add real steps, the
       # placeholder below keeps the required `build-and-test` check green.
-      - name: Placeholder — replace with real build/test steps
-        run: echo "CI stub — add your stack's lint/format/typecheck/test/coverage steps; see BOOTSTRAP.md."
+      #
+      # DemandRadar unit tests (pytest with coverage).
+      - name: DemandRadar unit tests
+        run: |
+          cd pocs/demand-radar
+          # Pinned + wheels-only: lock the resolved version (S8544) and skip source
+          # setup scripts (S8541) for a reproducible, tamper-resistant install.
+          python3 -m pip install -q --only-binary :all: pytest==9.1.1
+          python3 -m pytest tests/ -q --tb=short
+          echo "✓ DemandRadar tests passed"
 
   # Canonical secret-scan job — copied verbatim from push-protection.md#required-ci-job.
   # Produces the `Secret scan (gitleaks)` required check. Uses the gitleaks CLI (not
@@ -163,35 +171,46 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Coverage (shell/bats via kcov)
+      - name: Coverage (Python pytest + shell/bats via kcov)
         run: |
+          # Python coverage (DemandRadar)
+          if [ -d "pocs/demand-radar/tests" ]; then
+            cd pocs/demand-radar
+            # Pinned + wheels-only: lock the resolved version (S8544) and skip source
+            # setup scripts (S8541) for a reproducible, tamper-resistant install.
+            pip3 install -q --only-binary :all: pytest-cov==7.1.0
+            python3 -m pytest tests/ --cov=. --cov-report=xml:coverage.xml --cov-report=term-missing
+            cd ../..
+          fi
+
+          # Shell/bats coverage (legacy)
           shopt -s globstar nullglob
           bats_files=(tests/**/*.bats)
           if [ ${#bats_files[@]} -eq 0 ]; then
-            echo "No bats tests found — coverage is green until tests exist."
-            exit 0
-          fi
-          # Single retry after a short backoff for transient network blips (issue
-          # #124; org standard mandates exactly one retry — see sonarcloud.yml). Paid
-          # only on failure, so the happy path never waits. kcov below is already
-          # non-fatal (it falls back to running bats without coverage), so it is
-          # intentionally left unwrapped.
-          retry() {
-            "$@" && return 0
-            echo "::warning::'$*' failed (momentary network blip) — retrying once in 15s"
-            sleep 15
-            "$@"
-          }
-          retry sudo apt-get update -qq
-          retry sudo apt-get install -y -qq bats
-          retry pip3 install --quiet --only-binary :all: "pyyaml==6.0.2"
-          mkdir -p coverage
-          if sudo apt-get install -y -qq kcov; then
-            kcov --include-path=. --exclude-path=tests,coverage coverage bats "${bats_files[@]}"
-            echo "Coverage report written to ./coverage"
+            echo "No bats tests found — shell coverage not applicable."
           else
-            echo "::warning::kcov unavailable on this runner — running bats tests without coverage instrumentation."
-            bats "${bats_files[@]}"
+            # Single retry after a short backoff for transient network blips (issue
+            # #124; org standard mandates exactly one retry — see sonarcloud.yml). Paid
+            # only on failure, so the happy path never waits. kcov below is already
+            # non-fatal (it falls back to running bats without coverage), so it is
+            # intentionally left unwrapped.
+            retry() {
+              "$@" && return 0
+              echo "::warning::'$*' failed (momentary network blip) — retrying once in 15s"
+              sleep 15
+              "$@"
+            }
+            retry sudo apt-get update -qq
+            retry sudo apt-get install -y -qq bats
+            retry pip3 install --quiet --only-binary :all: "pyyaml==6.0.2"
+            mkdir -p coverage
+            if sudo apt-get install -y -qq kcov; then
+              kcov --include-path=. --exclude-path=tests,coverage coverage bats "${bats_files[@]}"
+              echo "Coverage report written to ./coverage"
+            else
+              echo "::warning::kcov unavailable on this runner — running bats tests without coverage instrumentation."
+              bats "${bats_files[@]}"
+            fi
           fi
 
       # ── Per-stack expansion — replace/augment the shell block above for your stack.

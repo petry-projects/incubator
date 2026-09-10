@@ -1,0 +1,624 @@
+{
+  "keyword": "mood tracker",
+  "mobileaction": {
+    "keyword": "mood tracker",
+    "discovery_channel": "app-store",
+    "volume": 48,
+    "difficulty": 32,
+    "ranked_apps": 234,
+    "note": "resented market: DailyBean 96% resent"
+  },
+  "competitors": [
+    {
+      "app": "Daylio Journal - Mood Tracker",
+      "id": 1194023242,
+      "seller": "Relaxio s.r.o.",
+      "rating": 4.77,
+      "count": 60723,
+      "price": "Free",
+      "updated": "2026-07",
+      "genre": "Lifestyle",
+      "reviews": {
+        "n": 150,
+        "n_low": 19,
+        "n_high": 131,
+        "resent_frac": 0.58,
+        "gripes": {
+          "pricing / paywall": 9,
+          "ads": 1,
+          "missing / limited": 4,
+          "got worse (enshittification)": 1,
+          "bugs / reliability": 1
+        },
+        "quotes": {
+          "pricing / paywall": [
+            {
+              "r": 3,
+              "t": "too many upsells",
+              "b": "for an app you could just vibe code nowadays. \nI would need some  uniquely valuable killer feature to pay for a glorified spreadsheet app like this."
+            },
+            {
+              "r": 1,
+              "t": "Not \"in-app purchases\"",
+              "b": "I really wish app descriptions were required to be honest about their costs - this is NOT an app with \"in-app purchases\" available, it's an app that requires a "
+            },
+            {
+              "r": 2,
+              "t": "Locks your data",
+              "b": "Just found out after 1 month of daily tracking, that I CANNOT SEE MY DATA. My own records are locked behind a paywall. I was enjoying the app and considering Pr"
+            }
+          ],
+          "ads": [
+            {
+              "r": 3,
+              "t": "too many upsells",
+              "b": "for an app you could just vibe code nowadays. \nI would need some  uniquely valuable killer feature to pay for a glorified spreadsheet app like this."
+            }
+          ],
+          "missing / limited": [
+            {
+              "r": 1,
+              "t": "Not \"in-app purchases\"",
+              "b": "I really wish app descriptions were required to be honest about their costs - this is NOT an app with \"in-app purchases\" available, it's an app that requires a "
+            },
+            {
+              "r": 3,
+              "t": "Great for tracking but can be buggy and needs some pattern improvement",
+              "b": "It\u2019s a great app for tracking and customizable on multiple levels, which is fun! You can choose categories, colors, emojis, etc. but lately it\u2019s been really bug"
+            },
+            {
+              "r": 1,
+              "t": "Notifications are annoying",
+              "b": "I wish there was a way to remove the notification bubble from Dailyo, I haven\u2019t written in it since Thanksgiving but I have 87 notifications showing on the app."
+            }
+          ],
+          "got worse (enshittification)": [
+            {
+              "r": 1,
+              "t": "Delete all my voice recordings DO NOW DOWNLOAD",
+              "b": "Daylio Randomly decided to delete all my voice recordings for the past 237 days . DO NOT DOWNLOAD THIS APP. I have been a loyal user since 2022 and I regret it."
+            }
+          ],
+          "bugs / reliability": [
+            {
+              "r": 3,
+              "t": "Great for tracking but can be buggy and needs some pattern improvement",
+              "b": "It\u2019s a great app for tracking and customizable on multiple levels, which is fun! You can choose categories, colors, emojis, etc. but lately it\u2019s been really bug"
+            }
+          ]
+        },
+        "loves": {
+          "love": 26,
+          "best": 22,
+          "easy": 14,
+          "free": 11,
+          "simple": 9,
+          "cute": 5,
+          "customizable": 5,
+          "beautiful": 2
+        },
+        "wishes": [
+          "need some  uniquely valuable killer feature to pay for a glorified spreadsheet app l",
+          "wish app descriptions were required to be honest about their costs - this is NOT an",
+          "need improvement",
+          "need to write stuff in a diary",
+          "Needs more options",
+          "wish there was a way to customize this more"
+        ]
+      }
+    },
+    {
+      "app": "DailyBean - simplest journal",
+      "id": 1553223828,
+      "seller": "BlueSignum Corp.",
+      "rating": 4.81,
+      "count": 69972,
+      "price": "Free",
+      "updated": "2026-07",
+      "genre": "Lifestyle",
+      "reviews": {
+        "n": 150,
+        "n_low": 26,
+        "n_high": 124,
+        "resent_frac": 0.96,
+        "gripes": {
+          "pricing / paywall": 15,
+          "ads": 8,
+          "missing / limited": 3,
+          "got worse (enshittification)": 2,
+          "bugs / reliability": 1
+        },
+        "quotes": {
+          "pricing / paywall": [
+            {
+              "r": 1,
+              "t": "Features are locked behind a paywall, no lifetime option",
+              "b": "Such a cute app concept! However, I hate that majority of the features are locked behind a paywall with getting new sets since one ad can be equivalent to only "
+            },
+            {
+              "r": 1,
+              "t": "Is not free it don't tell us it's paid",
+              "b": "Is not free it don't tell us it's paid"
+            },
+            {
+              "r": 3,
+              "t": "Was going to start but then\u2026\u2026.",
+              "b": "I would have loved this app but when I was about to use it for the first time I couldn\u2019t start because you have to pay to start using the app so i wouldn\u2019t reco"
+            }
+          ],
+          "ads": [
+            {
+              "r": 1,
+              "t": "Too bad about the excessive ads",
+              "b": "Ad after every entry. I was ok with this. But an ad for editing a preexisting entry? Excessive. It doesn\u2019t make me want to pay for premium. In fact, I think I\u2019m"
+            },
+            {
+              "r": 2,
+              "t": "It\u2019s okay",
+              "b": "+Cute tracker with nice and helpful analytics!\n\n-Too many ads\n\n-When I downloaded on my Mac I couldn\u2019t use a pack I had purchased before"
+            },
+            {
+              "r": 3,
+              "t": "Great app, but only the paid version",
+              "b": "Absurd amount of ads and roadblocks in the free version, but it does allow you to check out the features before you buy. I could see using it being a good habit"
+            }
+          ],
+          "missing / limited": [
+            {
+              "r": 3,
+              "t": "Always Subscriptions",
+              "b": "This app is amazing so far. I only gave it three stars though because there are subscriptions. I understand it may help with paying for the service and people, "
+            },
+            {
+              "r": 2,
+              "t": "I love the app butt\u2026",
+              "b": "I love the app but I hate the way I have to pay for it and I wish I had it for free I downloaded it and it was really good really fun but when I saw that I have"
+            },
+            {
+              "r": 3,
+              "t": "Decent app, cute but could be better.",
+              "b": "DailyBean is a very cute app, it\u2019s interactive and allows you to record as much of your day or as little in just a few taps. It\u2019s got a really nice layout and i"
+            }
+          ],
+          "got worse (enshittification)": [
+            {
+              "r": 1,
+              "t": "UNEXPECTED PRICE INCREASES",
+              "b": "I used to loveee this app but now everything\u2019s getting more and more expensive yet the I yet face is the exact same.\n\nBefore you could buy themes for 1.99 indiv"
+            },
+            {
+              "r": 1,
+              "t": "Due to the new update I will be deleting.",
+              "b": "After this last update I now will be stopping the use of this app in the new year. I used to be able to save my journal and close out of the app in the middle o"
+            }
+          ],
+          "bugs / reliability": [
+            {
+              "r": 3,
+              "t": "Decent app, cute but could be better.",
+              "b": "DailyBean is a very cute app, it\u2019s interactive and allows you to record as much of your day or as little in just a few taps. It\u2019s got a really nice layout and i"
+            }
+          ]
+        },
+        "loves": {
+          "love": 40,
+          "cute": 31,
+          "free": 19,
+          "best": 19,
+          "easy": 16,
+          "simple": 14,
+          "aesthetic": 6,
+          "customizable": 5
+        },
+        "wishes": [
+          "wish there was a completely free app like this for people who don\u2019t have the money t",
+          "wish I had it for free I downloaded it and it was really good really fun but when I",
+          "need a good way to keep track of habits, places you went, activities, notes of the d",
+          "need someone to refund me ASAP",
+          "need to pay for, u can watch up to 3 ads a day for free \u2018clovers\u2019 u can save up to b",
+          "wish that there didn't have to be ads each time you edit an entry or make a new one"
+        ]
+      }
+    },
+    {
+      "app": "How We Feel",
+      "id": 1562706384,
+      "seller": "The How We Feel Project, Inc.",
+      "rating": 4.87,
+      "count": 28860,
+      "price": "Free",
+      "updated": "2026-06",
+      "genre": "Health & Fitness",
+      "reviews": {
+        "n": 150,
+        "n_low": 12,
+        "n_high": 138,
+        "resent_frac": 0.0,
+        "gripes": {
+          "bugs / reliability": 2,
+          "missing / limited": 3
+        },
+        "quotes": {
+          "bugs / reliability": [
+            {
+              "r": 3,
+              "t": "please fix the sharing with friends",
+              "b": "please fix the sharing with friends, thats a huge reason i use the app and i just dont even want to open it since its been bugged so long. i dont ever see when "
+            },
+            {
+              "r": 1,
+              "t": "Great app BUT\u2026",
+              "b": "Current bug that's been there for the last few months is that it's impossible to change your profile picture. The picture set for yourself and for friends are d"
+            }
+          ],
+          "missing / limited": [
+            {
+              "r": 3,
+              "t": "please fix the sharing with friends",
+              "b": "please fix the sharing with friends, thats a huge reason i use the app and i just dont even want to open it since its been bugged so long. i dont ever see when "
+            },
+            {
+              "r": 2,
+              "t": "Options",
+              "b": "There\u2019s no option for a medium capacity. But if I\u2019m not super high or super low.  Also, the physical descriptions are inadequate and difficult to use."
+            },
+            {
+              "r": 3,
+              "t": "More Options",
+              "b": "This app is fantastic, but I wish there was an iPad and desktop version of the app. I like using the AI journal to go deeper, but I hate using my keypad to type"
+            }
+          ]
+        },
+        "loves": {
+          "free": 31,
+          "love": 29,
+          "easy": 18,
+          "best": 18,
+          "simple": 10,
+          "beautiful": 3,
+          "no ads": 3,
+          "cute": 1
+        },
+        "wishes": [
+          "cant use it the way i inteded to",
+          "need private, unbiased, and non-discriminatory journals a lot more than their peers",
+          "need to be able to identify a feeling in the first place in order to be able to chec",
+          "wish there was an iPad and desktop version of the app",
+          "wish we can crop/adjust it to our liking inside the app itself",
+          "wish we can add reactions to a persons comment with either of our \u201ccheck-ins"
+        ]
+      }
+    },
+    {
+      "app": "Mood Tracker - MoodQ",
+      "id": 6775442825,
+      "seller": "Kamalaben Modi",
+      "rating": 0,
+      "count": 0,
+      "price": "Free",
+      "updated": "2026-06",
+      "genre": "Lifestyle"
+    },
+    {
+      "app": "eMoods Bipolar Mood Tracker",
+      "id": 1184456130,
+      "seller": "Yottaram, LLC",
+      "rating": 4.8,
+      "count": 4188,
+      "price": "Free",
+      "updated": "2025-12",
+      "genre": "Lifestyle",
+      "reviews": {
+        "n": 150,
+        "n_low": 13,
+        "n_high": 137,
+        "resent_frac": 0.31,
+        "gripes": {
+          "pricing / paywall": 4,
+          "missing / limited": 3,
+          "bugs / reliability": 1
+        },
+        "quotes": {
+          "pricing / paywall": [
+            {
+              "r": 1,
+              "t": "Patron fee scam alert! I was charged 4x the amount I agreed too. \ud83d\ude14",
+              "b": "Really, really upset!\n\nDespite my current financial struggles I made a decision to become a patron given string advocacy of a close friend who shares my mental "
+            },
+            {
+              "r": 2,
+              "t": "Issue with today\u2019s notes not saving",
+              "b": "Overall I really love this app, BUT I noticed now that somewhat often my log notes aren\u2019t saving? This is a feature I use every day and is crucial in helping me"
+            },
+            {
+              "r": 2,
+              "t": "weirdly and unnecessarily lacking but still better than others",
+              "b": "overall I\u2019ve found this app to be pretty ok on free version but some significant features are missing which are present in their Wellness app targeted at the mo"
+            }
+          ],
+          "missing / limited": [
+            {
+              "r": 2,
+              "t": "weirdly and unnecessarily lacking but still better than others",
+              "b": "overall I\u2019ve found this app to be pretty ok on free version but some significant features are missing which are present in their Wellness app targeted at the mo"
+            },
+            {
+              "r": 2,
+              "t": "Not a big fan of the graphs",
+              "b": "I downloaded quite a few mood apps to see which ones I liked better. I\u2019m not the biggest fan of this one\u2019s graphs. Others I\u2019ve seen show a line graph while this"
+            },
+            {
+              "r": 3,
+              "t": "Work with health app",
+              "b": "I wish it could be integrated with the iOS health app but otherwise it seems pretty cool"
+            }
+          ],
+          "bugs / reliability": [
+            {
+              "r": 2,
+              "t": "Love this App, tons of bugs",
+              "b": "Any time I try to edit my medications, it freezes the entire screen & won\u2019t allow me to do anything at all. Would love if this could get fixed"
+            }
+          ]
+        },
+        "loves": {
+          "easy": 39,
+          "love": 27,
+          "simple": 24,
+          "best": 24,
+          "free": 14,
+          "customizable": 7,
+          "clean": 4,
+          "beautiful": 3
+        },
+        "wishes": [
+          "cant features are missing which are present in their Wellness app targeted at the mo",
+          "needs so switching over wholesale also doesn\u2019t work (and loses any previous tracking",
+          "needs to allow for some customization of typeface (e",
+          "Would love if this could get fixed",
+          "wish it could be integrated with the iOS health app but otherwise it seems pretty co",
+          "wish there was an option to track your cycle to see how your mood and episodes align"
+        ]
+      }
+    },
+    {
+      "app": "Moodnotes - Mood Tracker",
+      "id": 1019230398,
+      "seller": "Mosaic S.r.l.",
+      "rating": 4.65,
+      "count": 10961,
+      "price": "Free",
+      "updated": "2024-10",
+      "genre": "Health & Fitness",
+      "reviews": {
+        "n": 150,
+        "n_low": 56,
+        "n_high": 94,
+        "resent_frac": 0.64,
+        "gripes": {
+          "pricing / paywall": 33,
+          "missing / limited": 9,
+          "bugs / reliability": 2,
+          "got worse (enshittification)": 2,
+          "ads": 1
+        },
+        "quotes": {
+          "pricing / paywall": [
+            {
+              "r": 1,
+              "t": "DO NOT USE FREE TRIAL. NO WAY TO CANCEL IF YOU CHANGE MIND",
+              "b": "I knew in 5 minutes this app was not for me. As it was a free trial I would just cancel. Good luck. Developer subscription management takes me to my subscriptio"
+            },
+            {
+              "r": 1,
+              "t": "Subscription is required!",
+              "b": "The app seems great but is almost completely useless without a subscription which they don\u2019t mention at all until your account and app are fully set up. You can"
+            },
+            {
+              "r": 2,
+              "t": "I bought this years ago for the mood traps function",
+              "b": "Bought this years ago, funny how now I have to buy a subscription to do anything huh"
+            }
+          ],
+          "missing / limited": [
+            {
+              "r": 1,
+              "t": "DO NOT USE FREE TRIAL. NO WAY TO CANCEL IF YOU CHANGE MIND",
+              "b": "I knew in 5 minutes this app was not for me. As it was a free trial I would just cancel. Good luck. Developer subscription management takes me to my subscriptio"
+            },
+            {
+              "r": 2,
+              "t": "Need money",
+              "b": "It wants you to pay money to get things and help on the app. Literally if I had the money for a therapist I\u2019d literally go to one. I\u2019m broke stop costing money."
+            },
+            {
+              "r": 2,
+              "t": "too expensive 90$ per year",
+              "b": "looks fine but lacks free features and premium is too expensive 90$ per year"
+            }
+          ],
+          "bugs / reliability": [
+            {
+              "r": 2,
+              "t": "Why are the widgets so broken",
+              "b": "Sad that this app is paid for but the widgets have been broken for over a year. The UI has a bunch of black corners like they used incorrectly formatted images."
+            },
+            {
+              "r": 1,
+              "t": "Lost data; won\u2019t sync",
+              "b": "Reset my phone and MoodNotes lost several years of data. Can\u2019t find any contact information within the app for support."
+            }
+          ],
+          "got worse (enshittification)": [
+            {
+              "r": 1,
+              "t": "basic features removed",
+              "b": "used to use this app regularly for the basic features. seems thyve been removed and this app now only works with a premium sub. im all for monetization, but was"
+            },
+            {
+              "r": 1,
+              "t": "Unable to use free version for simple tracking only",
+              "b": "When I try to use the free version, it won\u2019t let me save mood entries.  I hit the paywall and it will not let me decline.\nIt advertises that the app can be used"
+            }
+          ],
+          "ads": [
+            {
+              "r": 2,
+              "t": "Paywall",
+              "b": "This was the first app that I really liked, but after only 2 entries I was hit with a pay wall. Why does mental health treatment always have to cost so much, ev"
+            }
+          ]
+        },
+        "loves": {
+          "love": 17,
+          "best": 10,
+          "easy": 7,
+          "free": 6,
+          "simple": 6,
+          "fast": 2,
+          "beautiful": 1,
+          "private": 1
+        },
+        "wishes": [
+          "need a simple journal for therapy to keep track of my depression, instead I keep get",
+          "need to provide a free one-month trial versus throwing the paywall in your face",
+          "need to pay just to enter in multiple mood checks in a DAY",
+          "cant do that without paying money",
+          "wish the \u201cwhat\u2019s happening\u201d field was customizable because the current options are t",
+          "cant mood trackers be free or just have limited stuff we can do without getting prem"
+        ]
+      }
+    },
+    {
+      "app": "Mood-Tracker",
+      "id": 6443445756,
+      "seller": "Kei Suefuji",
+      "rating": 4.38,
+      "count": 85,
+      "price": "Free",
+      "updated": "2026-01",
+      "genre": "Lifestyle"
+    },
+    {
+      "app": "EMMO - \u65e5\u8bb0\u4e0e\u7b14\u8bb0",
+      "id": 1508326506,
+      "seller": "EMMO Corp.",
+      "rating": 4.84,
+      "count": 29037,
+      "price": "Free",
+      "updated": "2026-04",
+      "genre": "Lifestyle",
+      "reviews": {
+        "n": 150,
+        "n_low": 26,
+        "n_high": 124,
+        "resent_frac": 0.12,
+        "gripes": {
+          "missing / limited": 5,
+          "pricing / paywall": 3,
+          "bugs / reliability": 2
+        },
+        "quotes": {
+          "missing / limited": [
+            {
+              "r": 3,
+              "t": "Features missing and feedback!",
+              "b": "This app is so stinking cute. However, it\u2019s hard to figure out how to put other peoples mood reactions in your own tracker. In addition, it should have the mont"
+            },
+            {
+              "r": 3,
+              "t": "Lack of the most important features",
+              "b": "I am confronted with a problem because Emmo does not provide a private chat, audio recording or story. I wish that was available, because it is also a great app"
+            },
+            {
+              "r": 3,
+              "t": "Honest Opinion",
+              "b": "The app does a good job of keeping track of my mood, it definitely has room for improvement thought, it makes it easy for me to see my mood in colors however I "
+            }
+          ],
+          "pricing / paywall": [
+            {
+              "r": 1,
+              "t": ":/",
+              "b": "I\u2019m rlly upset I been using this app for yearsssss and now emmo made a thing we have to charge to draw now :/ im rlly rlly upset abt that now I can\u2019t draw now t"
+            },
+            {
+              "r": 3,
+              "t": "Great but I can\u2019t see my entries?",
+              "b": "THIS IS THE APP THAT I WAS LOOKING FOR! It\u2019s super cute and customizable without the, u have to pay for everything. There are still some features that you do ne"
+            },
+            {
+              "r": 2,
+              "t": "Disappointment",
+              "b": "I really like this app until literally in December. It stopped working. I was trying to now is New Year\u2019s and I was trying to put my thing in for today and so i"
+            }
+          ],
+          "bugs / reliability": [
+            {
+              "r": 3,
+              "t": "please fix backups",
+              "b": "the best diary app i\u2019ve ever had, but i\u2019m switching to an android phone and i\u2019m honestly really heartbroken i have to leave nearly 300 days of a diary behind. s"
+            },
+            {
+              "r": 2,
+              "t": "bug",
+              "b": "\u4e3a\u4ec0\u4e48\u6700\u8fd1\u6574\u5929\u5199\u7684\u65e5\u8bb0\u4e22\u5931\u554a\uff1f\u3002\u80fd\u4e0d\u80fd\u4fee\u590d\u4e00\u4e0b"
+            }
+          ]
+        },
+        "loves": {
+          "love": 37,
+          "cute": 21,
+          "easy": 9,
+          "simple": 8,
+          "free": 6,
+          "best": 5,
+          "fast": 4,
+          "aesthetic": 3
+        },
+        "wishes": [
+          "need different fonts",
+          "need to pay for, but SO MANY FEATURES ARE FREE",
+          "needs more recognition",
+          "wish that was available, because it is also a great app",
+          "wish that Arabic language was available and that there is a re-download of the old p",
+          "wish there was a space for me to jot down my thoughts/feelings for each day in order"
+        ]
+      }
+    }
+  ],
+  "market_gripes": {
+    "pricing / paywall": 64,
+    "ads": 10,
+    "missing / limited": 27,
+    "got worse (enshittification)": 5,
+    "bugs / reliability": 9
+  },
+  "market_loves": {
+    "love": 176,
+    "easy": 103,
+    "best": 98,
+    "free": 87,
+    "simple": 71,
+    "cute": 58,
+    "customizable": 17,
+    "beautiful": 9
+  },
+  "wishes": [
+    "need some  uniquely valuable killer feature to pay for a glorified spreadsheet app l",
+    "wish app descriptions were required to be honest about their costs - this is NOT an",
+    "need improvement",
+    "need to write stuff in a diary",
+    "Needs more options",
+    "wish there was a way to customize this more",
+    "wish there was a completely free app like this for people who don\u2019t have the money t",
+    "wish I had it for free I downloaded it and it was really good really fun but when I",
+    "need a good way to keep track of habits, places you went, activities, notes of the d",
+    "need someone to refund me ASAP"
+  ],
+  "wedge": [
+    "**Fix the money model** (64 gripes \u2014 the dominant complaint): win with a genuinely useful free tier or a one-time unlock, not another subscription/paywall-after-2-entries.",
+    "**Close the feature gaps** (27 gripes) users keep explicitly asking for (see the wishes list).",
+    "**Keep what they love:** love, easy, best, free, simple \u2014 don't out-feature these into complexity."
+  ]
+}

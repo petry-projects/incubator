@@ -1,0 +1,50 @@
+{
+  "_comment": "DemandRadar starter-kit input. Each group is a distinct app area with a discovery_channel + vertical_dynamics hint (#44 schema v3). extract.py pulls FREE supply signal (iTunes Search API) per keyword; enrich_community.py adds demand signal. Broad enumeration to build a robust idea starter list. Edit freely.",
+  "store": "us",
+  "groups": [
+    { "name": "gaming-companions", "discovery_channel": "community", "vertical_dynamics": "gap-generating",
+      "keywords": ["valheim base builder", "speedrun timer", "combo trainer", "couch co op finder", "gacha pity tracker", "loadout randomizer", "mod manager", "raid dps meter"] },
+
+    { "name": "tabletop-ttrpg", "discovery_channel": "community", "vertical_dynamics": "gap-generating",
+      "keywords": ["initiative tracker", "character sheet", "dice roller", "encounter builder", "loot generator", "campaign notes"] },
+
+    { "name": "student-tools", "discovery_channel": "app-store", "vertical_dynamics": "saturated",
+      "keywords": ["flashcard maker", "spaced repetition", "lecture transcription", "assignment tracker", "citation manager", "study timer"] },
+
+    { "name": "creator-utilities", "discovery_channel": "app-store", "vertical_dynamics": "gap-generating",
+      "keywords": ["thumbnail maker", "teleprompter", "caption generator", "watermark remover", "soundboard", "green screen video"] },
+
+    { "name": "everyday-utilities", "discovery_channel": "app-store", "vertical_dynamics": "saturated",
+      "keywords": ["unit converter", "decibel meter", "bubble level", "tip calculator", "qr scanner", "white noise"] },
+
+    { "name": "health-fitness", "discovery_channel": "app-store", "vertical_dynamics": "saturated",
+      "keywords": ["macro tracker", "water reminder", "stretching routine", "posture reminder", "walking pad workout", "breathwork timer"] },
+
+    { "name": "finance-personal", "discovery_channel": "app-store", "vertical_dynamics": "saturated",
+      "keywords": ["budget tracker", "bill reminder", "subscription tracker", "split expenses", "receipt scanner", "net worth tracker"] },
+
+    { "name": "parenting-kids", "discovery_channel": "app-store", "vertical_dynamics": "mixed",
+      "keywords": ["chore chart", "screen time", "potty training", "baby feeding log", "allowance tracker", "contraction timer"] },
+
+    { "name": "pets", "discovery_channel": "app-store", "vertical_dynamics": "mixed",
+      "keywords": ["pet health record", "dog walk tracker", "feeding schedule", "aquarium log", "reptile husbandry", "horse care"] },
+
+    { "name": "food-cooking", "discovery_channel": "app-store", "vertical_dynamics": "saturated",
+      "keywords": ["recipe manager", "meal planner", "pantry inventory", "grocery list", "sourdough tracker", "coffee brewing"] },
+
+    { "name": "home-diy", "discovery_channel": "app-store", "vertical_dynamics": "mixed",
+      "keywords": ["home inventory", "plant watering", "cleaning schedule", "moving checklist", "firewood tracker", "generator maintenance"] },
+
+    { "name": "travel", "discovery_channel": "app-store", "vertical_dynamics": "saturated",
+      "keywords": ["packing list", "trip itinerary", "travel journal", "jet lag", "roadtrip planner", "campsite finder"] },
+
+    { "name": "accessibility-seniors", "discovery_channel": "app-store", "vertical_dynamics": "gap-generating",
+      "keywords": ["medication reminder", "hearing amplifier", "magnifier glass", "pill identifier", "fall alert", "large button dialer"] },
+
+    { "name": "small-business", "discovery_channel": "app-store", "vertical_dynamics": "mixed",
+      "keywords": ["invoice maker", "mileage tracker", "appointment booking", "inventory count", "time clock", "estimate maker"] },
+
+    { "name": "niche-sports", "discovery_channel": "community", "vertical_dynamics": "mixed",
+      "keywords": ["disc golf scorecard", "pickleball score", "climbing log", "cycling maintenance", "surf forecast", "spearfishing log"] }
+  ]
+}

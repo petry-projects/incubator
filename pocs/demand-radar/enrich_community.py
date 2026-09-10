@@ -1,0 +1,246 @@
+#!/usr/bin/env python3
+"""
+DemandRadar — community-sizing enricher (spike; scale build).
+
+Adds `demand.community_metric` to the SURVIVORS (non-REJECT records) and uses it to
+corroborate store-absent gaps (#44). At 10k scale the community sources are quota-
+limited, so this enriches only the top survivors, budget-aware, routed per vertical:
+
+  * youtube       — best for culture/consumer verticals (gaming, creator, collectors).
+                    Needs YOUTUBE_API_KEY. Quota 10k units/day; search.list=100 units
+                    => ~90 lookups/day. totalResults is a rough (capped) estimate.
+  * stackexchange — best for Q&A verticals (tabletop, fitness, cooking, ...). No auth,
+                    ~300 req/day/IP. Per-vertical site (SITE_MAP).
+  * hackernews    — no auth, unlimited-ish; tech-skewed fallback.
+  * reddit        — best overall but needs an app + is IP-blocked from cloud. Gated.
+
+Usage:
+  python enrich_community.py --max 300                 # top 300 survivors, auto-routed
+  DR_COMMUNITY_SOURCE=stackexchange python enrich_community.py   # force one source
+"""
+
+import argparse
+import base64
+import json
+import os
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+UA = "DemandRadar-spike/0.4 (+petry-projects/incubator; research)"
+
+
+class HTTPSOnlyRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Reject redirects unless they remain HTTPS on oauth.reddit.com."""
+
+    def redirect_request(self, req, fp, code, msg, hdrs, newurl):
+        if not newurl.startswith("https://oauth.reddit.com/"):
+            raise urllib.error.HTTPError(newurl, code, "Redirect to non-HTTPS or non-oauth.reddit.com URL blocked", hdrs, fp)
+        return super().redirect_request(req, fp, code, msg, hdrs, newurl)
+
+# preferred community backend per vertical
+VERTICAL_SOURCE = {
+    "gaming-companions": "youtube", "creator-content": "youtube", "collectors-hobbies": "youtube",
+    "fashion-beauty": "youtube", "hobbies-crafts": "youtube", "niche-sports": "youtube",
+    "mental-wellness": "youtube", "events-social": "youtube", "faith-spiritual": "youtube",
+    "auto-vehicle": "youtube", "accessibility-seniors": "youtube", "everyday-utilities": "youtube",
+    "small-business": "youtube", "productivity-work": "youtube",
+    "tabletop-ttrpg": "stackexchange", "student-education": "stackexchange",
+    "health-fitness": "stackexchange", "food-cooking": "stackexchange", "home-diy": "stackexchange",
+    "pets-animals": "stackexchange", "travel-outdoors": "stackexchange", "finance-money": "stackexchange",
+    "parenting-kids": "stackexchange", "gardening-plants": "stackexchange", "music-audio": "stackexchange",
+    # aliases for the actual keyword-groups.json group names (else they fell back to hackernews)
+    "creator-utilities": "youtube", "student-tools": "stackexchange",
+    "finance-personal": "stackexchange", "pets": "stackexchange", "travel": "stackexchange",
+}
+SITE_MAP = {
+    "gaming-companions": "gaming", "tabletop-ttrpg": "rpg", "student-education": "academia",
+    "health-fitness": "fitness", "food-cooking": "cooking", "home-diy": "diy", "pets-animals": "pets",
+    "travel-outdoors": "travel", "finance-money": "money", "parenting-kids": "parenting",
+    "gardening-plants": "gardening", "creator-content": "video", "music-audio": "music",
+    # aliases for the actual keyword-groups.json group names (StackExchange site per vertical)
+    "student-tools": "academia", "finance-personal": "money", "pets": "pets", "travel": "travel",
+}
+THRESHOLDS = {  # (corroborate_at, too_thin_below) — units differ wildly by source
+    "youtube": (50_000, 2_000),   # summed views of RELEVANT top videos (real demand)
+    "hackernews": (300, 50), "stackexchange": (25, 3), "reddit": (10, 2),
+}
+# per-source daily budgets (respect free quotas)
+BUDGET = {"youtube": 90, "stackexchange": 280, "hackernews": 10_000, "reddit": 900}
+
+
+def hn_mentions(q):
+    url = "https://hn.algolia.com/api/v1/search?query=%s&hitsPerPage=1" % urllib.parse.quote(q)
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    return {"source": "hackernews", "mentions": json.loads(urllib.request.urlopen(req, timeout=20).read()).get("nbHits", 0), "query": q}
+
+
+def se_mentions(q, site):
+    params = urllib.parse.urlencode({"order": "desc", "sort": "activity", "q": q, "site": site, "filter": "total"})
+    if os.environ.get("STACKEXCHANGE_KEY"):
+        params += "&key=" + urllib.parse.quote(os.environ["STACKEXCHANGE_KEY"])  # noqa: S106
+    req = urllib.request.Request("https://api.stackexchange.com/2.3/search/advanced?" + params, headers={"User-Agent": UA})
+    d = json.loads(urllib.request.urlopen(req, timeout=20).read())
+    return {"source": "stackexchange", "site": site, "mentions": d.get("total"), "quota_remaining": d.get("quota_remaining"), "query": q}
+
+
+def yt_mentions(q):
+    """Community demand = summed VIEWS of the top videos whose title actually matches the
+    query. totalResults was useless (capped at ~1M, inflated for any common word); view
+    counts of *relevant* videos are a real engagement/demand signal."""
+    key = os.environ.get("YOUTUBE_API_KEY")
+    if not key:
+        raise ValueError("YOUTUBE_API_KEY environment variable not set")
+    p = urllib.parse.urlencode({"part": "snippet", "type": "video", "maxResults": 8,
+                                "order": "relevance", "q": q, "key": key})  # noqa: S106
+    d = json.loads(urllib.request.urlopen(
+        urllib.request.Request("https://www.googleapis.com/youtube/v3/search?" + p, headers={"User-Agent": UA}), timeout=20).read())
+    toks = [w for w in q.lower().split() if len(w) >= 4]
+    id_title = {it["id"]["videoId"]: (it["snippet"]["title"] or "").lower()
+                for it in d.get("items", []) if it.get("id", {}).get("videoId")}
+    relevant = [vid for vid, t in id_title.items() if all(tok in t for tok in toks)] if toks else list(id_title)
+    views = 0
+    if relevant:
+        p2 = urllib.parse.urlencode({"part": "statistics", "id": ",".join(relevant), "key": key})  # noqa: S106
+        d2 = json.loads(urllib.request.urlopen(
+            urllib.request.Request("https://www.googleapis.com/youtube/v3/videos?" + p2, headers={"User-Agent": UA}), timeout=20).read())
+        views = sum(int(v.get("statistics", {}).get("viewCount", 0)) for v in d2.get("items", []))
+    return {"source": "youtube", "mentions": views, "relevant_videos": len(relevant),
+            "est_total": d.get("pageInfo", {}).get("totalResults"), "query": q}
+
+
+def reddit_token(cid, secret):
+    data = urllib.parse.urlencode({"grant_type": "client_credentials"}).encode()
+    auth = base64.b64encode(f"{cid}:{secret}".encode()).decode()
+    req = urllib.request.Request("https://www.reddit.com/api/v1/access_token", data=data,
+                                 headers={"User-Agent": UA, "Authorization": f"Basic {auth}"})
+    opener = urllib.request.build_opener(HTTPSOnlyRedirectHandler())
+    return json.loads(opener.open(req, timeout=20).read())["access_token"]
+
+
+def reddit_mentions(q, token):
+    """Community demand = number of relevant Reddit posts for the query (rough signal,
+    capped by `limit`; matches the small reddit THRESHOLDS). Needs an OAuth app token."""
+    params = urllib.parse.urlencode({"q": q, "limit": 25, "sort": "relevance", "type": "link"})
+    req = urllib.request.Request("https://oauth.reddit.com/search?" + params,
+                                 headers={"User-Agent": UA, "Authorization": f"bearer {token}"})
+    opener = urllib.request.build_opener(HTTPSOnlyRedirectHandler())
+    d = json.loads(opener.open(req, timeout=20).read())
+    return {"source": "reddit", "mentions": len(d.get("data", {}).get("children", [])), "query": q}
+
+
+def fetch_for(record, forced, budget_left, rtoken, dead):
+    """Route a record to a community source (respecting forced source + budgets + dead sources)."""
+    q, vert = record["canonical_query"], record.get("industry")
+    chain = [forced] if forced else [VERTICAL_SOURCE.get(vert, "hackernews"), "stackexchange", "hackernews"]
+    for src in chain:
+        if src in dead or budget_left.get(src, 0) <= 0:
+            continue
+        try:
+            if src == "youtube":
+                cm = yt_mentions(q)
+            elif src == "stackexchange":
+                site = SITE_MAP.get(vert)
+                if not site:
+                    continue
+                cm = se_mentions(q, site)
+            elif src == "reddit":
+                if not rtoken:
+                    continue  # needs an OAuth app token (often IP-blocked from cloud); skip
+                cm = reddit_mentions(q, rtoken)
+            else:
+                cm = hn_mentions(q)
+            budget_left[src] -= 1
+            return cm
+        except Exception as e:  # noqa: BLE001
+            if "429" in str(e) or "quota" in str(e).lower():
+                dead.add(src)  # exhausted for this run — stop trying it (no more wasted 429s)
+                print(f"  ~ {src} exhausted (429/quota); skipping it for the rest of this run", file=sys.stderr)
+            else:
+                print(f"  ! {src} failed for {q!r}: {e}", file=sys.stderr)
+            continue
+    return {"source": "none", "mentions": None}
+
+
+def recompute(record, cm):
+    if record.get("discovery_channel") != "community":
+        return record["verdict_heuristic"], None
+    v = record["verdict_heuristic"]
+    if not v.startswith("CANDIDATE") or cm.get("mentions") is None:
+        return v, None
+    corr, thin = THRESHOLDS.get(cm.get("source", ""), (300, 50))
+    m = cm["mentions"]
+    if m >= corr:
+        return "CANDIDATE", "community-corroborated"
+    if m < thin:
+        return "REJECT", "community-too-thin"
+    return "WATCH", "community-weak"
+
+
+def supply_score(r):
+    GAP = {"absent-in-store": 3, "absent": 3, "nascent": 2, "stale": 2, "low-quality": 2, "thin": 1}
+    COMP = {"low": 2, "medium": 1, "high": 0}
+    return GAP.get(r["gap"]["gap_type"], 0) + COMP.get(r["supply"]["competition_intensity"], 0)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    here = os.path.dirname(os.path.abspath(__file__))
+    ap.add_argument("--in", dest="inp", default=os.path.join(here, "output", "records.jsonl"))
+    ap.add_argument("--out", default=os.path.join(here, "output", "records.enriched.jsonl"))
+    ap.add_argument("--source", default=os.environ.get("DR_COMMUNITY_SOURCE", ""))  # "" = auto-route
+    ap.add_argument("--max", type=int, default=300)
+    ap.add_argument("--sleep", type=float, default=0.25)
+    args = ap.parse_args()
+
+    with open(args.inp, encoding='utf-8') as f:
+        records = [json.loads(l) for l in f]
+    survivors = [r for r in records if not r.get("verdict_heuristic", "").startswith("REJECT")]
+    survivors.sort(key=supply_score, reverse=True)
+    targets = survivors[: args.max]
+    print(f"records={len(records)} survivors={len(survivors)} enriching_top={len(targets)}", flush=True)
+
+    rtoken = None
+    if args.source == "reddit":
+        cid, sec = os.environ.get("REDDIT_CLIENT_ID"), os.environ.get("REDDIT_CLIENT_SECRET")
+        rtoken = reddit_token(cid, sec) if cid and sec else None
+        if not rtoken:
+            # forced Reddit mode with no usable token: reject up front rather than run the
+            # whole enrichment as a silent no-op (every record -> source "none"). Never
+            # substitute Hacker News for an explicitly forced source.
+            print("Error: --source reddit requires REDDIT_CLIENT_ID/REDDIT_CLIENT_SECRET "
+                  "(and a non-blocked IP). Aborting instead of falling back.", file=sys.stderr)
+            sys.exit(1)
+
+    budget_left = dict(BUDGET)
+    dead = set()  # sources that 429'd this run — skipped thereafter (circuit breaker)
+    if "YOUTUBE_API_KEY" not in os.environ:
+        # yt_mentions would KeyError on every record (not a 429/quota, so never circuit-broken)
+        dead.add("youtube")
+        print("  ~ YOUTUBE_API_KEY not found in environment; skipping youtube source", file=sys.stderr)
+    changed = []
+    for i, r in enumerate(targets):
+        cm = fetch_for(r, args.source or None, budget_left, rtoken, dead)
+        r["demand"]["community_metric"] = cm
+        nv, note = recompute(r, cm)
+        if nv != r["verdict_heuristic"]:
+            changed.append((r["canonical_query"], r["verdict_heuristic"], nv, cm.get("mentions"), cm.get("source")))
+            r["verdict_heuristic"] = nv
+            r["corroboration_count"] = 2
+            r["community_note"] = note
+        if (i + 1) % 50 == 0:
+            print(f"  {i+1}/{len(targets)}  budgets={budget_left}", flush=True)
+        time.sleep(args.sleep)
+
+    with open(args.out, "w", encoding='utf-8') as f:
+        for r in records:
+            f.write(json.dumps(r) + "\n")
+    print(f"\nEnriched {len(targets)} survivors -> {args.out}")
+    print(f"budgets remaining: {budget_left}")
+    print(f"verdict changes: {len(changed)}  (corroborated: {sum(1 for c in changed if c[2]=='CANDIDATE')})")
+
+
+if __name__ == "__main__":
+    main()
