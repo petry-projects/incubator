@@ -25,6 +25,7 @@ JOBS=(build-and-test secret-scan coverage)
 # key (or EOF), spanning the blank lines and comments in between.
 job_block() {
   awk -v job="$1" '
+    /^[A-Za-z0-9_-]+:/ { inblk = 0 }
     /^  [A-Za-z0-9_-]+:/ { inblk = ($0 ~ ("^  " job ":")) }
     inblk
   ' "$CI_YML"
@@ -55,8 +56,8 @@ backoff_block() {
   for job in "${JOBS[@]}"; do
     block="$(job_block "$job" | initial_block)"
     [ -n "$block" ] || { echo "job '$job': no initial 'Checkout repository' step"; false; }
-    echo "$block" | grep -qE '^        id: checkout$' || { echo "job '$job': checkout missing 'id: checkout'"; false; }
-    echo "$block" | grep -qE '^        continue-on-error: true$' || { echo "job '$job': checkout not continue-on-error"; false; }
+    echo "$block" | grep -qE '^[[:space:]]+id:[[:space:]]*checkout$' || { echo "job '$job': checkout missing 'id: checkout'"; false; }
+    echo "$block" | grep -qE '^[[:space:]]+continue-on-error:[[:space:]]*true$' || { echo "job '$job': checkout not continue-on-error"; false; }
   done
 }
 
@@ -86,7 +87,7 @@ backoff_block() {
     ! echo "$bblock" | grep -qF 'continue-on-error: true' || { echo "job '$job': backoff must not be continue-on-error"; false; }
     # Ordering: the backoff step appears before the retry step within the job.
     bline="$(echo "$block" | awk '/- name: Checkout backoff before retry/{print NR; exit}')"
-    rline="$(echo "$block" | awk '/- name: Checkout repository \(retry\)/{print NR; exit}')"
+    rline="$(echo "$block" | awk 'index($0, "- name: Checkout repository (retry)"){print NR; exit}')"
     [ -n "$bline" ] && [ -n "$rline" ] && [ "$bline" -lt "$rline" ] || { echo "job '$job': backoff not before retry (backoff=$bline retry=$rline)"; false; }
   done
 }
