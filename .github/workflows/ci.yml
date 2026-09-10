@@ -42,7 +42,26 @@ jobs:
     permissions:
       contents: read
     steps:
+      # Checkout resilience (issue #126): a momentary DNS/TLS/GitHub blip on the
+      # repo fetch is the one remaining unguarded, network-bound failure in this
+      # job (issue #124 hardened the in-script fetches; #83 hardened sonarcloud.yml's
+      # checkout). Same idiom as sonarcloud.yml: a continue-on-error initial attempt,
+      # a short backoff, then a single retry gated on the initial checkout failing.
+      # The backoff is only seconds (git/GitHub transients are momentary) and is paid
+      # only on failure, so the happy path never waits.
       - name: Checkout repository
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+        continue-on-error: true
+      - name: Checkout backoff before retry
+        if: steps.checkout.outcome == 'failure'
+        run: sleep 15
+      - name: Checkout repository (retry)
+        if: steps.checkout.outcome == 'failure'
+        # Not continue-on-error: if even the retry cannot fetch the repo, fail the
+        # job fast rather than run against an empty/partial checkout.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -76,7 +95,21 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Checkout (full history)
+      # Checkout resilience (issue #126): same idiom as build-and-test/sonarcloud.yml,
+      # with the full-history fetch (fetch-depth: 0) preserved on both attempts so a
+      # transient blip on the heavier fetch no longer reds the secret scan.
+      - name: Checkout repository
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+        continue-on-error: true
+      - name: Checkout backoff before retry
+        if: steps.checkout.outcome == 'failure'
+        run: sleep 15
+      - name: Checkout repository (retry)
+        if: steps.checkout.outcome == 'failure'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
@@ -122,7 +155,18 @@ jobs:
     permissions:
       contents: read
     steps:
+      # Checkout resilience (issue #126): same idiom as build-and-test/sonarcloud.yml.
       - name: Checkout repository
+        id: checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+        continue-on-error: true
+      - name: Checkout backoff before retry
+        if: steps.checkout.outcome == 'failure'
+        run: sleep 15
+      - name: Checkout repository (retry)
+        if: steps.checkout.outcome == 'failure'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
