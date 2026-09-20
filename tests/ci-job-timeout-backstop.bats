@@ -21,8 +21,26 @@
 
 CI_YML="${BATS_TEST_DIRNAME}/../.github/workflows/ci.yml"
 
-# Every ci.yml job that should carry a timeout backstop.
-JOBS=(build-and-test secret-scan coverage)
+# List every top-level job id defined under `jobs:` in ci.yml. Jobs are 2-space
+# indented under the `jobs:` key; other top-level maps (on, concurrency) also have
+# 2-space children, so we only collect 2-space keys once inside the `jobs:` block.
+list_jobs() {
+  awk '
+    /^[A-Za-z0-9_-]+:/ { injobs = ($0 ~ /^jobs:/) }
+    injobs && /^  [A-Za-z0-9_-]+:/ {
+      name = $0
+      sub(/:.*/, "", name)
+      sub(/^[[:space:]]+/, "", name)
+      print name
+    }
+  ' "$CI_YML"
+}
+
+# Every ci.yml job that should carry a timeout backstop, discovered from the
+# workflow itself. Deriving the set dynamically (rather than hardcoding it) means a
+# newly added job that forgets a timeout backstop is caught by the guards below
+# instead of silently passing the all-jobs contract.
+mapfile -t JOBS < <(list_jobs)
 
 # Print the lines of a single top-level job block from ci.yml, isolating it so a
 # match in an unrelated job cannot cause a spurious hit. Jobs are 2-space indented
@@ -46,6 +64,18 @@ job_timeout_value() {
 
 @test "ci.yml exists" {
   [ -f "$CI_YML" ]
+}
+
+@test "job discovery finds ci.yml's jobs (guards the loops against a vacuous pass)" {
+  # If list_jobs returned nothing, every "for job in JOBS" loop below would pass
+  # vacuously — so assert the set is non-empty and still contains the three
+  # org-required jobs the backstop was introduced for.
+  [ "${#JOBS[@]}" -ge 1 ] || { echo "no jobs discovered from ci.yml — parser broken?"; false; }
+  for required in build-and-test secret-scan coverage; do
+    found=0
+    for job in "${JOBS[@]}"; do [ "$job" = "$required" ] && found=1; done
+    [ "$found" -eq 1 ] || { echo "required job '$required' not discovered from ci.yml"; false; }
+  done
 }
 
 @test "each job declares a job-level timeout-minutes backstop" {
@@ -78,7 +108,8 @@ job_timeout_value() {
   run python3 -c "
 import sys, yaml
 try:
-    yaml.safe_load(open(sys.argv[1], encoding='utf-8'))
+    with open(sys.argv[1], encoding='utf-8') as f:
+        yaml.safe_load(f)
 except Exception as e:
     print(f'Error: {e}', file=sys.stderr)
     sys.exit(1)
