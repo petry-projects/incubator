@@ -39,6 +39,14 @@ jobs:
   build-and-test:
     name: build-and-test
     runs-on: ubuntu-latest
+    # Job-level backstop (issue #143): bound the whole job so a *hung* network op
+    # (a checkout that stalls on a TLS/DNS blip, an in-script fetch that wedges)
+    # fails fast instead of running to GitHub's 6-hour default. The #124 in-script
+    # retries and #126 checkout retries only fire on operations that *error*
+    # (outcome == 'failure') — they do not catch a stall; this cap does. Same idiom
+    # as sonarcloud.yml. Sized well above this job's worst case (the ~2-min
+    # checkout retry path + the placeholder step) yet far below the 6h default.
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -84,6 +92,10 @@ jobs:
   secret-scan:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
+    # Job-level backstop (issue #143) — see build-and-test above. Sized above this
+    # job's worst case (the ~2-min full-history checkout retry path + the gitleaks
+    # tarball download retry + the detect scan) and far below the 6h default.
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -144,6 +156,10 @@ jobs:
   coverage:
     name: coverage
     runs-on: ubuntu-latest
+    # Job-level backstop (issue #143) — see build-and-test above. Sized above this
+    # job's worst case (the ~2-min checkout retry path + the apt-get/pip3 fetch
+    # retries + the kcov install and bats run) and far below the 6h default.
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
