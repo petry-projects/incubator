@@ -38,3 +38,27 @@ CI_YML="${BATS_TEST_DIRNAME}/../.github/workflows/ci.yml"
   ci_name="$(grep -E '^name: ' "$CI_YML" | head -1 | sed -E 's/^name: //')"
   [ "$ci_name" = "CI" ]
 }
+
+# The `concurrency:` surface is centrally owned (issue #141): it must stay
+# in sync with standards/workflows/pr-auto-review.yml. The stub had drifted by
+# dropping the block entirely; these tests pin the re-synced surface so future
+# drift is caught in CI.
+@test "declares a top-level concurrency block (centrally owned, issue #141)" {
+  [ -f "$PR_YML" ]
+  grep -qE '^concurrency:' "$PR_YML"
+}
+
+@test "concurrency groups check_suite/workflow_run runs per PR" {
+  # Default-branch-context triggers collapse onto one group per PR so an
+  # in-flight run is superseded (issue #1126).
+  grep -qF "format('pr-auto-review-ready-check-pr-{0}', github.event.check_suite.pull_requests[0].number)" "$PR_YML"
+  grep -qF "format('pr-auto-review-ready-check-pr-{0}', github.event.workflow_run.pull_requests[0].number)" "$PR_YML"
+}
+
+@test "concurrency falls back to a unique-per-run group for PR-head triggers" {
+  grep -qF "format('pr-auto-review-ready-check-unique-{0}', github.run_id)" "$PR_YML"
+}
+
+@test "cancel-in-progress is gated to check_suite/workflow_run only" {
+  grep -qF "cancel-in-progress: \${{ github.event_name == 'check_suite' || github.event_name == 'workflow_run' }}" "$PR_YML"
+}
