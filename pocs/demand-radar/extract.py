@@ -163,17 +163,30 @@ def analyze(term, results, discovery_channel=None):
         verdict = "DISRUPT"  # override so proven-but-hated markets surface instead of REJECTing as "served"
 
     return {
-        "results_total": len(results), "relevant_incumbents": n_relevant,
-        "credible_incumbents": n_credible, "best_existing_rating": br,
-        "freshest_incumbent_days": fresh, "best_existing_satisfaction": satisfaction,
-        "gap_type": gap_type, "competition_intensity": competition,
-        "market_size": market_size, "leader_rating": leader_rating, "disruption": disruption,
-        "supply_confidence": supply_confidence, "verdict": verdict,
+        "results_total": len(results),
+        "relevant_incumbents": n_relevant,
+        "credible_incumbents": n_credible,
+        "best_existing_rating": br,
+        "freshest_incumbent_days": fresh,
+        "best_existing_satisfaction": satisfaction,
+        "gap_type": gap_type,
+        "competition_intensity": competition,
+        "market_size": market_size,
+        "leader_rating": leader_rating,
+        "disruption": disruption,
+        "supply_confidence": supply_confidence,
+        "verdict": verdict,
         "top_apps": [
-            {"app": a.get("trackName"), "seller": a.get("sellerName"), "id": a.get("trackId"),
-             "rating": a.get("averageUserRating"), "rating_count": a.get("userRatingCount"),
-             "last_updated_days": days_since(a.get("currentVersionReleaseDate")),
-             "price": a.get("formattedPrice")} for a in top
+            {
+                "app": a.get("trackName"),
+                "seller": a.get("sellerName"),
+                "id": a.get("trackId"),
+                "rating": a.get("averageUserRating"),
+                "rating_count": a.get("userRatingCount"),
+                "last_updated_days": days_since(a.get("currentVersionReleaseDate")),
+                "price": a.get("formattedPrice"),
+            }
+            for a in top
         ],
     }
 
@@ -182,25 +195,34 @@ def to_record(group, term, signal, captured_at):
     slug = term.lower().replace(" ", "-")
     return {
         "opportunity_id": f"og_{captured_at[:7].replace('-', '_')}_{group['name']}_{slug}",
-        "canonical_query": term, "industry": group["name"],
+        "canonical_query": term,
+        "industry": group["name"],
         "vertical_dynamics": group.get("vertical_dynamics"),
-        "discovery_channel": group.get("discovery_channel"), "captured_at": captured_at,
+        "discovery_channel": group.get("discovery_channel"),
+        "captured_at": captured_at,
         "gap": {"gap_type": signal["gap_type"]},
-        "demand": {"app_store_volume": None, "web_search_volume": None,
-                   "community_metric": None, "collection_method": "itunes-search-api (supply-only)"},
-        "supply": {"solution_exists": signal["relevant_incumbents"] > 0,
-                   "best_existing_satisfaction": signal["best_existing_satisfaction"],
-                   "best_existing_rating": signal["best_existing_rating"],
-                   "freshest_incumbent_days": signal["freshest_incumbent_days"],
-                   "competition_intensity": signal["competition_intensity"],
-                   "relevant_incumbents": signal["relevant_incumbents"],
-                   "credible_incumbents": signal["credible_incumbents"],
-                   "market_size": signal["market_size"], "leader_rating": signal["leader_rating"],
-                   "disruption": signal["disruption"],
-                   "supply_confidence": signal["supply_confidence"],
-                   # persist all TOP_N (not just 5) so a leader ranked 6th-8th stays
-                   # available to resented_giants.py's market-leader lookup.
-                   "solutions": signal["top_apps"]},
+        "demand": {
+            "app_store_volume": None,
+            "web_search_volume": None,
+            "community_metric": None,
+            "collection_method": "itunes-search-api (supply-only)",
+        },
+        "supply": {
+            "solution_exists": signal["relevant_incumbents"] > 0,
+            "best_existing_satisfaction": signal["best_existing_satisfaction"],
+            "best_existing_rating": signal["best_existing_rating"],
+            "freshest_incumbent_days": signal["freshest_incumbent_days"],
+            "competition_intensity": signal["competition_intensity"],
+            "relevant_incumbents": signal["relevant_incumbents"],
+            "credible_incumbents": signal["credible_incumbents"],
+            "market_size": signal["market_size"],
+            "leader_rating": signal["leader_rating"],
+            "disruption": signal["disruption"],
+            "supply_confidence": signal["supply_confidence"],
+            # persist all TOP_N (not just 5) so a leader ranked 6th-8th stays
+            # available to resented_giants.py's market-leader lookup.
+            "solutions": signal["top_apps"],
+        },
         "verdict_heuristic": signal["verdict"],
         "provenance": [{"mechanism": "supply-mapping", "source": "itunes-search-api", "collected_at": captured_at}],
         "downstream": {"score": None, "rank": None, "market_research": None, "dedup_verdict": None},
@@ -209,15 +231,20 @@ def to_record(group, term, signal, captured_at):
 
 def load_keywords(path):
     by_vert = {}
-    with open(path, encoding='utf-8') as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line:
                 continue
             k = json.loads(line)
             by_vert.setdefault(k["vertical"], []).append(
-                {"name": k["vertical"], "discovery_channel": k.get("discovery_channel"),
-                 "vertical_dynamics": k.get("vertical_dynamics"), "keyword": k["keyword"]})
+                {
+                    "name": k["vertical"],
+                    "discovery_channel": k.get("discovery_channel"),
+                    "vertical_dynamics": k.get("vertical_dynamics"),
+                    "keyword": k["keyword"],
+                }
+            )
     # round-robin interleave across verticals so any partial run covers all 25
     recs, lists = [], list(by_vert.values())
     if not lists:  # empty keyword file -> zero records (don't call max() on an empty seq)
@@ -230,13 +257,19 @@ def load_keywords(path):
 
 
 def load_groups_json(path):
-    with open(path, encoding='utf-8') as f:
+    with open(path, encoding="utf-8") as f:
         cfg = json.load(f)
     recs = []
     for g in cfg["groups"]:
         for kw in g["keywords"]:
-            recs.append({"name": g["name"], "discovery_channel": g.get("discovery_channel"),
-                         "vertical_dynamics": g.get("vertical_dynamics"), "keyword": kw})
+            recs.append(
+                {
+                    "name": g["name"],
+                    "discovery_channel": g.get("discovery_channel"),
+                    "vertical_dynamics": g.get("vertical_dynamics"),
+                    "keyword": kw,
+                }
+            )
     return recs, cfg.get("store", "us")
 
 
@@ -261,20 +294,23 @@ def main():
         kwrecs, country = load_groups_json(args.config)
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
-    # RESUME: skip keywords already scored
+    # RESUME: skip keywords already scored. Key on (industry, canonical_query): the same
+    # phrase recurs across verticals (e.g. "medication tracker" in pets vs. seniors) as a
+    # DISTINCT opportunity, so a keyword-only key would skip the second vertical's record.
     done = set()
     if os.path.exists(args.out):
         try:
             with open(args.out, encoding="utf-8") as f:
                 for line in f:
                     try:
-                        done.add(json.loads(line)["canonical_query"])
+                        rec = json.loads(line)
+                        done.add((rec["industry"], rec["canonical_query"]))
                     except Exception:  # noqa: BLE001
                         pass
         except OSError as e:
             print(f"Error reading existing records from {args.out}: {e}", file=sys.stderr)
             sys.exit(1)
-    pending = [k for k in kwrecs if k["keyword"] not in done]
+    pending = [k for k in kwrecs if (k["name"], k["keyword"]) not in done]
     if args.max:
         pending = pending[: args.max]
     captured_at = _now().strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -284,7 +320,8 @@ def main():
     counts = {"ok": 0, "fail": 0, "n": 0}
     abort = threading.Event()  # set on a 403-storm → bail the batch fast (ban is active)
 
-    with open(args.out, "a", encoding='utf-8') as out_f:
+    with open(args.out, "a", encoding="utf-8") as out_f:
+
         def work(kw):
             if abort.is_set():
                 return False
@@ -298,8 +335,11 @@ def main():
                     counts["fail"] += 1
                     if counts["consec"] >= 15 and not abort.is_set():
                         abort.set()
-                        print(f"  ~~ 403-storm: ABORTING batch after {counts['fail']} fails (ban active); "
-                              f"{counts['ok']} scored this batch, pending preserved for next cooldown ~~", flush=True)
+                        print(
+                            f"  ~~ 403-storm: ABORTING batch after {counts['fail']} fails (ban active); "
+                            f"{counts['ok']} scored this batch, pending preserved for next cooldown ~~",
+                            flush=True,
+                        )
                     return False
                 sig = analyze(kw["keyword"], results, discovery_channel=kw.get("discovery_channel"))
                 rec = to_record(kw, kw["keyword"], sig, captured_at)

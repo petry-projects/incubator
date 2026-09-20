@@ -7,6 +7,7 @@ resentment scoring, relevance, wedges). These lock that behavior in.
 
     cd pocs/demand-radar && python -m pytest tests/ -q
 """
+
 from datetime import datetime, timedelta, timezone
 
 import broad_pass
@@ -23,12 +24,20 @@ def iso_days_ago(n):
 
 
 def app(name, rating=None, count=0, days=15, desc=""):
-    return {"trackName": name, "description": desc, "averageUserRating": rating,
-            "userRatingCount": count, "currentVersionReleaseDate": iso_days_ago(days),
-            "trackId": 1, "sellerName": "Acme", "formattedPrice": "Free"}
+    return {
+        "trackName": name,
+        "description": desc,
+        "averageUserRating": rating,
+        "userRatingCount": count,
+        "currentVersionReleaseDate": iso_days_ago(days),
+        "trackId": 1,
+        "sellerName": "Acme",
+        "formattedPrice": "Free",
+    }
 
 
 # ───────────────────────── extract.py ─────────────────────────
+
 
 class TestRelevance:
     def test_content_tokens_drops_stopwords_and_short(self):
@@ -66,8 +75,10 @@ class TestAnalyze:
         assert sig["verdict"] == "CANDIDATE*"  # unverified-absent on default (non-community) channel
 
     def test_served_market_rejects(self):
-        res = [app("Mood Tracker Plus", rating=4.8, count=5000, days=10),
-               app("Daily Mood Tracker", rating=4.7, count=3000, days=20)]
+        res = [
+            app("Mood Tracker Plus", rating=4.8, count=5000, days=10),
+            app("Daily Mood Tracker", rating=4.7, count=3000, days=20),
+        ]
         sig = extract.analyze("mood tracker", res)
         assert sig["gap_type"] == "served"
         assert sig["verdict"] == "REJECT"
@@ -101,6 +112,7 @@ class TestAnalyze:
 
 # ───────────────────────── resented_giants.py ─────────────────────────
 
+
 class TestResentScan:
     def test_scores_pricing_and_ads_gripes(self):
         reviews = [
@@ -113,7 +125,7 @@ class TestResentScan:
         assert out["n_low"] == 4
         assert out["cat_hits"]["pricing"] >= 2
         assert out["cat_hits"]["ads"] >= 1
-        assert out["switch_hits"] == 3          # 3 of 4 reviews carry a switch-driving gripe
+        assert out["switch_hits"] == 3  # 3 of 4 reviews carry a switch-driving gripe
         assert out["resent_frac"] == 0.75
         assert len(out["gripes"]) >= 1
 
@@ -131,6 +143,7 @@ class TestResentScan:
 
 # ───────────────────────── broad_pass.py ─────────────────────────
 
+
 class TestBroadScore:
     def test_app_intent_and_on_topic(self):
         s = broad_pass.score("mood tracker", ["mood tracker app", "mood tracker free", "mood tracker online"])
@@ -147,24 +160,50 @@ class TestBroadScore:
 
 # ───────────────────────── export_dashboard.py ─────────────────────────
 
+
 class TestExportPure:
     def test_toks_and_name_rel(self):
         assert dash.toks("the mood tracker app") == ["mood", "tracker"]
         assert dash.name_rel("Mood Tracker Pro", "mood tracker")
         assert not dash.name_rel("Tiny Tower", "mood tracker")
 
+    def test_name_rel_whole_word_not_substring(self):
+        # 'counter' must NOT match inside 'encounter' (whole-word, not substring) so the
+        # dashboard can't pick an unrelated high-volume app as leaderApp.
+        assert not dash.name_rel("Encounter Log", "rep counter")
+
     def test_cbonus_thresholds(self):
         assert (dash.cbonus(None), dash.cbonus(10), dash.cbonus(100), dash.cbonus(500)) == (0, 0, 1, 2)
 
+    def test_cbonus_normalized_by_source(self):
+        # units differ by source: 300 YouTube views is nothing, 25 StackExchange posts is strong
+        assert dash.cbonus(300, "youtube") == 0
+        assert dash.cbonus(3000, "youtube") == 1
+        assert dash.cbonus(60000, "youtube") == 2
+        assert dash.cbonus(25, "stackexchange") == 2
+
     def test_disruption_uses_detector_fields(self):
-        rec = {"canonical_query": "mood", "supply": {"market_size": 50000, "leader_rating": 4.1,
-               "disruption": True, "solutions": [{"app": "Mood Tracker", "rating": 4.1, "rating_count": 50000}]}}
+        rec = {
+            "canonical_query": "mood",
+            "supply": {
+                "market_size": 50000,
+                "leader_rating": 4.1,
+                "disruption": True,
+                "solutions": [{"app": "Mood Tracker", "rating": 4.1, "rating_count": 50000}],
+            },
+        }
         assert dash.disruption(rec) == (50000, 4.1, "Mood Tracker", True)
 
     def test_disruption_legacy_derivation(self):
-        rec = {"canonical_query": "mood tracker", "supply": {"solutions": [
-            {"app": "Mood Tracker Pro", "rating": 4.1, "rating_count": 50000},
-            {"app": "Unrelated", "rating": 5.0, "rating_count": 999999}]}}
+        rec = {
+            "canonical_query": "mood tracker",
+            "supply": {
+                "solutions": [
+                    {"app": "Mood Tracker Pro", "rating": 4.1, "rating_count": 50000},
+                    {"app": "Unrelated", "rating": 5.0, "rating_count": 999999},
+                ]
+            },
+        }
         ms, lr, lapp, tgt = dash.disruption(rec)
         assert ms == 50000 and lapp == "Mood Tracker Pro" and tgt is True
 
@@ -177,13 +216,16 @@ class TestExportPure:
 
 # ───────────────────────── enrich_community.py ─────────────────────────
 
+
 class TestRecompute:
     def _rec(self, verdict="CANDIDATE", ch="community"):
         return {"discovery_channel": ch, "verdict_heuristic": verdict}
 
     def test_corroborated(self):
-        assert enrich.recompute(self._rec(), {"source": "hackernews", "mentions": 500}) == \
-            ("CANDIDATE", "community-corroborated")
+        assert enrich.recompute(self._rec(), {"source": "hackernews", "mentions": 500}) == (
+            "CANDIDATE",
+            "community-corroborated",
+        )
 
     def test_too_thin(self):
         assert enrich.recompute(self._rec(), {"source": "hackernews", "mentions": 10})[0] == "REJECT"
@@ -202,6 +244,7 @@ class TestRecompute:
 
 # ───────────────────────── rank_starter_list.py ─────────────────────────
 
+
 class TestCommunityBonus:
     def _rec(self, m):
         return {"demand": {"community_metric": {"mentions": m}}}
@@ -212,14 +255,24 @@ class TestCommunityBonus:
         assert rank.community_bonus(self._rec(10)) == (0, 10)
         assert rank.community_bonus({}) == (0, None)
 
+    def test_bonus_normalized_by_source(self):
+        # 40k YouTube views is only weak (1); 500 HN or 25 StackExchange posts corroborate (2)
+        yt = {"demand": {"community_metric": {"source": "youtube", "mentions": 40000}}}
+        hn = {"demand": {"community_metric": {"source": "hackernews", "mentions": 500}}}
+        se = {"demand": {"community_metric": {"source": "stackexchange", "mentions": 25}}}
+        assert rank.community_bonus(yt) == (1, 40000)
+        assert rank.community_bonus(hn) == (2, 500)
+        assert rank.community_bonus(se) == (2, 25)
+
 
 # ───────────────────────── deep_dive.py ─────────────────────────
+
 
 class TestSynthWedge:
     def test_magnitude_ordered_and_thresholded(self):
         w = deep_dive.synth_wedge({"pricing / paywall": 10, "ads": 5, "missing / limited": 1}, {"simple": 3})
-        assert "money model" in w[0]           # pricing dominant -> first
-        assert "ad-free" in w[1].lower()        # ads second
+        assert "money model" in w[0]  # pricing dominant -> first
+        assert "ad-free" in w[1].lower()  # ads second
         assert not any("feature gaps" in b for b in w)  # missing=1 below threshold
         assert "Keep what they love" in w[-1]
 
@@ -238,12 +291,21 @@ class TestDeepDiveResentFrac:
     def test_resent_frac_zero_when_no_low(self):
         assert deep_dive.analyze_reviews([(5, "love", "great")])["resent_frac"] == 0
 
+    def test_gripe_terms_match_at_word_boundaries(self):
+        # 'ads' must not match 'heads'; 'charge' must not match 'discharge' — no false gripes
+        out = deep_dive.analyze_reviews([(1, "great", "nodding my heads while I discharge the battery")])
+        assert out["gripes"].get("ads", 0) == 0
+        assert out["gripes"].get("pricing / paywall", 0) == 0
+        assert out["resent_frac"] == 0.0
+
 
 # ───────────────────────── pipeline.py ─────────────────────────
+
 
 class TestPipelineBuild:
     def test_build_injects_and_escapes_script(self, tmp_path):
         import pipeline
+
         tmpl = tmp_path / "t.html"
         tmpl.write_text("<head></head><script>const D=__DATA__;</script>")
         data = tmp_path / "d.json"
@@ -252,11 +314,12 @@ class TestPipelineBuild:
         pipeline.build_dashboard(str(tmpl), str(data), str(html))
         s = html.read_text()
         assert "__DATA__" not in s
-        assert "\\u003c/script>" in s         # the data's '<' (of </script>) was neutralized
-        assert s.count("</script>") == 1      # only the real (template) closing tag remains
+        assert "\\u003c/script>" in s  # the data's '<' (of </script>) was neutralized
+        assert s.count("</script>") == 1  # only the real (template) closing tag remains
 
     def test_build_escapes_mixed_case_script_delimiter(self, tmp_path):
         import pipeline
+
         tmpl = tmp_path / "t.html"
         tmpl.write_text("<script>const D=__DATA__;</script>")
         data = tmp_path / "d.json"
@@ -266,12 +329,14 @@ class TestPipelineBuild:
         s = html.read_text()
         # every '<' from the data is neutralized regardless of tag casing/spacing
         assert "</ScRiPt>" not in s
-        assert s.count("<script>") == 1       # only the template's real opening tag
-        assert s.count("</script>") == 1      # only the template's real closing tag
+        assert s.count("<script>") == 1  # only the template's real opening tag
+        assert s.count("</script>") == 1  # only the template's real closing tag
 
     def test_build_requires_placeholder(self, tmp_path):
-        import pipeline
         import pytest
+
+        import pipeline
+
         tmpl = tmp_path / "t.html"
         tmpl.write_text("<script>no placeholder</script>")
         data = tmp_path / "d.json"

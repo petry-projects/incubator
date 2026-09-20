@@ -46,6 +46,7 @@ def pace():
     if wait_s > 0:
         time.sleep(wait_s)
 
+
 # Autocomplete engines. Both return [query, [suggestions]]. DDG is the default because it
 # has a different IP-ban profile than Google — swapping SOURCE beats rotating IP.
 ENGINES = {
@@ -75,8 +76,12 @@ def score(term, suggestions):
     # on-topic = suggestion contains every idea token as a WHOLE WORD (word-boundary, not
     # substring) so "podcast counterargument" no longer matches "counter". Curbs inflation.
     on_topic = sum(1 for x in s if all(t in _words(x) for t in toks)) if toks else n
-    return {"broad_interest": on_topic + 4 * app_intent, "n_suggestions": n,
-            "app_intent": app_intent, "on_topic": on_topic}
+    return {
+        "broad_interest": on_topic + 4 * app_intent,
+        "n_suggestions": n,
+        "app_intent": app_intent,
+        "on_topic": on_topic,
+    }
 
 
 def main():
@@ -103,20 +108,24 @@ def main():
                         rec = json.loads(line)
                         # Only treat a keyword as done if it has a valid score; failed rows
                         # (broad_interest is None) stay pending so a resume retries them.
+                        # Key on (vertical, keyword): the same phrase recurs across verticals
+                        # (e.g. "medication tracker" in pets vs. seniors) as a DISTINCT
+                        # opportunity, so a keyword-only key would drop the second vertical.
                         if rec.get("broad_interest") is not None:
-                            done.add(rec["keyword"])
+                            done.add((rec.get("vertical"), rec["keyword"]))
                     except Exception:  # noqa: BLE001
                         pass
         except OSError as e:
             print(f"Error reading existing broad keywords from {args.out}: {e}", file=sys.stderr)
             sys.exit(1)
-    pending = [k for k in kws if k["keyword"] not in done]
+    pending = [k for k in kws if (k.get("vertical"), k["keyword"]) not in done]
     print(f"total={len(kws)} done={len(done)} pending={len(pending)} workers={args.workers}", flush=True)
 
     lock = threading.Lock()
     counts = {"n": 0, "fail": 0}
 
-    with open(args.out, "a", encoding='utf-8') as out_f:
+    with open(args.out, "a", encoding="utf-8") as out_f:
+
         def work(k):
             pace()  # global rate limit BEFORE the request — spaces bursts across all workers
             try:

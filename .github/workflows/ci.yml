@@ -75,12 +75,22 @@ jobs:
       # See BOOTSTRAP.md and the CI standard. Until you add real steps, the
       # placeholder below keeps the required `build-and-test` check green.
       #
-      # DemandRadar unit tests (pytest with coverage).
+      # DemandRadar stack-specific stages: lint + format (ruff) and type check (mypy),
+      # then unit tests. The CI standard requires stack lint/format/typecheck/test after
+      # the placeholder is replaced; these are scoped to pocs/demand-radar. Pinned +
+      # wheels-only: lock the resolved version (S8544) and skip source setup scripts
+      # (S8541) for a reproducible, tamper-resistant install.
+      - name: DemandRadar lint + format + typecheck
+        run: |
+          cd pocs/demand-radar
+          python3 -m pip install -q --only-binary :all: ruff==0.16.5 mypy==2.3.1
+          ruff check .                       # lint (config: ruff.toml)
+          ruff format --check .              # formatting
+          mypy --ignore-missing-imports .    # type check
+          echo "✓ DemandRadar lint / format / typecheck passed"
       - name: DemandRadar unit tests
         run: |
           cd pocs/demand-radar
-          # Pinned + wheels-only: lock the resolved version (S8544) and skip source
-          # setup scripts (S8541) for a reproducible, tamper-resistant install.
           python3 -m pip install -q --only-binary :all: pytest==9.1.1
           python3 -m pytest tests/ -q --tb=short
           echo "✓ DemandRadar tests passed"

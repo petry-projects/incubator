@@ -13,20 +13,72 @@ Resumable (skips leaders already processed). Paced to avoid iTunes throttling.
 
   python resented_giants.py [--max N] [--min-market 8000]
 """
-import argparse, json, os, re, time, urllib.parse, urllib.request
+
+import argparse
+import json
+import os
+import re
+import time
+import urllib.parse
+import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 UA = "DemandRadar-spike/0.6 (+petry-projects/incubator; research)"
 CATS = {
-    "pricing": ["used to be free", "cost money", "costs money", "now costs", "pay for", "pay to",
-                "paywall", "behind a paywall", "subscription", "subscribe", "premium", "expensive",
-                "charge", "money grab", "cash grab", "greedy", "rip off", "ripoff", "overpriced",
-                "free version", "no longer free", "have to pay"],
-    "ads": ["ads", "adverts", "advertisement", "pop up", "pop-up", "popup", "commercials",
-            "so many ads", "full of ads", "ad every"],
-    "enshittification": ["used to be", "used to love", "used to work", "got worse", "gotten worse",
-                         "getting worse", "downhill", "ruined", "ruining", "bring back", "worse now",
-                         "not the same", "since the update", "update ruined", "went downhill", "was better"],
+    "pricing": [
+        "used to be free",
+        "cost money",
+        "costs money",
+        "now costs",
+        "pay for",
+        "pay to",
+        "paywall",
+        "behind a paywall",
+        "subscription",
+        "subscribe",
+        "premium",
+        "expensive",
+        "charge",
+        "money grab",
+        "cash grab",
+        "greedy",
+        "rip off",
+        "ripoff",
+        "overpriced",
+        "free version",
+        "no longer free",
+        "have to pay",
+    ],
+    "ads": [
+        "ads",
+        "adverts",
+        "advertisement",
+        "pop up",
+        "pop-up",
+        "popup",
+        "commercials",
+        "so many ads",
+        "full of ads",
+        "ad every",
+    ],
+    "enshittification": [
+        "used to be",
+        "used to love",
+        "used to work",
+        "got worse",
+        "gotten worse",
+        "getting worse",
+        "downhill",
+        "ruined",
+        "ruining",
+        "bring back",
+        "worse now",
+        "not the same",
+        "since the update",
+        "update ruined",
+        "went downhill",
+        "was better",
+    ],
     "missing": ["took away", "removed", "no longer", "took out", "gutted", "basic feature", "can't even"],
 }
 SWITCH = ("pricing", "ads", "enshittification")  # the gripes that actually drive users to leave
@@ -54,8 +106,12 @@ def get(url):
 
 def resolve_id(name):
     try:
-        d = json.loads(get("https://itunes.apple.com/search?" + urllib.parse.urlencode(
-            {"term": name, "country": "us", "entity": "software", "limit": 1})))
+        d = json.loads(
+            get(
+                "https://itunes.apple.com/search?"
+                + urllib.parse.urlencode({"term": name, "country": "us", "entity": "software", "limit": 1})
+            )
+        )
         return (d.get("results") or [{}])[0].get("trackId")
     except Exception:  # noqa: BLE001
         return None
@@ -66,13 +122,17 @@ def fetch_low_reviews(tid):
     out = []
     for page in (1, 2):
         try:
-            r = json.loads(get(f"https://itunes.apple.com/us/rss/customerreviews/page={page}/id={tid}/sortBy=mostRecent/json"))
+            r = json.loads(
+                get(f"https://itunes.apple.com/us/rss/customerreviews/page={page}/id={tid}/sortBy=mostRecent/json")
+            )
         except Exception:  # noqa: BLE001
             break
         for e in r.get("feed", {}).get("entry", []):
             rt = e.get("im:rating", {}).get("label")
             if rt and int(rt) <= 3:
-                out.append((int(rt), (e.get("title", {}).get("label") or ""), (e.get("content", {}).get("label") or "")))
+                out.append(
+                    (int(rt), (e.get("title", {}).get("label") or ""), (e.get("content", {}).get("label") or ""))
+                )
         time.sleep(0.4)
     return out
 
@@ -91,8 +151,13 @@ def scan(reviews):
             switch_hits += 1
             if len(gripes) < 4:
                 gripes.append({"r": rt, "t": title[:60], "b": body[:150], "c": [c for c in hit_cats if c in SWITCH]})
-    return {"n_low": n, "cat_hits": cat_hits, "switch_hits": switch_hits,
-            "resent_frac": round(switch_hits / n, 2) if n else 0.0, "gripes": gripes}
+    return {
+        "n_low": n,
+        "cat_hits": cat_hits,
+        "switch_hits": switch_hits,
+        "resent_frac": round(switch_hits / n, 2) if n else 0.0,
+        "gripes": gripes,
+    }
 
 
 def main():
@@ -104,23 +169,31 @@ def main():
     ap.add_argument("--sleep", type=float, default=2.2)
     args = ap.parse_args()
 
-    with open(args.inp, encoding='utf-8') as f:
-        records = [json.loads(l) for l in f]
+    with open(args.inp, encoding="utf-8") as f:
+        records = [json.loads(line) for line in f]
     leaders = {}
     for r in records:
         ms = r["supply"].get("market_size") or 0
         if ms < args.min_market:
             continue
-        lead = next((a for a in r["supply"].get("solutions", []) if (a.get("rating_count") or 0) == ms and a.get("app")), None)
+        lead = next(
+            (a for a in r["supply"].get("solutions", []) if (a.get("rating_count") or 0) == ms and a.get("app")), None
+        )
         if not lead:
             continue
         k = lead["app"].lower()
         if k not in leaders or ms > leaders[k]["market"]:
-            leaders[k] = {"app": lead["app"], "id": lead.get("id"), "market": ms,
-                          "vert": r["industry"], "kw": r["canonical_query"], "leaderR": r["supply"].get("leader_rating")}
+            leaders[k] = {
+                "app": lead["app"],
+                "id": lead.get("id"),
+                "market": ms,
+                "vert": r["industry"],
+                "kw": r["canonical_query"],
+                "leaderR": r["supply"].get("leader_rating"),
+            }
 
     if os.path.exists(args.out):
-        with open(args.out, encoding='utf-8') as f:
+        with open(args.out, encoding="utf-8") as f:
             out = json.load(f)
     else:
         out = {}
@@ -141,18 +214,24 @@ def main():
         resented = L["market"] >= args.min_market and sc["switch_hits"] >= 4 and sc["resent_frac"] >= 0.25
         out[k] = {**L, "id": tid, **sc, "resented": resented}
         if (i + 1) % 10 == 0:
-            with open(args.out, "w", encoding='utf-8') as f:
+            with open(args.out, "w", encoding="utf-8") as f:
                 json.dump(out, f)
-            print(f"  {i+1}/{len(todo)}  (resented so far: {sum(1 for v in out.values() if v.get('resented'))})", flush=True)
+            print(
+                f"  {i + 1}/{len(todo)}  (resented so far: {sum(1 for v in out.values() if v.get('resented'))})",
+                flush=True,
+            )
 
-    with open(args.out, "w", encoding='utf-8') as f:
+    with open(args.out, "w", encoding="utf-8") as f:
         json.dump(out, f)
-    rg = sorted([v for v in out.values() if v.get("resented")],
-                key=lambda v: -(v["resent_frac"] * (v["market"] ** 0.5)))
+    rg = sorted(
+        [v for v in out.values() if v.get("resented")], key=lambda v: -(v["resent_frac"] * (v["market"] ** 0.5))
+    )
     print(f"\nRESENTED GIANTS: {len(rg)}")
     for v in rg[:20]:
         cats = ",".join(c for c in SWITCH if v.get("cat_hits", {}).get(c))
-        print(f"  {v.get('leaderR')}star /{v['market']:>9,}  resent={int(v['resent_frac']*100)}% [{cats}]  {v['app'][:34]}  (e.g. '{v['kw']}' [{v['vert']}])")
+        print(
+            f"  {v.get('leaderR')}star /{v['market']:>9,}  resent={int(v['resent_frac'] * 100)}% [{cats}]  {v['app'][:34]}  (e.g. '{v['kw']}' [{v['vert']}])"
+        )
     print(f"\n-> {args.out}")
 
 

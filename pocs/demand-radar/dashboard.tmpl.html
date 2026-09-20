@@ -292,6 +292,10 @@ const RK = "demandradar.ratings.v1";
 let ratings = {};
 try{ ratings = JSON.parse(localStorage.getItem(RK)||"{}"); }catch(e){ ratings = {}; }
 const saveR = () => { try{ localStorage.setItem(RK, JSON.stringify(ratings)); }catch(e){} };
+// Composite opportunity identity: the SAME keyword recurs across verticals (e.g.
+// "medication tracker" in pets vs. seniors) as distinct rows, so ratings/notes/expansion
+// must key on (vertical, keyword) — a keyword-only key would make both rows share state.
+const rkey = x => x.vert + "\u001f" + x.kw;
 
 const state = { q:"", ch:"", gap:"", rate:"", ma:false, lens:"", vert:"", sort:"score", expanded:null, focus:-1 };
 
@@ -317,7 +321,7 @@ function filtered(){
     if(state.ma && !x.needsMA) return false;
     if(state.lens==="disrupt" && !x.disrupt) return false;
     if(state.lens==="gap" && x.disrupt) return false;
-    const r = (ratings[x.kw]||{}).r || "none";
+    const r = (ratings[rkey(x)]||{}).r || "none";
     if(state.rate==="star" && r!=="star") return false;
     if(state.rate==="maybe" && r!=="maybe") return false;
     if(state.rate==="none" && r!=="none") return false;
@@ -352,9 +356,10 @@ function verticalBars(){
 
 function rowHTML(x,i){
   const g = GAP[x.gap]||{c:"mut",d:"var(--ink-3)",label:x.gap};
-  const r = (ratings[x.kw]||{});
+  const key = rkey(x);
+  const r = (ratings[key]||{});
   const foc = i===state.focus ? " focus":"";
-  const open = state.expanded===x.kw;
+  const open = state.expanded===key;
   const chips = [
     x.disrupt ? `<span class="chip disrupt">🎯 leader ${x.leaderR}★ · ${fmt(x.market)}</span>`:"",
     x.resented ? `<span class="chip resent">🔥 ${Math.round(x.resentFrac*100)}% resent · ${(x.resentCats||[]).map(esc).join("/")}</span>`:"",
@@ -388,21 +393,21 @@ function rowHTML(x,i){
         ${x.wedge&&x.wedge.length?`<div class="gripes"><h4 style="margin:10px 0 7px">🎯 How to win · the wedge</h4>${x.wedge.map(w=>`<div class="wedge">${esc(w)}</div>`).join("")}</div>`:""}
         <div class="sigrow"><span>Demand (autocomplete)</span><b>${x.app? "app-intent ✓":"—"} · ${x.bi}</b></div>
         <div class="sigrow"><span>Community (${esc(x.commSrc||"—")})</span><b>${fmt(x.comm)}</b></div>
-        <div class="note"><textarea placeholder="Notes on ${esc(x.kw)}…" data-note="${esc(x.kw)}">${esc(r.note||"")}</textarea></div>
+        <div class="note"><textarea placeholder="Notes on ${esc(x.kw)}…" data-note="${esc(key)}">${esc(r.note||"")}</textarea></div>
       </div></div></div>`;
   }
-  return `<article class="row${foc}${x.disrupt?' dt':''}" data-kw="${esc(x.kw)}" data-i="${i}">
+  return `<article class="row${foc}${x.disrupt?' dt':''}" data-kw="${esc(key)}" data-i="${i}">
     <div class="rank">#${i+1}<span class="sc">${x.score.toFixed(1)}</span>
       <span class="meter"><i style="width:${x.score/10*100}%"></i></span></div>
     <div class="body">
-      <div class="kw"><button data-expand="${esc(x.kw)}">${esc(x.kw)}</button></div>
+      <div class="kw"><button data-expand="${esc(key)}">${esc(x.kw)}</button></div>
       <div class="chips">${chips}</div>
       ${detail}
     </div>
     <div class="rate" role="group" aria-label="Rate ${esc(x.kw)}">
-      <button class="pass${r.r==="pass"?" on":""}" data-r="pass" data-kw="${esc(x.kw)}" title="Pass (x)">✕</button>
-      <button class="maybe${r.r==="maybe"?" on":""}" data-r="maybe" data-kw="${esc(x.kw)}" title="Maybe (m)">~</button>
-      <button class="star${r.r==="star"?" on":""}" data-r="star" data-kw="${esc(x.kw)}" title="Shortlist (s)">★</button>
+      <button class="pass${r.r==="pass"?" on":""}" data-r="pass" data-kw="${esc(key)}" title="Pass (x)">✕</button>
+      <button class="maybe${r.r==="maybe"?" on":""}" data-r="maybe" data-kw="${esc(key)}" title="Maybe (m)">~</button>
+      <button class="star${r.r==="star"?" on":""}" data-r="star" data-kw="${esc(key)}" title="Shortlist (s)">★</button>
     </div>
   </article>`;
 }
@@ -467,16 +472,16 @@ document.addEventListener("keydown", e=>{
     state.focus = k==="j" ? Math.min(cur.length-1,state.focus+1) : Math.max(0,state.focus-1);
     render(); const el=$(`.row[data-i="${state.focus}"]`); if(el) el.scrollIntoView({block:"nearest",behavior:"smooth"});
   } else if((k==="s"||k==="m"||k==="x")&&state.focus>=0&&cur[state.focus]){
-    e.preventDefault(); setRate(cur[state.focus].kw, k==="s"?"star":k==="m"?"maybe":"pass");
+    e.preventDefault(); setRate(rkey(cur[state.focus]), k==="s"?"star":k==="m"?"maybe":"pass");
   } else if(k==="enter"&&state.focus>=0&&cur[state.focus]){
-    e.preventDefault(); const kw=cur[state.focus].kw; state.expanded=state.expanded===kw?null:kw; render();
+    e.preventDefault(); const key=rkey(cur[state.focus]); state.expanded=state.expanded===key?null:key; render();
   }
 });
 
 /* export */
 $("#export").addEventListener("click", ()=>{
-  const rated = DATA.filter(x=>ratings[x.kw]).map(x=>({keyword:x.kw,vertical:x.vert,channel:x.ch,gap:x.gap,
-    score:x.score,verdict:x.verdict,rating:ratings[x.kw].r||null,note:ratings[x.kw].note||""}));
+  const rated = DATA.filter(x=>ratings[rkey(x)]).map(x=>({keyword:x.kw,vertical:x.vert,channel:x.ch,gap:x.gap,
+    score:x.score,verdict:x.verdict,rating:ratings[rkey(x)].r||null,note:ratings[rkey(x)].note||""}));
   const btn=document.getElementById("export"), orig=btn.textContent, flash=m=>{btn.textContent=m;setTimeout(()=>btn.textContent=orig,1600);};
   if(!rated.length){flash("No ratings yet");return;}
   const text=JSON.stringify({exported:new Date().toISOString(),count:rated.length,ratings:rated},null,2);

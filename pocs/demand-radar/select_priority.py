@@ -25,29 +25,36 @@ def main():
     args = ap.parse_args()
 
     by_vert = defaultdict(list)
-    with open(args.inp, encoding='utf-8') as f:
-        for l in f:
-            r = json.loads(l)
+    with open(args.inp, encoding="utf-8") as f:
+        for line in f:
+            r = json.loads(line)
             if r.get("broad_interest") is None:
                 continue
             by_vert[r["vertical"]].append(r)
 
     picked = []
     for vert, rows in by_vert.items():
-        rows.sort(key=lambda r: (r.get("broad_interest", 0), r.get("app_intent", 0),
-                                 r.get("n_suggestions", 0)), reverse=True)
+        rows.sort(
+            key=lambda r: (r.get("broad_interest", 0), r.get("app_intent", 0), r.get("n_suggestions", 0)), reverse=True
+        )
         picked.extend(rows[: args.per_vertical])
 
     # keep the schema extract.py --keywords expects, carry broad signal through
-    with open(args.out, "w", encoding='utf-8') as f:
+    with open(args.out, "w", encoding="utf-8") as f:
         for r in picked:
-            f.write(json.dumps({
-                "keyword": r["keyword"], "vertical": r["vertical"],
-                "discovery_channel": r.get("discovery_channel"),
-                "vertical_dynamics": r.get("vertical_dynamics"),
-                "broad_interest": r.get("broad_interest"),
-                "app_intent": r.get("app_intent"),
-            }) + "\n")
+            f.write(
+                json.dumps(
+                    {
+                        "keyword": r["keyword"],
+                        "vertical": r["vertical"],
+                        "discovery_channel": r.get("discovery_channel"),
+                        "vertical_dynamics": r.get("vertical_dynamics"),
+                        "broad_interest": r.get("broad_interest"),
+                        "app_intent": r.get("app_intent"),
+                    }
+                )
+                + "\n"
+            )
 
     print(f"Selected {len(picked)} priority keywords ({args.per_vertical}/vertical x {len(by_vert)}) -> {args.out}")
     top = sorted(picked, key=lambda r: (r.get("broad_interest", 0), r.get("app_intent", 0)), reverse=True)[:20]

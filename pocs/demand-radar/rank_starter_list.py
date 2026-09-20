@@ -19,13 +19,22 @@ import os
 HERE = os.path.dirname(os.path.abspath(__file__))
 GAP_W = {"absent-in-store": 3, "absent": 3, "nascent": 2, "stale": 2, "low-quality": 2, "thin": 1, "served": 0}
 COMP_W = {"low": 2, "medium": 1, "high": 0}
+# Community strength is normalized PER SOURCE: mention units differ wildly (YouTube summed
+# views vs. HN/StackExchange/Reddit post counts), so the bonus uses each source's
+# (corroborate, thin) cutoffs instead of one raw count. Mirrors enrich_community.THRESHOLDS.
+COMMUNITY_THRESHOLDS = {
+    "youtube": (50_000, 2_000),
+    "hackernews": (300, 50),
+    "stackexchange": (25, 3),
+    "reddit": (10, 2),
+}
 
 
 def load_labels():
     path = os.path.join(HERE, "labels", "mobileaction-labels.json")
     out = {}
     if os.path.exists(path):
-        with open(path, encoding='utf-8') as f:
+        with open(path, encoding="utf-8") as f:
             for lab in json.load(f).get("labels", []):
                 out[lab["keyword"].lower()] = lab
     return out
@@ -36,11 +45,8 @@ def community_bonus(rec):
     m = cm.get("mentions")
     if m is None:
         return 0, None
-    if m >= 300:
-        return 2, m
-    if m >= 50:
-        return 1, m
-    return 0, m
+    corr, thin = COMMUNITY_THRESHOLDS.get(cm.get("source"), (300, 50))
+    return (2 if m >= corr else 1 if m >= thin else 0), m
 
 
 def load_broad():
@@ -48,9 +54,9 @@ def load_broad():
     path = os.path.join(HERE, "output", "keywords.broad.jsonl")
     out = {}
     if os.path.exists(path):
-        with open(path, encoding='utf-8') as f:
-            for l in f:
-                r = json.loads(l)
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                r = json.loads(line)
                 if r.get("broad_interest") is not None:
                     out[r["keyword"].lower()] = (r.get("broad_interest") or 0, r.get("app_intent") or 0)
     return out
@@ -60,8 +66,8 @@ def main():
     src = os.path.join(HERE, "output", "records.enriched.jsonl")
     if not os.path.exists(src):
         src = os.path.join(HERE, "output", "records.jsonl")
-    with open(src, encoding='utf-8') as f:
-        records = [json.loads(l) for l in f]
+    with open(src, encoding="utf-8") as f:
+        records = [json.loads(line) for line in f]
     labels = load_labels()
     broad = load_broad()
 
@@ -87,7 +93,7 @@ def main():
                 trust_note = "unverified-absent"
             elif not (app_intent or bi >= 6):
                 gap_w = 0.5  # community nonsense combo (no demand)
-        demand_bonus = app_intent + min(bi, 8) / 4.0   # reward real autocomplete demand
+        demand_bonus = app_intent + min(bi, 8) / 4.0  # reward real autocomplete demand
         score = gap_w + COMP_W.get(comp, 0) + cbonus + demand_bonus
         lab = labels.get(r["canonical_query"].lower())
         vol = lab["volume"] if lab else None
@@ -97,32 +103,49 @@ def main():
         mag_note = None
         if r["discovery_channel"] == "app-store" and lab is not None:
             if vol is not None and vol >= 40:
-                score += 2; mag_note = "demand-validated"
+                score += 2
+                mag_note = "demand-validated"
             elif vol is not None and vol >= 15:
                 score += 1
             else:  # vol <= ~5 floor, or null/N/A
-                score -= 3; mag_note = "no store demand"
+                score -= 3
+                mag_note = "no store demand"
         needs_mag = (r["discovery_channel"] == "app-store") and (lab is None)
-        rows.append({
-            "score": round(score, 1), "kw": r["canonical_query"], "group": r["industry"],
-            "channel": r["discovery_channel"], "gap": gap, "comp": comp,
-            "sat": r["supply"]["best_existing_satisfaction"], "mentions": mentions,
-            "demand": f"{app_intent}/{bi}", "vol": vol, "verdict": v,
-            "needs_mag": needs_mag, "mag_note": mag_note, "trust_note": trust_note,
-        })
+        rows.append(
+            {
+                "score": round(score, 1),
+                "kw": r["canonical_query"],
+                "group": r["industry"],
+                "channel": r["discovery_channel"],
+                "gap": gap,
+                "comp": comp,
+                "sat": r["supply"]["best_existing_satisfaction"],
+                "mentions": mentions,
+                "demand": f"{app_intent}/{bi}",
+                "vol": vol,
+                "verdict": v,
+                "needs_mag": needs_mag,
+                "mag_note": mag_note,
+                "trust_note": trust_note,
+            }
+        )
 
     rows.sort(key=lambda x: (-x["score"], x["group"]))
 
     out = os.path.join(HERE, "output", "starter-list.md")
-    with open(out, "w", encoding='utf-8') as f:
+    with open(out, "w", encoding="utf-8") as f:
         f.write("# DemandRadar — idea starter list (ranked)\n\n")
         f.write(f"{len(rows)} non-REJECT candidates from {len(records)} keywords. ")
         f.write("Score = gap severity + supply scarcity + community corroboration (legible, untuned).\n\n")
         f.write("`vol` = MobileAction App Store volume (manual label; blank = not yet pulled). ")
         f.write("`*` in verdict = store gap needing non-store verification.\n\n")
-        f.write("`demand` = Google-Suggest app_intent/broad_interest (nonsense gate). "
-                "`community` via YouTube is loose (inflated) — treat as directional.\n\n")
-        f.write("| score | keyword | group | channel | gap | comp | demand | community | store vol | verdict | note |\n")
+        f.write(
+            "`demand` = Google-Suggest app_intent/broad_interest (nonsense gate). "
+            "`community` via YouTube is loose (inflated) — treat as directional.\n\n"
+        )
+        f.write(
+            "| score | keyword | group | channel | gap | comp | demand | community | store vol | verdict | note |\n"
+        )
         f.write("|--:|---|---|---|---|---|:--:|--:|--:|---|---|\n")
         for x in rows:
             parts = [x["mag_note"], x.get("trust_note")]

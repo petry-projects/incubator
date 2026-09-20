@@ -21,6 +21,7 @@ Presets:
 Note: this refreshes the dashboard DATA + rebuilds dashboard.html. Publishing that to the
 claude.ai Artifact is a separate step (the Artifact tool) — CI uploads the built file.
 """
+
 import argparse
 import os
 import subprocess
@@ -80,7 +81,6 @@ def main():
     ap.add_argument("--per-vertical", type=int, default=50)
     ap.add_argument("--engine", default="ddg", help="broad autocomplete engine")
     a = ap.parse_args()
-    kw = os.path.join(OUT, "keywords.jsonl")
     prio = os.path.join(OUT, "keywords.priority.jsonl")
 
     degraded = []  # non-fatal stages that failed — the run ships but must NOT report clean success
@@ -95,8 +95,12 @@ def main():
 
     if a.preset in ("full", "refresh"):
         stage("select priority", "select_priority.py", ["--per-vertical", str(a.per_vertical)], fatal=True)
-        stage("supply (iTunes)", "extract.py",
-              ["--keywords", prio, "--workers", "2", "--rate", str(a.rate), "--max", str(a.max)], fatal=False)
+        stage(
+            "supply (iTunes)",
+            "extract.py",
+            ["--keywords", prio, "--workers", "2", "--rate", str(a.rate), "--max", str(a.max)],
+            fatal=False,
+        )
         stage("community enrich", "enrich_community.py", ["--max", str(a.max)], fatal=False)
         if a.preset == "full":
             stage("resented-giant scan", "resented_giants.py", [], fatal=False)
@@ -113,8 +117,11 @@ def main():
     if degraded:
         # A network stage failed: the dashboard/starter-list were still rebuilt from whatever
         # records survived, but that data may be stale/partial — do NOT report clean success.
-        print(f"\n⚠ pipeline finished DEGRADED — {len(degraded)} stage(s) failed: "
-              f"{', '.join(degraded)}. Published data may be stale or partial.", file=sys.stderr)
+        print(
+            f"\n⚠ pipeline finished DEGRADED — {len(degraded)} stage(s) failed: "
+            f"{', '.join(degraded)}. Published data may be stale or partial.",
+            file=sys.stderr,
+        )
         sys.exit(1)
     print("\n✓ pipeline complete. Publish dashboard.html via the Artifact tool to refresh the live board.")
 

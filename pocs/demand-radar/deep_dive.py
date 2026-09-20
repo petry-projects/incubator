@@ -13,28 +13,129 @@ landscape, and synthesizes a WEDGE + writes a readable opportunity brief.
 Outputs: output/deepdive/<slug>.json  and  output/deepdive/<slug>.md
 Free data only (iTunes Search API + customer-reviews RSS). Paced; no auth.
 """
-import argparse, collections, json, os, re, time, urllib.parse, urllib.request
+
+import argparse
+import collections
+import json
+import os
+import re
+import time
+import urllib.parse
+import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 UA = "DemandRadar-spike/0.6 (+petry-projects/incubator; research)"
 
 GRIPES = {
-    "pricing / paywall": ["paywall", "behind a wall", "locked behind", "subscription", "subscribe",
-        "premium", "pay for", "pay to", "have to pay", "costs money", "cost money", "now costs",
-        "not free", "isn't free", "used to be free", "expensive", "overpriced", "money grab",
-        "cash grab", "greedy", "rip off", "ripoff", "charge", "$"],
+    "pricing / paywall": [
+        "paywall",
+        "behind a wall",
+        "locked behind",
+        "subscription",
+        "subscribe",
+        "premium",
+        "pay for",
+        "pay to",
+        "have to pay",
+        "costs money",
+        "cost money",
+        "now costs",
+        "not free",
+        "isn't free",
+        "used to be free",
+        "expensive",
+        "overpriced",
+        "money grab",
+        "cash grab",
+        "greedy",
+        "rip off",
+        "ripoff",
+        "charge",
+        "$",
+    ],
     "ads": ["ads", "adverts", "advertisement", "pop up", "pop-up", "popup", "commercials", "full of ads"],
-    "got worse (enshittification)": ["used to", "got worse", "gotten worse", "downhill", "ruined",
-        "bring back", "worse now", "not the same", "since the update", "update ruined", "was better"],
-    "bugs / reliability": ["bug", "crash", "crashes", "glitch", "broken", "won't open", "wont open",
-        "freezes", "freezing", "lag", "laggy", "sync issue", "lost my data", "lost data"],
-    "missing / limited": ["wish", "missing", "no way to", "can't", "cant", "needs a", "would be nice",
-        "please add", "add a", "no option", "lacks", "limited"],
+    "got worse (enshittification)": [
+        "used to",
+        "got worse",
+        "gotten worse",
+        "downhill",
+        "ruined",
+        "bring back",
+        "worse now",
+        "not the same",
+        "since the update",
+        "update ruined",
+        "was better",
+    ],
+    "bugs / reliability": [
+        "bug",
+        "crash",
+        "crashes",
+        "glitch",
+        "broken",
+        "won't open",
+        "wont open",
+        "freezes",
+        "freezing",
+        "lag",
+        "laggy",
+        "sync issue",
+        "lost my data",
+        "lost data",
+    ],
+    "missing / limited": [
+        "wish",
+        "missing",
+        "no way to",
+        "can't",
+        "cant",
+        "needs a",
+        "would be nice",
+        "please add",
+        "add a",
+        "no option",
+        "lacks",
+        "limited",
+    ],
 }
 # the gripe categories that actually drive users to abandon/switch (resentment signal)
 RESENT_CATS = ("pricing / paywall", "ads", "got worse (enshittification)")
-LOVES = ["simple", "easy", "clean", "love it", "love this", "best", "intuitive", "private", "offline",
-         "no ads", "free", "cute", "aesthetic", "minimal", "beautiful", "fast", "reliable", "customizable"]
+
+
+def _cat_pattern(kws):
+    """Boundary-aware regex (mirrors resented_giants._cat_pattern) so 'ads' matches 'ads'
+    but not 'heads', and 'charge' doesn't match 'discharge'. A word boundary is added only
+    where the term edge is alphanumeric, so phrases/symbols (e.g. '$') still match literally."""
+    parts = []
+    for k in kws:
+        esc = re.escape(k)
+        left = r"\b" if k[:1].isalnum() else ""
+        right = r"\b" if k[-1:].isalnum() else ""
+        parts.append(left + esc + right)
+    return re.compile("|".join(parts))
+
+
+GRIPE_RE = {c: _cat_pattern(kws) for c, kws in GRIPES.items()}
+LOVES = [
+    "simple",
+    "easy",
+    "clean",
+    "love it",
+    "love this",
+    "best",
+    "intuitive",
+    "private",
+    "offline",
+    "no ads",
+    "free",
+    "cute",
+    "aesthetic",
+    "minimal",
+    "beautiful",
+    "fast",
+    "reliable",
+    "customizable",
+]
 WISH_RE = re.compile(r"(?:wish|would love|needs?|please add|no way to|can'?t)\b[^.!?]{0,80}", re.I)
 
 
@@ -54,8 +155,12 @@ def load_ma_label(kw):
 
 
 def competitors(kw, top):
-    d = json.loads(get("https://itunes.apple.com/search?" + urllib.parse.urlencode(
-        {"term": kw, "country": "us", "entity": "software", "limit": max(top, 10)})))
+    d = json.loads(
+        get(
+            "https://itunes.apple.com/search?"
+            + urllib.parse.urlencode({"term": kw, "country": "us", "entity": "software", "limit": max(top, 10)})
+        )
+    )
     return d.get("results", [])[:top]
 
 
@@ -63,7 +168,9 @@ def reviews(tid, pages):
     out = []
     for pg in range(1, pages + 1):
         try:
-            r = json.loads(get(f"https://itunes.apple.com/us/rss/customerreviews/page={pg}/id={tid}/sortBy=mostRecent/json"))
+            r = json.loads(
+                get(f"https://itunes.apple.com/us/rss/customerreviews/page={pg}/id={tid}/sortBy=mostRecent/json")
+            )
         except Exception:  # noqa: BLE001
             break
         for e in r.get("feed", {}).get("entry", []):
@@ -83,8 +190,8 @@ def analyze_reviews(revs):
     for rt, t, b in low:
         hay = (t + " . " + b).lower()
         hit_resent = False
-        for c, kws in GRIPES.items():
-            if any(k in hay for k in kws):
+        for c, rx in GRIPE_RE.items():
+            if rx.search(hay):
                 gcat[c] += 1
                 if c in RESENT_CATS:
                     hit_resent = True
@@ -104,10 +211,16 @@ def analyze_reviews(revs):
             s = m.strip()
             if 12 < len(s) < 90 and s.lower() not in [w.lower() for w in wishes]:
                 wishes.append(s)
-    return {"n": len(revs), "n_low": len(low), "n_high": len(high),
-            "resent_frac": round(resenting / len(low), 2) if low else 0,
-            "gripes": dict(gcat), "quotes": {k: v for k, v in quotes.items()},
-            "loves": dict(loves.most_common(8)), "wishes": wishes[:6]}
+    return {
+        "n": len(revs),
+        "n_low": len(low),
+        "n_high": len(high),
+        "resent_frac": round(resenting / len(low), 2) if low else 0,
+        "gripes": dict(gcat),
+        "quotes": {k: v for k, v in quotes.items()},
+        "loves": dict(loves.most_common(8)),
+        "wishes": wishes[:6],
+    }
 
 
 WEDGE_TEMPLATES = {
@@ -126,7 +239,9 @@ def synth_wedge(market_gripes, loves):
         if n >= max(3, 0.12 * total) and cat in WEDGE_TEMPLATES:
             w.append(WEDGE_TEMPLATES[cat].format(n=n))
     if loves:
-        w.append("**Keep what they love:** " + ", ".join(list(loves)[:5]) + " — don't out-feature these into complexity.")
+        w.append(
+            "**Keep what they love:** " + ", ".join(list(loves)[:5]) + " — don't out-feature these into complexity."
+        )
     return w
 
 
@@ -135,7 +250,9 @@ def main():
     ap.add_argument("--keyword", required=True)
     ap.add_argument("--top", type=int, default=8)
     ap.add_argument("--pages", type=int, default=3)
-    ap.add_argument("--min-ratings", type=int, default=2000, help="only review-mine competitors above this (real incumbents)")
+    ap.add_argument(
+        "--min-ratings", type=int, default=2000, help="only review-mine competitors above this (real incumbents)"
+    )
     args = ap.parse_args()
 
     kw = args.keyword
@@ -150,10 +267,16 @@ def main():
     market_gripes = collections.Counter()
     all_wishes = []
     for a in apps:
-        c = {"app": a.get("trackName"), "id": a.get("trackId"), "seller": a.get("sellerName"),
-             "rating": round(a.get("averageUserRating") or 0, 2), "count": a.get("userRatingCount") or 0,
-             "price": a.get("formattedPrice"), "updated": (a.get("currentVersionReleaseDate") or "")[:7],
-             "genre": a.get("primaryGenreName")}
+        c = {
+            "app": a.get("trackName"),
+            "id": a.get("trackId"),
+            "seller": a.get("sellerName"),
+            "rating": round(a.get("averageUserRating") or 0, 2),
+            "count": a.get("userRatingCount") or 0,
+            "price": a.get("formattedPrice"),
+            "updated": (a.get("currentVersionReleaseDate") or "")[:7],
+            "genre": a.get("primaryGenreName"),
+        }
         if c["count"] >= args.min_ratings and c["id"]:
             rv = analyze_reviews(reviews(c["id"], args.pages))
             c["reviews"] = rv
@@ -169,9 +292,15 @@ def main():
             loves[k] += v
     wedge = synth_wedge(market_gripes, dict(loves.most_common(6)))
 
-    result = {"keyword": kw, "mobileaction": ma, "competitors": comps,
-              "market_gripes": dict(market_gripes), "market_loves": dict(loves.most_common(8)),
-              "wishes": all_wishes[:10], "wedge": wedge}
+    result = {
+        "keyword": kw,
+        "mobileaction": ma,
+        "competitors": comps,
+        "market_gripes": dict(market_gripes),
+        "market_loves": dict(loves.most_common(8)),
+        "wishes": all_wishes[:10],
+        "wedge": wedge,
+    }
     with open(os.path.join(outdir, slug + ".json"), "w", encoding="utf-8") as fh:
         json.dump(result, fh, indent=2)
 
@@ -179,13 +308,15 @@ def main():
     L = []
     L.append(f"# Deep dive — **{kw}**\n")
     if ma:
-        L.append(f"**Market demand (MobileAction):** search volume `{ma.get('volume')}` · difficulty `{ma.get('difficulty')}` · {ma.get('ranked_apps')} ranked apps. {ma.get('note','')}\n")
+        L.append(
+            f"**Market demand (MobileAction):** search volume `{ma.get('volume')}` · difficulty `{ma.get('difficulty')}` · {ma.get('ranked_apps')} ranked apps. {ma.get('note', '')}\n"
+        )
     L.append("## The market — who you're up against\n")
     L.append("| App | ★ | Ratings | Price | Updated | Resent% |")
     L.append("|---|--:|--:|---|---|--:|")
     for c in comps:
         rv = c.get("reviews")
-        res = f"{int(rv['resent_frac']*100)}%" if rv else "—"
+        res = f"{int(rv['resent_frac'] * 100)}%" if rv else "—"
         L.append(f"| {c['app']} | {c['rating']} | {c['count']:,} | {c['price']} | {c['updated']} | {res} |")
     cutoff = time.strftime("%Y-%m", time.gmtime(time.time() - 365 * 86400))
     stale = [c["app"] for c in comps if c["updated"] and c["updated"] < cutoff]
@@ -197,15 +328,14 @@ def main():
         for c in comps:
             for q in (c.get("reviews", {}).get("quotes", {}).get(cat, []))[:1]:
                 # collapse literal newlines so a multi-line review body stays one list item
-                L.append("    - *\"{}\"* — {}".format(
-                    " ".join(q["t"].split()), " ".join(q["b"].split())))
+                L.append('    - *"{}"* — {}'.format(" ".join(q["t"].split()), " ".join(q["b"].split())))
                 break
     L.append("\n## What users love — preserve these\n")
     L.append(", ".join(f"**{k}** ({v})" for k, v in loves.most_common(8)) or "—")
     if result["wishes"]:
         L.append("\n## Specific feature wishes (from reviews)\n")
         for w in result["wishes"]:
-            L.append(f"- \"{w}\"")
+            L.append(f'- "{w}"')
     L.append("\n## The wedge — how to win\n")
     for b in wedge:
         L.append(f"- {b}")
