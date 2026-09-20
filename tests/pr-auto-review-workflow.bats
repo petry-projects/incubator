@@ -51,14 +51,23 @@ CI_YML="${BATS_TEST_DIRNAME}/../.github/workflows/ci.yml"
 @test "concurrency groups check_suite/workflow_run runs per PR" {
   # Default-branch-context triggers collapse onto one group per PR so an
   # in-flight run is superseded (issue #1126).
-  grep -qF "format('pr-auto-review-ready-check-pr-{0}', github.event.check_suite.pull_requests[0].number)" "$PR_YML"
-  grep -qF "format('pr-auto-review-ready-check-pr-{0}', github.event.workflow_run.pull_requests[0].number)" "$PR_YML"
+  # Scope the checks to the concurrency: block so unrelated blocks or comments
+  # can't cause spurious matches. 'next' skips the concurrency: line itself so
+  # /^[^[:space:]]/ doesn't self-terminate.
+  local block
+  block="$(awk '/^concurrency:/{f=1; next} f && /^[^[:space:]]/{exit} f' "$PR_YML")"
+  echo "$block" | grep -qF "format('pr-auto-review-ready-check-pr-{0}', github.event.check_suite.pull_requests[0].number)"
+  echo "$block" | grep -qF "format('pr-auto-review-ready-check-pr-{0}', github.event.workflow_run.pull_requests[0].number)"
 }
 
 @test "concurrency falls back to a unique-per-run group for PR-head triggers" {
-  grep -qF "format('pr-auto-review-ready-check-unique-{0}', github.run_id)" "$PR_YML"
+  local block
+  block="$(awk '/^concurrency:/{f=1; next} f && /^[^[:space:]]/{exit} f' "$PR_YML")"
+  echo "$block" | grep -qF "format('pr-auto-review-ready-check-unique-{0}', github.run_id)"
 }
 
 @test "cancel-in-progress is gated to check_suite/workflow_run only" {
-  grep -qF "cancel-in-progress: \${{ github.event_name == 'check_suite' || github.event_name == 'workflow_run' }}" "$PR_YML"
+  local block
+  block="$(awk '/^concurrency:/{f=1; next} f && /^[^[:space:]]/{exit} f' "$PR_YML")"
+  echo "$block" | grep -qF "cancel-in-progress: \${{ github.event_name == 'check_suite' || github.event_name == 'workflow_run' }}"
 }
