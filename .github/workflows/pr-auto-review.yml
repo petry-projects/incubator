@@ -28,9 +28,10 @@ on:
   # workflow_run fires when a named GitHub Actions workflow completes.
   # check_suite does NOT trigger for GitHub Actions runs, so this is required
   # to catch CI turning green on a PR.
-  # This repository's CI workflow is named exactly "CI" (ci.yml `name: CI`), so
-  # the value below already matches — no adopter change is needed here. (The
-  # repo-template placeholder task marker is thus resolved; SonarCloud S1135.)
+  # This repository's CI workflow is named exactly "CI" (ci.yml `name: CI`).
+  # Adopters must change `workflow_run.workflows` if their CI workflow uses
+  # another name.
+  # The repo-template placeholder task marker is thus resolved; SonarCloud S1135.
   workflow_run:
     workflows: ["CI"]
     types: [completed]
