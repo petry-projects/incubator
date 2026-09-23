@@ -29,8 +29,8 @@ on:
   # check_suite does NOT trigger for GitHub Actions runs, so this is required
   # to catch CI turning green on a PR.
   # This repository's CI workflow is named exactly "CI" (ci.yml `name: CI`).
-  # Adopters must change `workflow_run.workflows` if their CI workflow uses
-  # another name.
+  # Adopters: change the workflow name in `workflow_run.workflows` below to match
+  # your repository's CI workflow name if it differs from "CI".
   # The repo-template placeholder task marker is thus resolved; SonarCloud S1135.
   workflow_run:
     workflows: ["CI"]
