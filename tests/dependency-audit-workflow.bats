@@ -11,37 +11,44 @@
 
 DEP_YML="${BATS_TEST_DIRNAME}/../.github/workflows/dependency-audit.yml"
 
+setup() {
+  # Extract the top-level `on:` block once and reuse it for every trigger
+  # assertion below. Scoping the pull_request / push / merge_group checks to
+  # this block (rather than grepping the whole file) makes them fail if the
+  # top-level `on:` key is renamed or a trigger moves out of it — a stray
+  # match elsewhere in the file (e.g. a comment) can no longer pass a check.
+  ON_BLOCK="$(awk '/^on:/{p=1;next} /^[a-zA-Z]+:/{p=0} p' "$DEP_YML")"
+}
+
 @test "dependency-audit.yml exists" {
   [ -f "$DEP_YML" ]
 }
 
 @test "the stub triggers on pull_request against main" {
-  pr_block="$(awk '/^  pull_request:/{p=1;next} /^  [a-z_]+:/{p=0} p' "$DEP_YML")"
+  pr_block="$(printf '%s\n' "$ON_BLOCK" | awk '/^  pull_request:/{p=1;next} /^  [a-z_]+:/{p=0} p')"
   [ -n "$pr_block" ]
-  echo "$pr_block" | grep -qE 'branches: \[main\]'
+  printf '%s\n' "$pr_block" | grep -qE 'branches: \[main\]'
 }
 
 @test "the stub triggers on push to main" {
-  push_block="$(awk '/^  push:/{p=1;next} /^  [a-z_]+:/{p=0} p' "$DEP_YML")"
+  push_block="$(printf '%s\n' "$ON_BLOCK" | awk '/^  push:/{p=1;next} /^  [a-z_]+:/{p=0} p')"
   [ -n "$push_block" ]
-  echo "$push_block" | grep -qE 'branches: \[main\]'
+  printf '%s\n' "$push_block" | grep -qE 'branches: \[main\]'
 }
 
 @test "the stub declares the required merge_group trigger" {
   # merge_group is part of the canonical trigger set (issue #152): without it the
   # required status check never reports on a merge queue's gh-readonly-queue/* ref.
-  # Isolate the `on:` block first so a stray `merge_group:` elsewhere (e.g. a
-  # comment) can't produce a false positive.
-  on_block="$(awk '/^on:/{p=1;next} /^[a-zA-Z]+:/{p=0} p' "$DEP_YML")"
-  echo "$on_block" | grep -qE '^  merge_group:'
+  # The `on:` block is isolated in setup() so a stray `merge_group:` elsewhere
+  # (e.g. a comment) can't produce a false positive.
+  printf '%s\n' "$ON_BLOCK" | grep -qE '^  merge_group:'
 }
 
 @test "the stub declares exactly the canonical trigger set" {
   # Guard against silent drift in the other direction: an unintended trigger
   # (e.g. workflow_dispatch) must fail this test, not slip through. Pin the
   # complete set of top-level trigger keys under `on:` — not just their presence.
-  on_block="$(awk '/^on:/{p=1;next} /^[a-zA-Z]+:/{p=0} p' "$DEP_YML")"
-  triggers="$(echo "$on_block" | grep -oE '^  [a-z_]+:' | tr -d ' :' | sort | tr '\n' ' ')"
+  triggers="$(printf '%s\n' "$ON_BLOCK" | grep -oE '^  [a-z_]+:' | tr -d ' :' | sort | tr '\n' ' ')"
   [ "$triggers" = "merge_group pull_request push " ]
 }
 
