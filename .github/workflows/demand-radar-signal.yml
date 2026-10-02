@@ -1,0 +1,88 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# DemandRadar — scheduled refresh (SPIKE, not an org-standard agent)
+#
+# Runs the whole funnel with one command: pocs/demand-radar/pipeline.py.
+#   refresh (default) : select_priority -> extract(bounded) -> enrich -> export -> build
+#   full              : + generate + broad(DDG) + resented scan  (slow/ban-prone; rare)
+# All data + the built dashboard.html are uploaded as a build artifact. Publishing to the
+# live claude.ai Artifact is a separate manual/LLM step (CI can't call the Artifact tool).
+#
+# Disposable POC workflow under pocs/. Not a thin caller to an org reusable (none exists).
+# Free data only; YOUTUBE_API_KEY / REDDIT_* secrets are optional (enrich falls back to
+# StackExchange/HackerNews). Every free endpoint IP-bans bursts — the scripts pace/resume.
+# ─────────────────────────────────────────────────────────────────────────────
+name: DemandRadar — scheduled refresh (spike)
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'   # Monday 06:17 UTC — weekly refresh
+  workflow_dispatch:
+    inputs:
+      preset:
+        description: 'pipeline preset'
+        required: false
+        default: 'refresh'
+        type: choice
+        options: [refresh, full, export]
+      max:
+        description: 'extract/enrich batch cap'
+        required: false
+        default: '240'
+        type: string
+      rate:
+        description: 'iTunes calls/min (stay <=~30 to avoid bans)'
+        required: false
+        default: '18'
+        type: string
+
+permissions: {}            # default-deny; the job grants only what it needs
+
+concurrency:
+  group: demand-radar-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read       # checkout only; results go to a build artifact, not the repo
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run DemandRadar pipeline (stdlib only — no pip)
+        env:
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          DR_COMMUNITY_SOURCE: ${{ vars.DR_COMMUNITY_SOURCE || 'stackexchange' }}
+          # Pass dispatch inputs through the env (never interpolate ${{ }} into the shell
+          # body) so a crafted `max`/`rate` value can't inject commands on the runner.
+          DR_PRESET: ${{ github.event.inputs.preset || 'refresh' }}
+          DR_MAX: ${{ github.event.inputs.max || '240' }}
+          DR_RATE: ${{ github.event.inputs.rate || '18' }}
+        run: |
+          python3 pocs/demand-radar/pipeline.py \
+            --preset "$DR_PRESET" \
+            --max "$DR_MAX" \
+            --rate "$DR_RATE"
+
+      - name: Summarize in the run log
+        if: ${{ always() }}   # a DEGRADED pipeline exits non-zero but still built partial output
+        run: |
+          {
+            echo "### DemandRadar refresh"
+            head -c 4000 pocs/demand-radar/output/starter-list.md 2>/dev/null || true
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload data + built dashboard
+        if: ${{ always() }}   # still ship the partial refresh even when a network stage failed
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: demand-radar
+          path: |
+            pocs/demand-radar/output/dashboard-data.json
+            pocs/demand-radar/output/starter-list.md
+            pocs/demand-radar/dashboard.html
+          retention-days: 30
