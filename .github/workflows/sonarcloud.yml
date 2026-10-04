@@ -80,7 +80,7 @@ jobs:
       - name: SonarCloud Scan
         id: sonar
         if: env.SONAR_TOKEN != ''
-        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         # Step timeout so a hung scan (SonarCloud's endpoint occasionally stalls
         # rather than erroring) fails fast — letting continue-on-error mark it
         # failed and trigger the backoff + retry, instead of hanging for hours.
@@ -105,6 +105,6 @@ jobs:
         run: sleep 240
       - name: SonarCloud Scan (retry)
         if: env.SONAR_TOKEN != '' && steps.sonar.outcome == 'failure'
-        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
         # Bound the retry too, so a hang on the second attempt also fails fast.
         timeout-minutes: 10
