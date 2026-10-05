@@ -1,5 +1,7 @@
 # incubator
 
+[![Contributing](https://img.shields.io/badge/contributions-welcome-brightgreen.svg)](https://github.com/petry-projects/.github/blob/main/CONTRIBUTING.md)
+
 Front-of-funnel home for **pre-product** work in `petry-projects`: raw idea
 Discussions that aren't yet a product, the **decision brief / PRD-lite** an idea
 is judged on, and **disposable POCs**. When a POC proves out, the idea
@@ -71,3 +73,22 @@ pocs/
 Baseline scaffolding (workflows, CODEOWNERS, LICENSE, SECURITY) comes from
 `petry-projects/repo-template`; see [BOOTSTRAP.md](./BOOTSTRAP.md) for the
 one-time per-repo setup and [AGENTS.md](./AGENTS.md) for the org-standards pointer.
+
+---
+
+## 💼 Commercial Support & Enterprise Prototyping
+
+Need custom proof-of-concept development, tailored AI agent prototyping, or enterprise product incubation?
+
+Commercial prototyping and architecture services are offered through **[CombSmith LLC](https://combsmith.com)**:
+- **Rapid Prototyping & POC Sprints:** $250/hour for bespoke spikes, technical validation, and agent architecture feasibility.
+- **Enterprise Product Incubation:** Custom engineering sprints turning ideas into production-ready repositories.
+- **Consulting & Implementation:** Architectural guidance, local-first data pipelines, and agentic workflows.
+
+For commercial inquiries, email [support@combsmith.com](mailto:support@combsmith.com) or visit [combsmith.com](https://combsmith.com).
+
+---
+
+## Contributing
+
+See the org-wide [Contributing Guide](https://github.com/petry-projects/.github/blob/main/CONTRIBUTING.md) and [SECURITY.md](SECURITY.md).
