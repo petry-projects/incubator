@@ -33,9 +33,9 @@
 # canary that ENFORCES: the gate derives concurrency / cooldown / daily-budget /
 # consecutive-failure counters from this stub's own run history (no state
 # backend) and reads every threshold from standards/agent-rate-limits.json.
-# It throttles dispatches that DO start (cooldown / daily budget / breaker); it
-# does NOT pre-empt the cancel-in-progress concurrency group below — that group
-# cancels a superseded run before any step (gate included) executes (#443/#402).
+# It throttles dispatches that DO start (cooldown / daily budget / breaker); the
+# cancel-in-progress concurrency group below may cancel a superseded run at any
+# point during its execution, not only before steps start (#443/#402).
 # A `defer` simply skips the dispatch step — never a cancel, never a job failure.
 #
 # Gate tooling is fetched at a pinned commit SHA of petry-projects/.github (not
@@ -104,23 +104,42 @@ jobs:
         # fetch them read-only into a scratch path. Uses the same PAT as the
         # dispatch — the workflow's GITHUB_TOKEN cannot read another repo — so the
         # stub's `permissions:` block is unchanged.
+        # Retries transient failures (e.g. network glitches) with exponential
+        # backoff before falling back to fail-open behavior.
         # continue-on-error: a tooling-checkout outage must not stop the fleet —
-        # the gate step then finds no script, reports an ::error:: (fail loudly),
-        # emits no decision, and the dispatch step's `!= 'defer'` guard falls
-        # through to dispatching (fail-open).
+        # after retries exhaust, the gate step then finds no script, reports an
+        # ::error:: (fail loudly), emits no decision, and the dispatch step's
+        # `!= 'defer'` guard falls through to dispatching (fail-open).
         # ref: pinned to an immutable commit SHA of petry-projects/.github (#1232)
         # — a moving tag silently lagged the gate script (v1 predates it) and
         # would hand the PAT to whatever the tag next points at. Bump it in a
         # reviewed PR (see standards/agent-rate-limits.md §3.1).
         continue-on-error: true
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: petry-projects/.github
-          ref: cd0b16751454d2eb3486ec04477d7ee9cc96c425 # main @ 2026-10-02 (#1232)
-          path: .arl-gate-tooling
-          fetch-depth: 1
-          persist-credentials: false
-          token: ${{ secrets.GH_PAT_DON_PETRY || secrets.GH_PAT_WORKFLOWS }}
+        timeout-minutes: 2
+        run: |
+          max_attempts=3
+          attempt=0
+          backoff=2
+          while [ $attempt -lt $max_attempts ]; do
+            attempt=$((attempt + 1))
+            if gh repo clone petry-projects/.github .arl-gate-tooling -- \
+               --depth 1 \
+               --branch cd0b16751454d2eb3486ec04477d7ee9cc96c425 \
+               --no-checkout; then
+              cd .arl-gate-tooling
+              git checkout cd0b16751454d2eb3486ec04477d7ee9cc96c425
+              exit 0
+            fi
+            if [ $attempt -lt $max_attempts ]; then
+              echo "Checkout attempt $attempt failed, retrying in ${backoff}s..."
+              sleep $backoff
+              backoff=$((backoff * 2))
+            fi
+          done
+          echo "Checkout failed after $max_attempts attempts (will fail open)"
+          exit 1
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT_DON_PETRY || secrets.GH_PAT_WORKFLOWS }}
 
       - name: Agent rate-limit admission gate (enforcing)
         # initiative-driver is the ONE canary agent type that ENFORCES (pure bash,
@@ -131,6 +150,7 @@ jobs:
         # or a gate error marks THIS step failed with an ::error:: (visible in the
         # run), but continue-on-error keeps the job — and the dispatch — going.
         continue-on-error: true
+        timeout-minutes: 2
         id: arl_gate
         env:
           GH_TOKEN: ${{ secrets.GH_PAT_DON_PETRY || secrets.GH_PAT_WORKFLOWS }}
