@@ -124,9 +124,9 @@ jobs:
             attempt=$((attempt + 1))
             if gh repo clone petry-projects/.github .arl-gate-tooling -- \
                --depth 1 \
-               --branch cd0b16751454d2eb3486ec04477d7ee9cc96c425 \
                --no-checkout; then
               cd .arl-gate-tooling
+              git fetch origin cd0b16751454d2eb3486ec04477d7ee9cc96c425
               git checkout cd0b16751454d2eb3486ec04477d7ee9cc96c425
               exit 0
             fi

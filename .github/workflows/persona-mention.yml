@@ -56,6 +56,9 @@ permissions: {}
 
 jobs:
   persona-mention:
+    # On fork PRs, GitHub withholds GH_PAT_WORKFLOWS; skip the router to avoid
+    # failures when it tries to dispatch without the required secret.
+    if: github.event.pull_request.head.repo.full_name == github.repository || github.event_name != 'pull_request'
     permissions:
       contents: read        # the reusable checks out its tooling repo — required,
                             # or the call fails at startup (a reusable is granted
