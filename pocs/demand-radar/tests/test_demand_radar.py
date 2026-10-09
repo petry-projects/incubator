@@ -386,11 +386,13 @@ class TestAnalyzeComprehensive:
 class TestResentGiantsEdgeCases:
     def test_empty_categories_returns_empty_gripes(self):
         out = rg.scan([(1, "bad", "some complaint with no keywords")])
-        assert out["n_low"] >= 0
-        # All scan results should have gripes list (even if empty)
-        assert isinstance(out["gripes"], list)
+        assert out["n_low"] == 1
+        assert out["switch_hits"] == 0
+        assert out["gripes"] == []
 
-    def test_single_word_gripe_matching(self):
-        # test that "free" in review text is found
+    def test_phrase_gripe_matching(self):
+        # "no longer free" is a pricing phrase (and "no longer" a missing-feature one)
         out = rg.scan([(1, "paid", "no longer free")])
         assert out["n_low"] == 1
+        assert out["cat_hits"]["pricing"] == 1
+        assert out["switch_hits"] == 1

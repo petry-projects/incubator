@@ -1,10 +1,10 @@
 # DemandRadar — idea starter list (ranked)
 
-505 non-REJECT candidates from 1250 keywords. Score = gap severity + supply scarcity + community corroboration (legible, untuned).
+505 non-REJECT candidates from 1250 keywords. Score = gap severity + supply scarcity + community corroboration + autocomplete demand, then a MobileAction volume boost/penalty on labeled app-store keywords (legible, untuned).
 
-`vol` = MobileAction App Store volume (manual label; blank = not yet pulled). `*` in verdict = store gap needing non-store verification.
+`vol` = MobileAction App Store volume (manual label). `—` = no volume: not yet pulled (app-store rows are then flagged `needs MA ▲`) or pulled and N/A. `*` in verdict = store gap needing non-store verification.
 
-`demand` = Google-Suggest app_intent/broad_interest (nonsense gate). `community` via YouTube is loose (inflated) — treat as directional.
+`demand` = autocomplete app_intent/broad_interest from the broad pass (nonsense gate). `community` = mentions from the record's community source (Hacker News / StackExchange / Reddit post counts, or YouTube summed views) — units differ by source, so treat it as directional.
 
 | score | keyword | group | channel | gap | comp | demand | community | store vol | verdict | note |
 |--:|---|---|---|---|---|:--:|--:|--:|---|---|

@@ -17,6 +17,8 @@ import argparse
 import json
 import os
 
+from errors import StageError, run_cli
+
 # Shared tool-types (the "app shape"). Ordered so --tools N takes the most natural first.
 TOOLS = [
     "tracker", "planner", "log", "journal", "timer", "reminder", "checklist",
@@ -148,8 +150,11 @@ OUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output", "k
 
 
 def run(out=OUT_PATH, n_tools=len(TOOLS)):
+    if n_tools < 0:
+        # TOOLS[:-n] would silently mean "all but the last n"
+        raise StageError(f"--tools must be >= 0 (got {n_tools})")
     tools = TOOLS[:n_tools]
-    os.makedirs(os.path.dirname(out), exist_ok=True)
+    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     n = 0
     per_vertical = {}
     with open(out, "w", encoding='utf-8') as f:
@@ -183,7 +188,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--tools", type=int, default=len(TOOLS))
     args = ap.parse_args()
-    run(n_tools=args.tools)
+    run_cli(run, n_tools=args.tools)
 
 
 if __name__ == "__main__":

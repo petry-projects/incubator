@@ -19,6 +19,7 @@ import broad_pass
 import errors
 import extract
 import generate_keywords
+import patterns
 import select_priority
 
 # ───────────────────────── errors.py ─────────────────────────
@@ -36,6 +37,19 @@ class TestRunCli:
             errors.run_cli(boom)
         assert exc.value.code == 1
         assert "input unreadable" in capsys.readouterr().err
+
+
+# ───────────────────────── patterns.py ─────────────────────────
+
+
+class TestCatPattern:
+    def test_word_boundaries_on_alphanumeric_edges_only(self):
+        rx = patterns.cat_pattern(["ads", "charge", "$", "pop-up"])
+        assert rx.search("so many ads")
+        assert rx.search("it costs $5")
+        assert rx.search("a pop-up every time")
+        assert not rx.search("it heads downhill")
+        assert not rx.search("battery discharge")
 
 
 # ───────────────────────── generate_keywords.py ─────────────────────────
@@ -65,6 +79,24 @@ class TestGenerateKeywords:
             ("a", "cat tracker"),
             ("b", "dog tracker"),
         ]
+
+    def test_bare_filename_output_path(self, tmp_path, monkeypatch):
+        monkeypatch.chdir(tmp_path)
+        n = generate_keywords.run(out="keywords.jsonl", n_tools=1)  # no parent dir to create
+        assert len(read_jsonl(tmp_path / "keywords.jsonl")) == n
+
+    def test_negative_tool_cap_is_rejected_not_sliced(self, tmp_path):
+        out = tmp_path / "k.jsonl"
+        with pytest.raises(errors.StageError, match="--tools must be >= 0"):
+            generate_keywords.run(out=str(out), n_tools=-1)
+        assert not out.exists()
+
+    def test_main_exits_1_on_negative_tool_cap(self, argv, capsys):
+        argv("--tools", "-1")
+        with pytest.raises(SystemExit) as exc:
+            generate_keywords.main()
+        assert exc.value.code == 1
+        assert "--tools must be >= 0 (got -1)" in capsys.readouterr().err
 
     def test_main_passes_tool_cap(self, argv, monkeypatch):
         seen = {}
@@ -482,10 +514,9 @@ class TestExtractRun:
 
         monkeypatch.setattr(extract, "fetch", banned)
         out = tmp_path / "records.jsonl"
-        counts = extract.run(keywords_path=keywords(40), out_path=str(out), workers=1)
-        assert len(calls) == 15  # the 15th consecutive failure trips the breaker
-        assert counts["fail"] == 15
-        assert counts["ok"] == 0
+        with pytest.raises(errors.StageError, match="throttle storm: batch aborted after 15 failed fetches"):
+            extract.run(keywords_path=keywords(40), out_path=str(out), workers=1)
+        assert len(calls) == 15  # the 15th consecutive failure trips the breaker; the other 25 are never sent
         assert read_jsonl(out) == []
         assert "403-storm" in capsys.readouterr().out
 
@@ -494,6 +525,13 @@ class TestExtractRun:
         counts = extract.run(keywords_path=keywords(100), out_path=str(tmp_path / "r.jsonl"), workers=4)
         assert counts["ok"] == 100
         assert "100 scored / 0 fail" in capsys.readouterr().out
+
+    def test_bare_filename_output_path(self, tmp_path, keywords, monkeypatch):
+        monkeypatch.setattr(extract, "fetch", lambda term, country="us", limit=20: ([], True))
+        kw = keywords(1)
+        monkeypatch.chdir(tmp_path)
+        extract.run(keywords_path=kw, out_path="records.jsonl", workers=1)  # no parent dir to create
+        assert len(read_jsonl(tmp_path / "records.jsonl")) == 1
 
     def test_small_mode_reads_groups_config_and_its_store(self, tmp_path, monkeypatch):
         cfg = tmp_path / "groups.json"

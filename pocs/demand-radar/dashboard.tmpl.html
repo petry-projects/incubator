@@ -97,7 +97,7 @@
   .vbar .vc{font-family:var(--mono);font-size:11px;font-variant-numeric:tabular-nums;color:var(--ink-2);text-align:right}
 
   /* ---- controls ---- */
-  section.controls{position:sticky;top:57px;z-index:20;background:color-mix(in srgb,var(--ground) 92%,transparent);
+  section.controls{position:sticky;top:var(--bar-h,57px);z-index:20;background:color-mix(in srgb,var(--ground) 92%,transparent);
     backdrop-filter:blur(8px);border-top:1px solid var(--line-2);border-bottom:1px solid var(--line);margin-top:12px}
   .ctrl-in{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:11px 20px;max-width:1180px;margin:0 auto}
   .search{flex:1;min-width:160px;display:flex;align-items:center;gap:8px;background:var(--panel);
@@ -361,7 +361,7 @@ function rowHTML(x,i){
   const foc = i===state.focus ? " focus":"";
   const open = state.expanded===key;
   const chips = [
-    x.disrupt ? `<span class="chip disrupt">🎯 leader ${x.leaderR}★ · ${fmt(x.market)}</span>`:"",
+    x.disrupt ? `<span class="chip disrupt">🎯 ${x.leaderR!=null?`leader ${x.leaderR}★`:"resented leader"}${x.market!=null?` · ${fmt(x.market)}`:""}</span>`:"",
     x.resented ? `<span class="chip resent">🔥 ${Math.round(x.resentFrac*100)}% resent · ${(x.resentCats||[]).map(esc).join("/")}</span>`:"",
     `<span class="chip vert">${esc(cap(x.vert))}</span>`,
     `<span class="chip ${esc(g.c)}"><span class="gd" style="background:${g.d}"></span>${esc(g.label)}</span>`,
@@ -454,15 +454,21 @@ document.querySelectorAll(".seg").forEach(seg=>{
     state.focus=-1; render();
   });
 });
-$("#tMA").addEventListener("click", e=>{ state.ma=!state.ma; e.currentTarget.classList.toggle("on",state.ma); render(); });
-$("#sort").addEventListener("change", e=>{ state.sort=e.target.value; render(); });
+$("#tMA").addEventListener("click", e=>{ state.ma=!state.ma; e.currentTarget.classList.toggle("on",state.ma); state.focus=-1; render(); });
+$("#sort").addEventListener("change", e=>{ state.sort=e.target.value; state.focus=-1; render(); });
 let qt; $("#q").addEventListener("input", e=>{ clearTimeout(qt); qt=setTimeout(()=>{ state.q=e.target.value.trim(); state.focus=-1; render(); },140); });
-$("#bars").addEventListener("click", e=>{ const b=e.target.closest(".vbar"); if(b){ state.vert = state.vert===b.dataset.v?"":b.dataset.v; verticalBars(); render(); } });
+$("#bars").addEventListener("click", e=>{ const b=e.target.closest(".vbar"); if(b){ state.vert = state.vert===b.dataset.v?"":b.dataset.v; state.focus=-1; verticalBars(); render(); } });
 $("#bars").addEventListener("keydown", e=>{ if((e.key==="Enter"||e.key===" ")&&e.target.closest(".vbar")){ e.preventDefault(); e.target.click(); }});
-$("#clear").addEventListener("click", ()=>{ Object.assign(state,{q:"",ch:"",gap:"",rate:"",ma:false,lens:"",vert:""});
+$("#clear").addEventListener("click", ()=>{ Object.assign(state,{q:"",ch:"",gap:"",rate:"",ma:false,lens:"",vert:"",focus:-1});
   $("#q").value=""; $("#tMA").classList.remove("on");
   document.querySelectorAll(".seg").forEach(s=>s.querySelectorAll("button").forEach((b,i)=>b.classList.toggle("on",i===0)));
   verticalBars(); render(); });
+
+/* keep the sticky controls bar below the header, whatever height it wraps to */
+const barEl = document.querySelector("header.bar");
+const syncBarH = ()=>document.documentElement.style.setProperty("--bar-h", barEl.offsetHeight+"px");
+if(window.ResizeObserver) new ResizeObserver(syncBarH).observe(barEl);
+syncBarH();
 
 /* keyboard rating */
 document.addEventListener("keydown", e=>{
@@ -473,7 +479,7 @@ document.addEventListener("keydown", e=>{
     render(); const el=$(`.row[data-i="${state.focus}"]`); if(el) el.scrollIntoView({block:"nearest",behavior:"smooth"});
   } else if((k==="s"||k==="m"||k==="x")&&state.focus>=0&&cur[state.focus]){
     e.preventDefault(); setRate(rkey(cur[state.focus]), k==="s"?"star":k==="m"?"maybe":"pass");
-  } else if(k==="enter"&&state.focus>=0&&cur[state.focus]){
+  } else if(k==="enter"&&state.focus>=0&&cur[state.focus]&&!(e.target.closest&&e.target.closest("button,a,[role=button],.vbar"))){
     e.preventDefault(); const key=rkey(cur[state.focus]); state.expanded=state.expanded===key?null:key; render();
   }
 });

@@ -255,5 +255,5 @@
       "note": "resented market: Ultimate Guitar 69% resent"
     }
   ],
-  "finding": "Of 12 app-store-channel starter candidates checked, only 'watermark remover' (vol 48, diff 25) has meaningful App Store demand; 5 read the ~5 floor and 4 are N/A. MobileAction magnitude collapses the app-store worklist to ONE demand-validated candidate and demotes the rest as real-gap-but-no-demand \u2014 the exact value of layering demand on supply. Community-channel keywords remain N/A (as expected)."
+  "finding": "MobileAction magnitude separates real store demand from empty gaps. Among the app-store-channel gap candidates checked, 'watermark remover' (vol 48, diff 25) is the one that pairs meaningful App Store demand with weak supply. Other labeled terms with real volume (flashcards 48, flashcard maker 26, spaced repetition 22, travel journal 17) confirm demand exists but are not weak-supply claims. The remaining candidates read the ~5 floor or N/A and are demoted as real-gap-but-no-demand \u2014 the value of layering demand on supply. Community-channel keywords remain N/A (as expected)."
 }

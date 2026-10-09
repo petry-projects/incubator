@@ -23,7 +23,7 @@
     - *"I do not recommend this to anyone"* — Beware this app sucks. It’s so slow and it will not let you play anything unless you pay for a membership. It doesn’t have good options and frankly I am not imp
     - *"It is not a free app"* — They say it’s free then won’t let you use unless you buy premium. Seems like false advertising.
     - *"Subscription slop"* — This use to be a useful app now they want you to pay so you can learn chord variations. Disgusting.
-    - *"It’s bad"* — Dude don’t even get it it locked me behind a paywall subscription FORCED mind you I couldn’t even use the app without buying the subscription therefor I didn’t 
+    - *"It’s bad"* — Dude don’t even get it it locked me behind a paywall subscription FORCED mind you I couldn’t even use the app without buying the subscription therefor I didn’t
 - **ads** — 49 complaint(s) across leaders
     - *"Enough with the ads"* — Stop throwing a subscription plan ad in my face every single time I open the app. When I start up Ultimate Guitar, I want to look up songs and learn them. I don
     - *"Commercial?"* — Why all the commercials all of a sudden. Ever app wants to do commercials every 2 or 3 minutes.😡
@@ -34,16 +34,12 @@
     - *"WTF"* — Limited songs?!?!? We have to pay after a certain amount of songs now and it used to be free
     - *"Shame on you, ChordBank"* — This app used to be great, then all of a sudden they removed the scales section over to a different app and are trying to charge a yearly subscription.
 - **missing / limited** — 29 complaint(s) across leaders
-    - *"My favorite app now crashes"* — Update:  The app now crashes after every 1 to 4 songs played.  Please fix it. 
-
-I had to come back and add another star because of the addition of the SMART scr
+    - *"My favorite app now crashes"* — Update:  The app now crashes after every 1 to 4 songs played.  Please fix it. I had to come back and add another star because of the addition of the SMART scr
     - *"Subscription issues."* — I have a subscription till September, and it treats me like a free account, I don’t want to add another year yet, because it may do the same; why am I getting a
     - *"It was Great Until Today 7-2025"* — Used this for years for occasional chord reference; I guess it updated because today it was trying to make me sign up for free trial lessons (money later of cou
     - *"It seems cool"* — It seems cool but I don’t use apps that don’t allow at least a limited use for free. Let me try it out. See if I even like it. Then I’ll pay for a subscription.
 - **bugs / reliability** — 24 complaint(s) across leaders
-    - *"My favorite app now crashes"* — Update:  The app now crashes after every 1 to 4 songs played.  Please fix it. 
-
-I had to come back and add another star because of the addition of the SMART scr
+    - *"My favorite app now crashes"* — Update:  The app now crashes after every 1 to 4 songs played.  Please fix it. I had to come back and add another star because of the addition of the SMART scr
     - *"Bugs"* — I’m on version 8.33.1 and I’m having issues with the Chordify Song function, with certain songs that haven’t been played yet and you have to click Chordify now,
     - *"Nope"* — This app is pay to play on any features you need to add. It’s a money grab to access all the normal things you would want to use on an app like this. By the tim
     - *"Nice app but expensive and laggy"* — it’s cool concept it really is but 7 bucks a week is excessive it really is. and for it to freeze up half the time or the chords don’t match the beat. it’s does

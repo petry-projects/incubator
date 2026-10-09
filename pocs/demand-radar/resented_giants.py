@@ -17,10 +17,11 @@ Resumable (skips leaders already processed). Paced to avoid iTunes throttling.
 import argparse
 import json
 import os
-import re
 import time
 import urllib.parse
 import urllib.request
+
+from patterns import cat_pattern
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Fixed data locations. Deliberately NOT CLI options: a path taken from argv would flow into
@@ -88,20 +89,7 @@ CATS = {
 SWITCH = ("pricing", "ads", "enshittification")  # the gripes that actually drive users to leave
 
 
-def _cat_pattern(kws):
-    """Compile a category's terms into a boundary-aware regex so 'ads' matches 'ads'/'so
-    many ads' but not 'heads', and 'charge' doesn't match 'discharge'. Boundaries are added
-    only where the term edge is a word char (phrases and symbols still match literally)."""
-    parts = []
-    for k in kws:
-        esc = re.escape(k)
-        left = r"\b" if k[:1].isalnum() else ""
-        right = r"\b" if k[-1:].isalnum() else ""
-        parts.append(left + esc + right)
-    return re.compile("|".join(parts))
-
-
-CAT_RE = {c: _cat_pattern(kws) for c, kws in CATS.items()}
+CAT_RE = {c: cat_pattern(kws) for c, kws in CATS.items()}
 
 
 def get(url):
@@ -109,20 +97,27 @@ def get(url):
 
 
 def resolve_id(name):
+    """Look a leader's track id up by app name. Only an exact (case-insensitive) title match
+    counts: taking the first search hit could attribute another app's reviews to this leader."""
     try:
         d = json.loads(
             get(
                 "https://itunes.apple.com/search?"
-                + urllib.parse.urlencode({"term": name, "country": "us", "entity": "software", "limit": 1})
+                + urllib.parse.urlencode({"term": name, "country": "us", "entity": "software", "limit": 5})
             )
         )
-        return (d.get("results") or [{}])[0].get("trackId")
     except Exception:  # noqa: BLE001
         return None
+    want = name.strip().lower()
+    return next(
+        (r.get("trackId") for r in d.get("results") or [] if (r.get("trackName") or "").strip().lower() == want),
+        None,
+    )
 
 
 def fetch_low_reviews(tid):
-    """Recent 1-3 star reviews as (rating, title, content)."""
+    """Recent 1-3 star reviews as (rating, title, content), or None when no page could be
+    fetched at all (timeout/throttle) — "no sample" must not read as "no complaints"."""
     out = []
     for page in (1, 2):
         try:
@@ -130,6 +125,8 @@ def fetch_low_reviews(tid):
                 get(f"https://itunes.apple.com/us/rss/customerreviews/page={page}/id={tid}/sortBy=mostRecent/json")
             )
         except Exception:  # noqa: BLE001
+            if page == 1:
+                return None
             break
         for e in r.get("feed", {}).get("entry", []):
             rt = e.get("im:rating", {}).get("label")
@@ -198,6 +195,7 @@ def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
         todo = todo[:max_n]
     print(f"proven-market leaders: {len(leaders)} | already done: {len(out)} | to process: {len(todo)}", flush=True)
 
+    unfetched = 0
     for i, k in enumerate(todo):
         L = leaders[k]
         tid = L["id"] or resolve_id(L["app"])
@@ -205,8 +203,14 @@ def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
         if not tid:
             out[k] = {**L, "resented": False, "note": "no-id"}
             continue
-        sc = scan(fetch_low_reviews(tid))
+        reviews = fetch_low_reviews(tid)
         time.sleep(sleep)
+        if reviews is None:
+            # Not recorded, so the next (resumed) run retries this leader instead of
+            # treating a failed fetch as a completed "not resented" scan.
+            unfetched += 1
+            continue
+        sc = scan(reviews)
         resented = L["market"] >= min_market and sc["switch_hits"] >= 4 and sc["resent_frac"] >= 0.25
         out[k] = {**L, "id": tid, **sc, "resented": resented}
         if (i + 1) % 10 == 0:
@@ -228,6 +232,8 @@ def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
         print(
             f"  {v.get('leaderR')}star /{v['market']:>9,}  resent={int(v['resent_frac'] * 100)}% [{cats}]  {v['app'][:34]}  (e.g. '{v['kw']}' [{v['vert']}])"
         )
+    if unfetched:
+        print(f"\n{unfetched} leader(s) had no fetchable reviews this run; left pending for the next one")
     print(f"\n-> {out_path}")
     return out
 

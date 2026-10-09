@@ -24,6 +24,8 @@ import time
 import urllib.parse
 import urllib.request
 
+from patterns import cat_pattern
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 UA = "DemandRadar-spike/0.6 (+petry-projects/incubator; research)"
 
@@ -103,20 +105,7 @@ GRIPES = {
 RESENT_CATS = ("pricing / paywall", "ads", "got worse (enshittification)")
 
 
-def _cat_pattern(kws):
-    """Boundary-aware regex (mirrors resented_giants._cat_pattern) so 'ads' matches 'ads'
-    but not 'heads', and 'charge' doesn't match 'discharge'. A word boundary is added only
-    where the term edge is alphanumeric, so phrases/symbols (e.g. '$') still match literally."""
-    parts = []
-    for k in kws:
-        esc = re.escape(k)
-        left = r"\b" if k[:1].isalnum() else ""
-        right = r"\b" if k[-1:].isalnum() else ""
-        parts.append(left + esc + right)
-    return re.compile("|".join(parts))
-
-
-GRIPE_RE = {c: _cat_pattern(kws) for c, kws in GRIPES.items()}
+GRIPE_RE = {c: cat_pattern(kws) for c, kws in GRIPES.items()}
 LOVES = [
     "simple",
     "easy",
@@ -137,6 +126,8 @@ LOVES = [
     "reliable",
     "customizable",
 ]
+# whole-word/phrase matching, so "free" is not found inside "freezes" and counted as praise
+LOVE_RE = {w: cat_pattern([w]) for w in LOVES}
 WISH_RE = re.compile(r"(?:wish|would love|needs?|please add|no way to|can'?t)\b[^.!?]{0,80}", re.I)
 
 
@@ -172,6 +163,8 @@ def competitors(kw, top):
 
 
 def reviews(tid, pages):
+    """Recent reviews as (rating, title, content), or None when not even the first page could
+    be fetched — an unavailable sample must not be reported as 0% resentment."""
     out = []
     for pg in range(1, pages + 1):
         try:
@@ -179,6 +172,8 @@ def reviews(tid, pages):
                 get(f"https://itunes.apple.com/us/rss/customerreviews/page={pg}/id={tid}/sortBy=mostRecent/json")
             )
         except Exception:  # noqa: BLE001
+            if pg == 1:
+                return None
             break
         for e in r.get("feed", {}).get("entry", []):
             rt = e.get("im:rating", {}).get("label")
@@ -209,8 +204,8 @@ def analyze_reviews(revs):
     loves = collections.Counter()
     for rt, t, b in high:
         hay = (t + " . " + b).lower()
-        for w in LOVES:
-            if w in hay:
+        for w, rx in LOVE_RE.items():
+            if rx.search(hay):
                 loves[w.replace(" it", "").replace(" this", "")] += 1
     wishes = []
     for rt, t, b in low + high:
@@ -285,11 +280,15 @@ def main():
             "genre": a.get("primaryGenreName"),
         }
         if c["count"] >= args.min_ratings and c["id"]:
-            rv = analyze_reviews(reviews(c["id"], args.pages))
-            c["reviews"] = rv
-            for k, v in rv["gripes"].items():
-                market_gripes[k] += v
-            wish_lists.append(rv["wishes"])
+            revs = reviews(c["id"], args.pages)
+            if revs is None:
+                c["reviews_unavailable"] = True  # rendered as unknown ("n/a"), not 0%
+            else:
+                rv = analyze_reviews(revs)
+                c["reviews"] = rv
+                for k, v in rv["gripes"].items():
+                    market_gripes[k] += v
+                wish_lists.append(rv["wishes"])
             time.sleep(0.6)
         comps.append(c)
 
@@ -326,7 +325,7 @@ def main():
     L.append("|---|--:|--:|---|---|--:|")
     for c in comps:
         rv = c.get("reviews")
-        res = f"{int(rv['resent_frac'] * 100)}%" if rv else "—"
+        res = f"{int(rv['resent_frac'] * 100)}%" if rv else "n/a" if c.get("reviews_unavailable") else "—"
         L.append(f"| {c['app']} | {c['rating']} | {c['count']:,} | {c['price']} | {c['updated']} | {res} |")
     cutoff = time.strftime("%Y-%m", time.gmtime(time.time() - 365 * 86400))
     stale = [c["app"] for c in comps if c["updated"] and c["updated"] < cutoff]

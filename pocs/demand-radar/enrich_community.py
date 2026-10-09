@@ -237,7 +237,9 @@ def fetch_for(record, forced, budget_left, rtoken, dead):
             budget_left[src] -= 1
             return cm
         except Exception as e:  # noqa: BLE001
-            if "429" in str(e) or "quota" in str(e).lower():
+            # 403/429 status (YouTube reports an exhausted quota as a plain "403 Forbidden")
+            # or a quota message: the source is spent for this run.
+            if getattr(e, "code", None) in (403, 429) or "429" in str(e) or "quota" in str(e).lower():
                 dead.add(src)  # exhausted for this run — stop trying it (no more wasted 429s)
                 print(f"  ~ {src} exhausted (429/quota); skipping it for the rest of this run", file=sys.stderr)
             else:
@@ -280,6 +282,12 @@ def default_source():
 
 
 def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
+    # A forced source that cannot work would otherwise "succeed" with every target written
+    # as source "none" — fail up front instead. (Auto-routing still just skips youtube.)
+    if source and source not in BUDGET:
+        raise StageError(f"Error: unknown community source {source!r}; expected one of {', '.join(BUDGET)}.")
+    if source == "youtube" and "YOUTUBE_API_KEY" not in os.environ:
+        raise StageError("Error: --source youtube requires YOUTUBE_API_KEY. Aborting instead of falling back.")
     with open(inp, encoding="utf-8") as f:
         records = [json.loads(line) for line in f]
     survivors = [r for r in records if not r.get("verdict_heuristic", "").startswith("REJECT")]

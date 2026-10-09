@@ -21,6 +21,7 @@ import errors
 import export_dashboard as dash
 import pipeline
 import rank_starter_list as rank
+import records
 import resented_giants as rg
 
 # ───────────────────────── enrich_community.py: sources ─────────────────────────
@@ -115,13 +116,11 @@ class TestCommunitySources:
                 ],
             },
         )
-        http.add(
-            "youtube/v3/videos", {"items": [{"statistics": {"viewCount": "1200"}}, {"statistics": {"viewCount": "30"}}]}
-        )
+        http.add("youtube/v3/videos", {"items": [{"statistics": {"viewCount": "1200"}}]})
         cm = enrich.yt_mentions("mood tracker")
         assert cm == {
             "source": "youtube",
-            "mentions": 1230,
+            "mentions": 1200,
             "relevant_videos": 1,
             "est_total": 99,
             "query": "mood tracker",
@@ -212,6 +211,15 @@ class TestFetchFor:
         assert cm["source"] == "stackexchange"
         assert calls[1] == ("stackexchange", "mood tracker", "gaming")
         assert "youtube exhausted" in capsys.readouterr().err
+
+    def test_bare_403_status_trips_the_breaker(self, sources):
+        # YouTube reports an exhausted quota as "HTTP Error 403: Forbidden" — no "quota"/"429" text
+        _, fail = sources
+        fail["youtube"] = urllib.error.HTTPError("u", 403, "Forbidden", email.message.Message(), None)
+        dead = set()
+        cm = enrich.fetch_for(rec_for("gaming-companions"), None, dict(enrich.BUDGET), None, dead)
+        assert dead == {"youtube"}
+        assert cm["source"] == "stackexchange"
 
     def test_quota_word_also_trips_the_breaker(self, sources):
         _, fail = sources
@@ -330,6 +338,28 @@ class TestEnrichRun:
             enrich.run(inp=inp, out=str(out), source="reddit", sleep=0)
         assert not out.exists()
 
+    def test_unknown_forced_source_is_a_stage_error(self, tmp_path, write_jsonl):
+        inp = write_jsonl(tmp_path / "r.jsonl", [make_record("dog log")])
+        out = tmp_path / "o.jsonl"
+        with pytest.raises(errors.StageError, match="unknown community source 'stackexchnage'"):
+            enrich.run(inp=inp, out=str(out), source="stackexchnage", sleep=0)
+        assert not out.exists()
+
+    def test_forced_youtube_without_a_key_is_a_stage_error(self, tmp_path, write_jsonl, monkeypatch):
+        monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
+        inp = write_jsonl(tmp_path / "r.jsonl", [make_record("dog log")])
+        out = tmp_path / "o.jsonl"
+        with pytest.raises(errors.StageError, match="requires YOUTUBE_API_KEY"):
+            enrich.run(inp=inp, out=str(out), source="youtube", sleep=0)
+        assert not out.exists()
+
+    def test_forced_youtube_with_a_key(self, tmp_path, write_jsonl, sources, monkeypatch):
+        calls, _ = sources
+        monkeypatch.setenv("YOUTUBE_API_KEY", "yt")
+        inp = write_jsonl(tmp_path / "r.jsonl", [make_record("dog log", industry="pets")])
+        enrich.run(inp=inp, out=str(tmp_path / "o.jsonl"), source="youtube", sleep=0)
+        assert calls == [("youtube", "dog log")]
+
     def test_forced_reddit_with_credentials(self, tmp_path, write_jsonl, sources, monkeypatch):
         calls, _ = sources
         monkeypatch.setenv("REDDIT_CLIENT_ID", "id")
@@ -382,16 +412,28 @@ class TestResentedFetchers:
         http.add("example.test", b"raw-bytes")
         assert rg.get("https://example.test/x") == b"raw-bytes"
 
-    def test_resolve_id_takes_the_first_result(self, http):
-        http.add("itunes.apple.com/search", {"results": [{"trackId": 99}, {"trackId": 1}]})
+    def test_resolve_id_requires_an_exact_title_match(self, http):
+        http.add(
+            "itunes.apple.com/search",
+            {"results": [{"trackId": 1, "trackName": "Quizlet Plus Helper"}, {"trackId": 99, "trackName": "QUIZLET "}]},
+        )
         assert rg.resolve_id("Quizlet") == 99
         assert "term=Quizlet" in http.calls[0]
+
+    def test_resolve_id_rejects_a_lookalike_first_hit(self, http):
+        http.add("itunes.apple.com/search", {"results": [{"trackId": 1, "trackName": "Quizlet Plus Helper"}]})
+        assert rg.resolve_id("Quizlet") is None
 
     def test_resolve_id_is_none_when_nothing_found_or_request_fails(self, http):
         http.add("term=Nothing", {"results": []})
         http.add("term=Broken", OSError("403"))
         assert rg.resolve_id("Nothing") is None
         assert rg.resolve_id("Broken") is None
+
+    def test_fetch_low_reviews_is_none_when_no_page_can_be_fetched(self, http, sleeps):
+        http.add("page=1/id=7", OSError("timed out"))
+        assert rg.fetch_low_reviews(7) is None
+        assert sleeps == []
 
     def test_fetch_low_reviews_keeps_1_to_3_stars_and_stops_on_error(self, http, sleeps):
         http.add(
@@ -485,6 +527,17 @@ class TestResentedRun:
         assert "10/13" in stdout
         assert "RESENTED GIANTS: 1" in stdout
         assert "resent=80% [pricing]  BigApp" in stdout
+
+    def test_leader_with_unfetchable_reviews_stays_pending(self, tmp_path, write_jsonl, monkeypatch, capsys):
+        monkeypatch.setattr(rg, "fetch_low_reviews", lambda tid: None if tid == 1 else [])
+        inp = write_jsonl(
+            tmp_path / "r.jsonl", [leader_record("Throttled", 9000, app_id=1), leader_record("Fine", 9000, app_id=2)]
+        )
+        out = tmp_path / "resented.json"
+        result = rg.run(inp=inp, out_path=str(out), sleep=0)
+        assert list(result) == ["fine"]  # not recorded as a completed "not resented" scan
+        assert "throttled" not in json.loads(out.read_text(encoding="utf-8"))
+        assert "1 leader(s) had no fetchable reviews this run" in capsys.readouterr().out
 
     def test_max_n_bounds_the_batch(self, tmp_path, write_jsonl, scan_inputs):
         inp = write_jsonl(
@@ -699,6 +752,38 @@ class TestExportDashboard:
         assert by_kw["odd metric"]["vol"] is None
 
 
+class TestLoadCurrentRecords:
+    def test_base_records_overlaid_with_their_enriched_copies(self, tmp_path, write_jsonl):
+        enriched_dog = make_record("dog log", community={"mentions": 40, "source": "stackexchange"})
+        write_jsonl(tmp_path / "output" / "records.jsonl", [make_record("dog log"), make_record("cat log")])
+        write_jsonl(tmp_path / "output" / "records.enriched.jsonl", [enriched_dog])
+        rows = records.load_current(str(tmp_path))
+        # "cat log" was appended after the last successful enrichment: still reported
+        assert [r["canonical_query"] for r in rows] == ["dog log", "cat log"]
+        assert rows[0]["demand"]["community_metric"] == {"mentions": 40, "source": "stackexchange"}
+        assert rows[1]["demand"]["community_metric"] is None
+
+    def test_same_phrase_in_two_verticals_stays_distinct(self, tmp_path, write_jsonl):
+        write_jsonl(
+            tmp_path / "output" / "records.jsonl",
+            [make_record("medication tracker", industry="pets"), make_record("medication tracker", industry="seniors")],
+        )
+        write_jsonl(
+            tmp_path / "output" / "records.enriched.jsonl",
+            [make_record("medication tracker", industry="seniors", verdict="WATCH")],
+        )
+        rows = records.load_current(str(tmp_path))
+        assert [(r["industry"], r["verdict_heuristic"]) for r in rows] == [("pets", "CANDIDATE"), ("seniors", "WATCH")]
+
+    def test_only_one_file_present(self, tmp_path, write_jsonl):
+        write_jsonl(tmp_path / "output" / "records.enriched.jsonl", [make_record("dog log")])
+        assert [r["canonical_query"] for r in records.load_current(str(tmp_path))] == ["dog log"]
+
+    def test_no_records_at_all_is_an_error(self, tmp_path):
+        with pytest.raises(FileNotFoundError):
+            records.load_current(str(tmp_path))
+
+
 class TestRankStarterList:
     def test_community_bonus_without_a_metric(self):
         assert rank.community_bonus(make_record("x")) == (0, None)
@@ -757,6 +842,10 @@ class TestDeepDiveFetchers:
         http.add("itunes.apple.com/search", {"results": [{"trackId": i} for i in range(12)]})
         assert deep_dive.competitors("mood tracker", 3) == [{"trackId": 0}, {"trackId": 1}, {"trackId": 2}]
         assert "limit=10" in http.calls[0]
+
+    def test_reviews_is_none_when_no_page_can_be_fetched(self, http):
+        http.add("page=1/id=7", OSError("403"))
+        assert deep_dive.reviews(7, 3) is None
 
     def test_reviews_reads_rated_entries_and_stops_on_error(self, http, sleeps):
         http.add(
@@ -862,6 +951,26 @@ class TestDeepDiveMain:
         result = json.loads((tmp_path / "output" / "deepdive" / "white-noise.json").read_text(encoding="utf-8"))
         assert len(result["wishes"]) == 10
         assert [w.split()[2] for w in result["wishes"]] == ["1", "2", "3", "1", "2", "3", "1", "2", "3", "1"]
+
+    def test_unavailable_reviews_render_as_unknown_not_zero(self, tmp_path, monkeypatch, argv):
+        monkeypatch.setattr(deep_dive, "HERE", str(tmp_path))
+        monkeypatch.setattr(deep_dive, "competitors", lambda kw, top: self.APPS[:1])
+        monkeypatch.setattr(deep_dive, "reviews", lambda tid, pages: None)
+        argv("--keyword", "mood tracker")
+        deep_dive.main()
+        outdir = tmp_path / "output" / "deepdive"
+        comp = json.loads((outdir / "mood-tracker.json").read_text(encoding="utf-8"))["competitors"][0]
+        assert comp["reviews_unavailable"] is True
+        assert "reviews" not in comp
+        assert "| Daylio | 4.71 | 5,000 | Free | 2020-01 | n/a |" in (outdir / "mood-tracker.md").read_text(
+            encoding="utf-8"
+        )
+
+    def test_loves_match_whole_words_only(self):
+        rv = deep_dive.analyze_reviews(
+            [(5, "ugh", "it freezes but the fastest bestie loved it"), (5, "ok", "free and fast")]
+        )
+        assert rv["loves"] == {"free": 1, "fast": 1}
 
     def test_long_excerpts_are_marked_as_clipped(self):
         body = "subscription " * 30

@@ -43,7 +43,8 @@ python3 -c "t=open('pocs/demand-radar/dashboard.tmpl.html').read(); d=open('pocs
 
 ## Re-setup needed in a new session
 - **YouTube key**: the old one was recycled. Get a new YouTube Data API v3 key, then `export YOUTUBE_API_KEY=...`
-  (put it in a gitignored env file, e.g. a scratchpad `dr.env`, and `source` it before `enrich_community.py`).
+  (put it in a gitignored env file — `pocs/demand-radar/dr.env` is covered by that directory's `*.env`
+  ignore rule; the repo root has no such rule — and `source` it before `enrich_community.py`).
   Without it, enrich falls back to StackExchange/HackerNews automatically.
 - **MobileAction**: manual validation runs through the user's logged-in browser session (insights.mobileaction.co
   Keyword Inspector). Drive it via the Chrome browser tools; read Volume/Difficulty per keyword.

@@ -50,6 +50,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false   # read-only job: never leave the token in .git/config
 
       - name: Run DemandRadar pipeline (stdlib only — no pip)
         env:
@@ -69,7 +71,11 @@ jobs:
             --rate "$DR_RATE"
 
       - name: Summarize in the run log
-        if: ${{ always() }}   # a DEGRADED pipeline exits non-zero but still built partial output
+        # A DEGRADED pipeline exits non-zero but still rebuilt partial output, so run after a
+        # failure too — but only if this run reached the build stage. dashboard.html is
+        # gitignored, so it exists only when pipeline.py built it; without that guard a run
+        # that died at a fatal stage would present the COMMITTED snapshot as its refresh.
+        if: ${{ always() && hashFiles('pocs/demand-radar/dashboard.html') != '' }}
         run: |
           {
             echo "### DemandRadar refresh"
@@ -77,7 +83,8 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload data + built dashboard
-        if: ${{ always() }}   # still ship the partial refresh even when a network stage failed
+        # same guard as the summary: ship a partial refresh, never the stale committed files
+        if: ${{ always() && hashFiles('pocs/demand-radar/dashboard.html') != '' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: demand-radar

@@ -9,12 +9,15 @@ a ranked `output/starter-list.md` — the robust idea starter list.
 It also flags app-store-channel candidates that still lack a magnitude read
 (`needs_magnitude`) — that column is the worklist for the manual MobileAction pass.
 
-Score = gap severity + supply-scarcity + community corroboration. Deliberately
+Score = gap severity + supply-scarcity + community corroboration + autocomplete demand,
+then a MobileAction volume boost/penalty for labeled app-store keywords. Deliberately
 legible, not tuned — the labeled set (labels/) is what a real scorer trains on.
 """
 
 import json
 import os
+
+from records import load_current
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 GAP_W = {"absent-in-store": 3, "absent": 3, "nascent": 2, "stale": 2, "low-quality": 2, "thin": 1, "served": 0}
@@ -63,11 +66,7 @@ def load_broad():
 
 
 def main():
-    src = os.path.join(HERE, "output", "records.enriched.jsonl")
-    if not os.path.exists(src):
-        src = os.path.join(HERE, "output", "records.jsonl")
-    with open(src, encoding="utf-8") as f:
-        records = [json.loads(line) for line in f]
+    records = load_current(HERE)
     labels = load_labels()
     broad = load_broad()
 
@@ -136,12 +135,20 @@ def main():
     with open(out, "w", encoding="utf-8") as f:
         f.write("# DemandRadar — idea starter list (ranked)\n\n")
         f.write(f"{len(rows)} non-REJECT candidates from {len(records)} keywords. ")
-        f.write("Score = gap severity + supply scarcity + community corroboration (legible, untuned).\n\n")
-        f.write("`vol` = MobileAction App Store volume (manual label; blank = not yet pulled). ")
+        f.write(
+            "Score = gap severity + supply scarcity + community corroboration + autocomplete demand, "
+            "then a MobileAction volume boost/penalty on labeled app-store keywords (legible, untuned).\n\n"
+        )
+        f.write(
+            "`vol` = MobileAction App Store volume (manual label). `—` = no volume: not yet pulled "
+            "(app-store rows are then flagged `needs MA ▲`) or pulled and N/A. "
+        )
         f.write("`*` in verdict = store gap needing non-store verification.\n\n")
         f.write(
-            "`demand` = Google-Suggest app_intent/broad_interest (nonsense gate). "
-            "`community` via YouTube is loose (inflated) — treat as directional.\n\n"
+            "`demand` = autocomplete app_intent/broad_interest from the broad pass (nonsense gate). "
+            "`community` = mentions from the record's community source (Hacker News / StackExchange / "
+            "Reddit post counts, or YouTube summed views) — units differ by source, so treat it as "
+            "directional.\n\n"
         )
         f.write(
             "| score | keyword | group | channel | gap | comp | demand | community | store vol | verdict | note |\n"

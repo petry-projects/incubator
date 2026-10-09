@@ -7,10 +7,10 @@ Answers: **can we extract the load-bearing signal on a schedule, headless, with 
 
 ```
 generate_keywords.py  # 0 idea space   25 verticals x domains x tools         -> output/keywords.jsonl (11,616)
-broad_pass.py         # 1 WIDE/cheap    Google Suggest (~10/s, all verticals)  -> output/keywords.broad.jsonl
+broad_pass.py         # 1 WIDE/cheap    autocomplete: DuckDuckGo (Google opt-in) -> output/keywords.broad.jsonl
 select_priority.py    # 2 rank+narrow   top-K per vertical by broad demand     -> output/keywords.priority.jsonl
 extract.py            # 3 SUPPLY/scarce iTunes on PRIORITY only (ban-prone)    -> output/records.jsonl
-enrich_community.py   # 4 community     StackExchange/YouTube, survivors only  -> output/records.enriched.jsonl
+enrich_community.py   # 4 community     YouTube/StackExchange, HN fallback     -> output/records.enriched.jsonl
 labels/               # 5 magnitude     MobileAction, manual, top survivors    -> app-store ground truth
 rank_starter_list.py  #   merge + rank  demand-aware                           -> output/starter-list.md  <- deliverable
 ```
@@ -34,7 +34,7 @@ does `pip install pytest` to run the unit tests.
 
 ```
 python3 extract.py             # supply signal
-python3 enrich_community.py    # + community sizing & corroboration (HN backend by default)
+python3 enrich_community.py    # + community sizing & corroboration (auto-routed per vertical)
 ```
 
 ## What each layer fills
@@ -42,7 +42,7 @@ python3 enrich_community.py    # + community sizing & corroboration (HN backend 
 | Layer | Source | Auth | Status |
 |---|---|---|---|
 | Supply-quality: relevant incumbents, best rating, freshness, competition, satisfaction, `gap_type` | iTunes Search API | none | ✅ |
-| Community sizing: `community_metric` + corroboration of store-absent gaps | Reddit (primary) / HN Algolia (live fallback) | Reddit=OAuth secret; HN=none | ✅ (HN live) |
+| Community sizing: `community_metric` + corroboration of store-absent gaps | Auto-routed per vertical: YouTube or StackExchange, then Hacker News. The scheduled Action forces StackExchange; Reddit is used only when forced (`--source reddit`) | YouTube=API key; StackExchange/HN=none; Reddit=OAuth secret | ✅ |
 | Demand magnitude: `app_store_volume` | MobileAction (manual) → `labels/` | paid | 🔒 manual labeled set only |
 
 ## Two load-bearing mechanics
@@ -55,8 +55,10 @@ Paired with per-record `supply_confidence`: `discovery_channel = community` ⇒ 
 lens), so those emit `CANDIDATE*` = "store shows a gap, verify elsewhere."
 
 **2. Community corroboration (enrich_community.py).** Turns `CANDIDATE*` into a real `CANDIDATE` only when
-community chatter confirms demand (the "≥2 independent mechanisms" rule, #44): `mentions ≥ 300` → promote,
-`< 50` → reject as too thin, else WATCH.
+community chatter confirms demand (the "≥2 independent mechanisms" rule, #44): at or above the source's
+corroboration cutoff → promote, below its thin cutoff → reject, else WATCH. Cutoffs are per source because the
+units differ (`THRESHOLDS`): Hacker News 300 / 50 posts, StackExchange 25 / 3, Reddit 10 / 2, YouTube
+50,000 / 2,000 summed views.
 
 ## Findings from running it (this is the point of the spike)
 
@@ -84,10 +86,14 @@ daily-batch** process. The pipeline is built for exactly this:
 - `extract.py` is **rate-limited** (`--rate`, default 20/min — within the ~20–30/min iTunes
   limit above), **resumable** (skips already-scored
   keywords), **pollution-safe** (a throttled/failed fetch is skipped, never written as a false gap),
-  and has a **403-storm circuit breaker** (pauses 300s, then resumes).
-- The scheduled Action should run a **bounded batch per day** (`--max ~500 --rate ~20`); over ~2–3
-  weeks it accumulates full coverage of the idea space. `generate_keywords.py` output is interleaved
-  across verticals, so every partial run already spans all 25.
+  and has a **403-storm circuit breaker**: a 403/429 is never retried, and after 15 consecutive failed
+  fetches the batch is aborted and the stage reports failure; unscored keywords stay pending for the next run.
+- The scheduled Action runs **weekly** with a bounded batch (`--max 240 --rate 18`) over the
+  **priority** set only (top 50 per vertical ≈ 1,250 keywords), so priority coverage accumulates over
+  several runs. The full 11,616-keyword space is scored only by an explicit `extract.py --source all`.
+  `extract.py` interleaves verticals when it loads keywords, so every partial batch spans all 25.
+- `--preset full` resumes an existing `output/keywords.broad.jsonl`. After changing the keyword lexicon,
+  delete that file first so removed/renamed keywords cannot occupy priority slots.
 - Community/demand layers are quota-limited too (SE ~300/day, YouTube ~90/day) → enrich **survivors
   only**, budget-routed (`enrich_community.py --max`).
 

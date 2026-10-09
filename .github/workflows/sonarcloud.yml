@@ -84,11 +84,16 @@ jobs:
       # `coverage` job; this step only has to produce the report, though a genuinely
       # failing test still fails the job rather than scanning with stale numbers.
       - name: Generate Python coverage report (DemandRadar)
+        # Same guard as the scan: with no SONAR_TOKEN the job stays a green no-op.
+        if: env.SONAR_TOKEN != ''
         working-directory: pocs/demand-radar
         run: |
+          # One retry after a short backoff for a transient PyPI blip (org CI standard:
+          # network-bound steps get exactly one retry; paid only on failure).
+          retry() { "$@" && return 0; echo "::warning::'$*' failed — retrying once in 15s"; sleep 15; "$@"; }
           # Pinned + wheels-only: lock the resolved version (S8544) and skip source
           # setup scripts (S8541) for a reproducible, tamper-resistant install.
-          python3 -m pip install -q --only-binary :all: pytest==9.1.1 pytest-cov==7.1.0
+          retry python3 -m pip install -q --only-binary :all: pytest==9.1.1 pytest-cov==7.1.0
           python3 -m pytest tests/ -q --cov=. --cov-report=xml:coverage.xml
       - name: SonarCloud Scan
         id: sonar

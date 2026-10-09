@@ -307,7 +307,7 @@ def run(
     else:
         kwrecs, country = load_groups_json(config_path)
 
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     # RESUME: skip keywords already scored. Key on (industry, canonical_query): the same
     # phrase recurs across verticals (e.g. "medication tracker" in pets vs. seniors) as a
     # DISTINCT opportunity, so a keyword-only key would skip the second vertical's record.
@@ -369,6 +369,13 @@ def run(
             for fut in as_completed([ex.submit(work, k) for k in pending]):
                 fut.result()
     print(f"DONE. wrote {counts['n']} records (ok={counts['ok']} fail={counts['fail']}) -> {out_path}", flush=True)
+    if abort.is_set():
+        # Per-keyword failures are routine (they stay pending); a tripped breaker means the
+        # run was cut short by a ban, so report the stage as failed rather than done.
+        raise StageError(
+            f"iTunes throttle storm: batch aborted after {counts['fail']} failed fetches "
+            f"({counts['ok']} scored; the rest stay pending for a later run)"
+        )
     return counts
 
 
