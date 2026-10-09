@@ -77,6 +77,19 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+      # Per-stack coverage for the scan (same idiom as the org's Node repos, which run
+      # jest --coverage here): the scanner only reports the coverage it is handed, so run
+      # the DemandRadar unit tests and leave pocs/demand-radar/coverage.xml for
+      # sonar.python.coverage.reportPaths. The pass/fail threshold lives in ci.yml's
+      # `coverage` job; this step only has to produce the report, though a genuinely
+      # failing test still fails the job rather than scanning with stale numbers.
+      - name: Generate Python coverage report (DemandRadar)
+        working-directory: pocs/demand-radar
+        run: |
+          # Pinned + wheels-only: lock the resolved version (S8544) and skip source
+          # setup scripts (S8541) for a reproducible, tamper-resistant install.
+          python3 -m pip install -q --only-binary :all: pytest==9.1.1 pytest-cov==7.1.0
+          python3 -m pytest tests/ -q --cov=. --cov-report=xml:coverage.xml
       - name: SonarCloud Scan
         id: sonar
         if: env.SONAR_TOKEN != ''

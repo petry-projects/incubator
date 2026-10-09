@@ -1,0 +1,5 @@
+# Coverage scope for the DemandRadar stage modules (pytest-cov, run from this directory).
+# Tests measure the product code, not themselves.
+[run]
+omit =
+    tests/*

@@ -20,12 +20,13 @@ import argparse
 import json
 import os
 import re
-import sys
 import threading
 import time
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, wait
+
+from errors import StageError, run_cli
 
 UA = "Mozilla/5.0 (research; petry-projects/incubator DemandRadar-spike)"
 
@@ -84,25 +85,23 @@ def score(term, suggestions):
     }
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    here = os.path.dirname(os.path.abspath(__file__))
-    ap.add_argument("--in", dest="inp", default=os.path.join(here, "output", "keywords.jsonl"))
-    ap.add_argument("--out", default=os.path.join(here, "output", "keywords.broad.jsonl"))
-    ap.add_argument("--workers", type=int, default=8)
-    ap.add_argument("--engine", default="ddg", choices=list(ENGINES))
-    args = ap.parse_args()
+HERE = os.path.dirname(os.path.abspath(__file__))
+# Fixed data locations. Deliberately NOT CLI options: a path taken from argv would flow into
+# open() (path injection); callers that need other locations (tests) pass them to run().
+IN_PATH = os.path.join(HERE, "output", "keywords.jsonl")
+OUT_PATH = os.path.join(HERE, "output", "keywords.broad.jsonl")
 
+
+def run(inp=IN_PATH, out=OUT_PATH, workers=8, engine="ddg"):
     try:
-        with open(args.inp, encoding="utf-8") as f:
+        with open(inp, encoding="utf-8") as f:
             kws = [json.loads(line) for line in f]
     except (OSError, ValueError) as e:  # file-access / malformed JSON — report, don't traceback
-        print(f"Error reading input keywords from {args.inp}: {e}", file=sys.stderr)
-        sys.exit(1)
+        raise StageError(f"Error reading input keywords from {inp}: {e}") from e
     done = set()
-    if os.path.exists(args.out):
+    if os.path.exists(out):
         try:
-            with open(args.out, encoding="utf-8") as f:
+            with open(out, encoding="utf-8") as f:
                 for line in f:
                     try:
                         rec = json.loads(line)
@@ -116,20 +115,19 @@ def main():
                     except Exception:  # noqa: BLE001
                         pass
         except OSError as e:
-            print(f"Error reading existing broad keywords from {args.out}: {e}", file=sys.stderr)
-            sys.exit(1)
+            raise StageError(f"Error reading existing broad keywords from {out}: {e}") from e
     pending = [k for k in kws if (k.get("vertical"), k["keyword"]) not in done]
-    print(f"total={len(kws)} done={len(done)} pending={len(pending)} workers={args.workers}", flush=True)
+    print(f"total={len(kws)} done={len(done)} pending={len(pending)} workers={workers}", flush=True)
 
     lock = threading.Lock()
     counts = {"n": 0, "fail": 0}
 
-    with open(args.out, "a", encoding="utf-8") as out_f:
+    with open(out, "a", encoding="utf-8") as out_f:
 
         def work(k):
             pace()  # global rate limit BEFORE the request — spaces bursts across all workers
             try:
-                sg = suggest(k["keyword"], engine=args.engine)
+                sg = suggest(k["keyword"], engine=engine)
                 rec = {**k, **score(k["keyword"], sg), "suggestions": sg[:6]}
                 okk = True
             except Exception:  # noqa: BLE001
@@ -145,9 +143,18 @@ def main():
                     print(f"  {counts['n']}/{len(pending)}  fail={counts['fail']}", flush=True)
             return okk
 
-        with ThreadPoolExecutor(max_workers=args.workers) as ex:
+        with ThreadPoolExecutor(max_workers=workers) as ex:
             wait([ex.submit(work, k) for k in pending])
-    print(f"DONE broad pass: {counts['n']} scored (fail={counts['fail']}) -> {args.out}", flush=True)
+    print(f"DONE broad pass: {counts['n']} scored (fail={counts['fail']}) -> {out}", flush=True)
+    return counts
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--engine", default="ddg", choices=list(ENGINES))
+    args = ap.parse_args()
+    run_cli(run, workers=args.workers, engine=args.engine)
 
 
 if __name__ == "__main__":

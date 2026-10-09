@@ -23,6 +23,10 @@ import urllib.parse
 import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+# Fixed data locations. Deliberately NOT CLI options: a path taken from argv would flow into
+# open() (path injection); callers that need other locations (tests) pass them to run().
+IN_PATH = os.path.join(HERE, "output", "records.jsonl")
+OUT_PATH = os.path.join(HERE, "output", "resented.json")
 UA = "DemandRadar-spike/0.6 (+petry-projects/incubator; research)"
 CATS = {
     "pricing": [
@@ -160,21 +164,13 @@ def scan(reviews):
     }
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--in", dest="inp", default=os.path.join(HERE, "output", "records.jsonl"))
-    ap.add_argument("--out", default=os.path.join(HERE, "output", "resented.json"))
-    ap.add_argument("--min-market", type=int, default=8000)
-    ap.add_argument("--max", type=int, default=0)
-    ap.add_argument("--sleep", type=float, default=2.2)
-    args = ap.parse_args()
-
-    with open(args.inp, encoding="utf-8") as f:
+def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
+    with open(inp, encoding="utf-8") as f:
         records = [json.loads(line) for line in f]
     leaders = {}
     for r in records:
         ms = r["supply"].get("market_size") or 0
-        if ms < args.min_market:
+        if ms < min_market:
             continue
         lead = next(
             (a for a in r["supply"].get("solutions", []) if (a.get("rating_count") or 0) == ms and a.get("app")), None
@@ -192,36 +188,36 @@ def main():
                 "leaderR": r["supply"].get("leader_rating"),
             }
 
-    if os.path.exists(args.out):
-        with open(args.out, encoding="utf-8") as f:
+    if os.path.exists(out_path):
+        with open(out_path, encoding="utf-8") as f:
             out = json.load(f)
     else:
         out = {}
     todo = [k for k in leaders if k not in out]
-    if args.max:
-        todo = todo[: args.max]
+    if max_n:
+        todo = todo[:max_n]
     print(f"proven-market leaders: {len(leaders)} | already done: {len(out)} | to process: {len(todo)}", flush=True)
 
     for i, k in enumerate(todo):
         L = leaders[k]
         tid = L["id"] or resolve_id(L["app"])
-        time.sleep(args.sleep)
+        time.sleep(sleep)
         if not tid:
             out[k] = {**L, "resented": False, "note": "no-id"}
             continue
         sc = scan(fetch_low_reviews(tid))
-        time.sleep(args.sleep)
-        resented = L["market"] >= args.min_market and sc["switch_hits"] >= 4 and sc["resent_frac"] >= 0.25
+        time.sleep(sleep)
+        resented = L["market"] >= min_market and sc["switch_hits"] >= 4 and sc["resent_frac"] >= 0.25
         out[k] = {**L, "id": tid, **sc, "resented": resented}
         if (i + 1) % 10 == 0:
-            with open(args.out, "w", encoding="utf-8") as f:
+            with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(out, f)
             print(
                 f"  {i + 1}/{len(todo)}  (resented so far: {sum(1 for v in out.values() if v.get('resented'))})",
                 flush=True,
             )
 
-    with open(args.out, "w", encoding="utf-8") as f:
+    with open(out_path, "w", encoding="utf-8") as f:
         json.dump(out, f)
     rg = sorted(
         [v for v in out.values() if v.get("resented")], key=lambda v: -(v["resent_frac"] * (v["market"] ** 0.5))
@@ -232,7 +228,17 @@ def main():
         print(
             f"  {v.get('leaderR')}star /{v['market']:>9,}  resent={int(v['resent_frac'] * 100)}% [{cats}]  {v['app'][:34]}  (e.g. '{v['kw']}' [{v['vert']}])"
         )
-    print(f"\n-> {args.out}")
+    print(f"\n-> {out_path}")
+    return out
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--min-market", type=int, default=8000)
+    ap.add_argument("--max", type=int, default=0)
+    ap.add_argument("--sleep", type=float, default=2.2)
+    args = ap.parse_args()
+    run(min_market=args.min_market, max_n=args.max, sleep=args.sleep)
 
 
 if __name__ == "__main__":

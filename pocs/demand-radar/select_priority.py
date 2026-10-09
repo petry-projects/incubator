@@ -15,17 +15,16 @@ import json
 import os
 from collections import defaultdict
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+# Fixed data locations. Deliberately NOT CLI options: a path taken from argv would flow into
+# open() (path injection); callers that need other locations (tests) pass them to run().
+IN_PATH = os.path.join(HERE, "output", "keywords.broad.jsonl")
+OUT_PATH = os.path.join(HERE, "output", "keywords.priority.jsonl")
 
-def main():
-    ap = argparse.ArgumentParser()
-    here = os.path.dirname(os.path.abspath(__file__))
-    ap.add_argument("--in", dest="inp", default=os.path.join(here, "output", "keywords.broad.jsonl"))
-    ap.add_argument("--out", default=os.path.join(here, "output", "keywords.priority.jsonl"))
-    ap.add_argument("--per-vertical", type=int, default=50)
-    args = ap.parse_args()
 
+def run(inp=IN_PATH, out=OUT_PATH, per_vertical=50):
     by_vert = defaultdict(list)
-    with open(args.inp, encoding="utf-8") as f:
+    with open(inp, encoding="utf-8") as f:
         for line in f:
             r = json.loads(line)
             if r.get("broad_interest") is None:
@@ -37,10 +36,10 @@ def main():
         rows.sort(
             key=lambda r: (r.get("broad_interest", 0), r.get("app_intent", 0), r.get("n_suggestions", 0)), reverse=True
         )
-        picked.extend(rows[: args.per_vertical])
+        picked.extend(rows[:per_vertical])
 
-    # keep the schema extract.py --keywords expects, carry broad signal through
-    with open(args.out, "w", encoding="utf-8") as f:
+    # keep the schema extract.load_keywords expects, carry broad signal through
+    with open(out, "w", encoding="utf-8") as f:
         for r in picked:
             f.write(
                 json.dumps(
@@ -56,11 +55,19 @@ def main():
                 + "\n"
             )
 
-    print(f"Selected {len(picked)} priority keywords ({args.per_vertical}/vertical x {len(by_vert)}) -> {args.out}")
+    print(f"Selected {len(picked)} priority keywords ({per_vertical}/vertical x {len(by_vert)}) -> {out}")
     top = sorted(picked, key=lambda r: (r.get("broad_interest", 0), r.get("app_intent", 0)), reverse=True)[:20]
     print("Top 20 by broad demand:")
     for r in top:
         print(f"  bi={r.get('broad_interest')} app={r.get('app_intent')}  {r['keyword']:<26} [{r['vertical']}]")
+    return len(picked)
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--per-vertical", type=int, default=50)
+    args = ap.parse_args()
+    run(per_vertical=args.per_vertical)
 
 
 if __name__ == "__main__":

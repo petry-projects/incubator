@@ -116,19 +116,26 @@ architecture for a repeatable process anyway.
 
 ## Tests
 
-Pure pipeline logic (gap classification, disruption thresholds, relevance, resentment
-scoring, wedges, ranking) is unit-tested — the network `fetch` layer is separated from the
-logic, so no mocking is needed.
+Every stage module is unit-tested, hermetically — the suite never touches the network or
+the committed `output/` data:
+
+- `tests/test_demand_radar.py` — the pure logic (gap classification, disruption thresholds,
+  relevance, resentment scoring, wedges, ranking).
+- `tests/test_funnel_stages.py`, `tests/test_enrich_export_pipeline.py` — the I/O layers
+  (fetchers, resume, pacing, throttle/ban handling, file outputs, CLI plumbing, the pipeline
+  runner) against a faked `urlopen` and `tmp_path` files.
 
 ```
 cd pocs/demand-radar && python3 -m pytest tests/ -q
+python3 -m pytest tests/ --cov=. --cov-report=term-missing   # needs pytest-cov
 ```
 
-Run them locally with the command above (the repo `build-and-test` CI job is still the
-stack-agnostic placeholder; a Python CI stack for this spike lands with a follow-up).
-`tests/` covers `extract`, `resented_giants`, `broad_pass`, `export_dashboard`,
-`enrich_community`, `rank_starter_list`, and `deep_dive`. The fetch/orchestration layers
-(iTunes/DDG/reviews I/O, pacing, ban handling) are integration surface, exercised by real runs.
+CI runs lint/format/typecheck and the tests in `build-and-test`, enforces an 80% coverage
+floor in `coverage`, and `sonarcloud.yml` feeds the same report to SonarCloud's new-code gate.
+
+Stage inputs/outputs are fixed paths under this directory, not CLI options (a path read from
+argv would be a path-injection sink); `extract.py --source {groups,priority,all}` picks the
+keyword set by name. Each stage exposes `run(...)`, which `pipeline.py` calls in-process.
 
 ## Run it (one command)
 

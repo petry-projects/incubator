@@ -30,6 +30,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from errors import StageError, run_cli
+
 UA = "DemandRadar-spike/0.4 (+petry-projects/incubator; research)"
 
 
@@ -265,37 +267,38 @@ def supply_score(r):
     return GAP.get(r["gap"]["gap_type"], 0) + COMP.get(r["supply"]["competition_intensity"], 0)
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    here = os.path.dirname(os.path.abspath(__file__))
-    ap.add_argument("--in", dest="inp", default=os.path.join(here, "output", "records.jsonl"))
-    ap.add_argument("--out", default=os.path.join(here, "output", "records.enriched.jsonl"))
-    ap.add_argument("--source", default=os.environ.get("DR_COMMUNITY_SOURCE", ""))  # "" = auto-route
-    ap.add_argument("--max", type=int, default=300)
-    ap.add_argument("--sleep", type=float, default=0.25)
-    args = ap.parse_args()
+HERE = os.path.dirname(os.path.abspath(__file__))
+# Fixed data locations. Deliberately NOT CLI options: a path taken from argv would flow into
+# open() (path injection); callers that need other locations (tests) pass them to run().
+IN_PATH = os.path.join(HERE, "output", "records.jsonl")
+OUT_PATH = os.path.join(HERE, "output", "records.enriched.jsonl")
 
-    with open(args.inp, encoding="utf-8") as f:
+
+def default_source():
+    """Forced community source from the environment ("" = auto-route per vertical)."""
+    return os.environ.get("DR_COMMUNITY_SOURCE", "")
+
+
+def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
+    with open(inp, encoding="utf-8") as f:
         records = [json.loads(line) for line in f]
     survivors = [r for r in records if not r.get("verdict_heuristic", "").startswith("REJECT")]
     survivors.sort(key=supply_score, reverse=True)
-    targets = survivors[: args.max]
+    targets = survivors[:max_n]
     print(f"records={len(records)} survivors={len(survivors)} enriching_top={len(targets)}", flush=True)
 
     rtoken = None
-    if args.source == "reddit":
+    if source == "reddit":
         cid, sec = os.environ.get("REDDIT_CLIENT_ID"), os.environ.get("REDDIT_CLIENT_SECRET")
         rtoken = reddit_token(cid, sec) if cid and sec else None
         if not rtoken:
             # forced Reddit mode with no usable token: reject up front rather than run the
             # whole enrichment as a silent no-op (every record -> source "none"). Never
             # substitute Hacker News for an explicitly forced source.
-            print(
+            raise StageError(
                 "Error: --source reddit requires REDDIT_CLIENT_ID/REDDIT_CLIENT_SECRET "
-                "(and a non-blocked IP). Aborting instead of falling back.",
-                file=sys.stderr,
+                "(and a non-blocked IP). Aborting instead of falling back."
             )
-            sys.exit(1)
 
     budget_left = dict(BUDGET)
     dead = set()  # sources that 429'd this run — skipped thereafter (circuit breaker)
@@ -305,7 +308,7 @@ def main():
         print("  ~ YOUTUBE_API_KEY not found in environment; skipping youtube source", file=sys.stderr)
     changed = []
     for i, r in enumerate(targets):
-        cm = fetch_for(r, args.source or None, budget_left, rtoken, dead)
+        cm = fetch_for(r, source or None, budget_left, rtoken, dead)
         r["demand"]["community_metric"] = cm
         nv, note = recompute(r, cm)
         if nv != r["verdict_heuristic"]:
@@ -315,14 +318,24 @@ def main():
             r["community_note"] = note
         if (i + 1) % 50 == 0:
             print(f"  {i + 1}/{len(targets)}  budgets={budget_left}", flush=True)
-        time.sleep(args.sleep)
+        time.sleep(sleep)
 
-    with open(args.out, "w", encoding="utf-8") as f:
+    with open(out, "w", encoding="utf-8") as f:
         for r in records:
             f.write(json.dumps(r) + "\n")
-    print(f"\nEnriched {len(targets)} survivors -> {args.out}")
+    print(f"\nEnriched {len(targets)} survivors -> {out}")
     print(f"budgets remaining: {budget_left}")
     print(f"verdict changes: {len(changed)}  (corroborated: {sum(1 for c in changed if c[2] == 'CANDIDATE')})")
+    return changed
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--source", default=default_source())  # "" = auto-route
+    ap.add_argument("--max", type=int, default=300)
+    ap.add_argument("--sleep", type=float, default=0.25)
+    args = ap.parse_args()
+    run_cli(run, source=args.source, max_n=args.max, sleep=args.sleep)
 
 
 if __name__ == "__main__":

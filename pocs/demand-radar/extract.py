@@ -13,16 +13,16 @@ Scale features:
     to disk as they complete, so an interrupted/throttled run just continues.
 
 Usage:
-  python extract.py --keywords output/keywords.jsonl --workers 6
-  python extract.py                     # falls back to keyword-groups.json (small mode)
+  python extract.py --source priority --workers 2   # output/keywords.priority.jsonl
+  python extract.py --source all --workers 6        # output/keywords.jsonl (10k+)
+  python extract.py                                 # keyword-groups.json (small mode)
 """
 
 import argparse
 import json
 import os
-import random
 import re
-import sys
+import secrets
 import threading
 import time
 import urllib.parse
@@ -30,8 +30,18 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
+from errors import StageError, run_cli
+
 ITUNES_SEARCH = "https://itunes.apple.com/search"
 UA = "DemandRadar-spike/0.4 (+petry-projects/incubator; research)"
+HERE = os.path.dirname(os.path.abspath(__file__))
+# Fixed data locations. Deliberately NOT CLI options: a path taken from argv would flow into
+# open()/makedirs (path injection). The CLI picks a keyword SOURCE by name (--source); callers
+# that need other locations (tests, pipeline.py) pass paths to run() directly.
+GROUPS_PATH = os.path.join(HERE, "keyword-groups.json")
+KEYWORDS_PATH = os.path.join(HERE, "output", "keywords.jsonl")
+PRIORITY_PATH = os.path.join(HERE, "output", "keywords.priority.jsonl")
+OUT_PATH = os.path.join(HERE, "output", "records.jsonl")
 CREDIBLE_MIN_RATINGS = 50
 TOP_N = 8
 STOP = {"app", "apps", "the", "for", "best", "free", "pro", "plus", "with", "your"}
@@ -46,6 +56,7 @@ def _now():
 _pace_lock = threading.Lock()
 _next_at = [0.0]
 _min_interval = [2.0]  # seconds between calls; set from --rate
+_jitter = secrets.SystemRandom()  # retry-backoff jitter (OS entropy; no seeded PRNG to reason about)
 
 
 def pace():
@@ -68,7 +79,7 @@ def fetch(term, country="us", limit=20, entity="software", retries=4):
         except Exception:  # noqa: BLE001 — throttle/network: backoff and retry
             if attempt == retries - 1:
                 return [], False
-            time.sleep(2.0 * (attempt + 1) + random.random())
+            time.sleep(2.0 * (attempt + 1) + _jitter.random())
     return [], False
 
 
@@ -273,34 +284,33 @@ def load_groups_json(path):
     return recs, cfg.get("store", "us")
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    here = os.path.dirname(os.path.abspath(__file__))
-    ap.add_argument("--keywords", default="")
-    ap.add_argument("--config", default=os.path.join(here, "keyword-groups.json"))
-    ap.add_argument("--out", default=os.path.join(here, "output", "records.jsonl"))
-    ap.add_argument("--workers", type=int, default=3)
-    ap.add_argument("--limit", type=int, default=20)
-    ap.add_argument("--max", type=int, default=0)
-    ap.add_argument("--rate", type=float, default=20.0, help="max iTunes calls/min (Apple throttles ~>30; stay 20–30)")
-    ap.add_argument("--country", default="us")
-    args = ap.parse_args()
-    _min_interval[0] = 60.0 / max(1.0, args.rate)
+def run(
+    keywords_path=None,
+    config_path=GROUPS_PATH,
+    out_path=OUT_PATH,
+    workers=3,
+    limit=20,
+    max_n=0,
+    rate=20.0,
+    country="us",
+):
+    """Score pending keywords and append records to out_path. keywords_path=None => small
+    mode (keyword-groups.json, which also supplies the store country)."""
+    _min_interval[0] = 60.0 / max(1.0, rate)
 
-    if args.keywords:
-        kwrecs = load_keywords(args.keywords)
-        country = args.country
+    if keywords_path:
+        kwrecs = load_keywords(keywords_path)
     else:
-        kwrecs, country = load_groups_json(args.config)
+        kwrecs, country = load_groups_json(config_path)
 
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
     # RESUME: skip keywords already scored. Key on (industry, canonical_query): the same
     # phrase recurs across verticals (e.g. "medication tracker" in pets vs. seniors) as a
     # DISTINCT opportunity, so a keyword-only key would skip the second vertical's record.
     done = set()
-    if os.path.exists(args.out):
+    if os.path.exists(out_path):
         try:
-            with open(args.out, encoding="utf-8") as f:
+            with open(out_path, encoding="utf-8") as f:
                 for line in f:
                     try:
                         rec = json.loads(line)
@@ -308,25 +318,24 @@ def main():
                     except Exception:  # noqa: BLE001
                         pass
         except OSError as e:
-            print(f"Error reading existing records from {args.out}: {e}", file=sys.stderr)
-            sys.exit(1)
+            raise StageError(f"Error reading existing records from {out_path}: {e}") from e
     pending = [k for k in kwrecs if (k["name"], k["keyword"]) not in done]
-    if args.max:
-        pending = pending[: args.max]
+    if max_n:
+        pending = pending[:max_n]
     captured_at = _now().strftime("%Y-%m-%dT%H:%M:%SZ")
-    print(f"total={len(kwrecs)} done={len(done)} pending={len(pending)} workers={args.workers}", flush=True)
+    print(f"total={len(kwrecs)} done={len(done)} pending={len(pending)} workers={workers}", flush=True)
 
     lock = threading.Lock()
     counts = {"ok": 0, "fail": 0, "n": 0}
     abort = threading.Event()  # set on a 403-storm → bail the batch fast (ban is active)
 
-    with open(args.out, "a", encoding="utf-8") as out_f:
+    with open(out_path, "a", encoding="utf-8") as out_f:
 
         def work(kw):
             if abort.is_set():
                 return False
             pace()  # global rate limit — stay under Apple's throttle
-            results, ok = fetch(kw["keyword"], country=country, limit=args.limit)
+            results, ok = fetch(kw["keyword"], country=country, limit=limit)
             with lock:
                 counts["n"] += 1
                 counts["consec"] = 0 if ok else counts.get("consec", 0) + 1
@@ -350,9 +359,43 @@ def main():
                     print(f"  {counts['ok']} scored / {counts['fail']} fail  ({kw['keyword']})", flush=True)
             return True
 
-        with ThreadPoolExecutor(max_workers=args.workers) as ex:
+        with ThreadPoolExecutor(max_workers=workers) as ex:
             list(as_completed([ex.submit(work, k) for k in pending]))
-    print(f"DONE. wrote {counts['n']} records (ok={counts['ok']} fail={counts['fail']}) -> {args.out}", flush=True)
+    print(f"DONE. wrote {counts['n']} records (ok={counts['ok']} fail={counts['fail']}) -> {out_path}", flush=True)
+    return counts
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument(
+        "--source",
+        choices=["groups", "priority", "all"],
+        default="groups",
+        help="keyword set: groups=keyword-groups.json (small), priority=output/keywords.priority.jsonl, "
+        "all=output/keywords.jsonl",
+    )
+    ap.add_argument("--workers", type=int, default=3)
+    ap.add_argument("--limit", type=int, default=20)
+    ap.add_argument("--max", type=int, default=0)
+    ap.add_argument("--rate", type=float, default=20.0, help="max iTunes calls/min (Apple throttles ~>30; stay 20–30)")
+    ap.add_argument("--country", default="us")
+    args = ap.parse_args()
+    # Map the source NAME to a fixed path (never build a path from the argument's text).
+    if args.source == "priority":
+        keywords_path = PRIORITY_PATH
+    elif args.source == "all":
+        keywords_path = KEYWORDS_PATH
+    else:
+        keywords_path = None
+    run_cli(
+        run,
+        keywords_path=keywords_path,
+        workers=args.workers,
+        limit=args.limit,
+        max_n=args.max,
+        rate=args.rate,
+        country=args.country,
+    )
 
 
 if __name__ == "__main__":

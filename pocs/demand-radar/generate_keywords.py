@@ -141,18 +141,18 @@ VERTICALS = {
 }
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    here = os.path.dirname(os.path.abspath(__file__))
-    ap.add_argument("--out", default=os.path.join(here, "output", "keywords.jsonl"))
-    ap.add_argument("--tools", type=int, default=len(TOOLS))
-    args = ap.parse_args()
+# Fixed output location. Deliberately NOT a CLI option: a path taken from argv would flow
+# into open()/makedirs (path injection); callers that need another location (tests) pass
+# `out` to run() directly.
+OUT_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "output", "keywords.jsonl")
 
-    tools = TOOLS[: args.tools]
-    os.makedirs(os.path.dirname(args.out), exist_ok=True)
+
+def run(out=OUT_PATH, n_tools=len(TOOLS)):
+    tools = TOOLS[:n_tools]
+    os.makedirs(os.path.dirname(out), exist_ok=True)
     n = 0
     per_vertical = {}
-    with open(args.out, "w", encoding='utf-8') as f:
+    with open(out, "w", encoding='utf-8') as f:
         for vert, (channel, dyn, domains) in VERTICALS.items():
             c = 0
             # Dedup WITHIN a vertical only. A phrase that recurs across verticals is a
@@ -173,9 +173,17 @@ def main():
                     c += 1
             per_vertical[vert] = c
 
-    print(f"Wrote {n} keywords across {len(VERTICALS)} verticals -> {args.out}")
+    print(f"Wrote {n} keywords across {len(VERTICALS)} verticals -> {out}")
     for v, c in per_vertical.items():
         print(f"  {v:<24} {c}")
+    return n
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--tools", type=int, default=len(TOOLS))
+    args = ap.parse_args()
+    run(n_tools=args.tools)
 
 
 if __name__ == "__main__":
