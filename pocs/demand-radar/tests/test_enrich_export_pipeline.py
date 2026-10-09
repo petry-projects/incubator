@@ -528,16 +528,45 @@ class TestResentedRun:
         assert "RESENTED GIANTS: 1" in stdout
         assert "resent=80% [pricing]  BigApp" in stdout
 
-    def test_leader_with_unfetchable_reviews_stays_pending(self, tmp_path, write_jsonl, monkeypatch, capsys):
+    def test_leader_with_unfetchable_reviews_is_marked_for_retry(self, tmp_path, write_jsonl, monkeypatch, capsys):
         monkeypatch.setattr(rg, "fetch_low_reviews", lambda tid: None if tid == 1 else [])
         inp = write_jsonl(
             tmp_path / "r.jsonl", [leader_record("Throttled", 9000, app_id=1), leader_record("Fine", 9000, app_id=2)]
         )
-        out = tmp_path / "resented.json"
-        result = rg.run(inp=inp, out_path=str(out), sleep=0)
-        assert list(result) == ["fine"]  # not recorded as a completed "not resented" scan
-        assert "throttled" not in json.loads(out.read_text(encoding="utf-8"))
+        result = rg.run(inp=inp, out_path=str(tmp_path / "resented.json"), sleep=0)
+        assert result["throttled"]["note"] == "reviews-unavailable"  # not a completed "not resented" scan
+        assert result["throttled"]["resented"] is False
+        assert "n_low" not in result["throttled"]
+        assert result["fine"]["n_low"] == 0
         assert "1 leader(s) had no fetchable reviews this run" in capsys.readouterr().out
+
+    def test_deferred_leader_is_retried_after_fresh_ones_and_can_recover(
+        self, tmp_path, write_jsonl, monkeypatch, capsys
+    ):
+        asked = []
+        monkeypatch.setattr(rg, "fetch_low_reviews", lambda tid: asked.append(tid) or [])
+        inp = write_jsonl(
+            tmp_path / "r.jsonl",
+            [
+                leader_record("Deferred", 9000, app_id=1),
+                leader_record("Fresh A", 9000, app_id=2),
+                leader_record("Fresh B", 9000, app_id=3),
+            ],
+        )
+        out = tmp_path / "resented.json"
+        out.write_text(
+            json.dumps({"deferred": {"app": "Deferred", "id": 1, "resented": False, "note": "reviews-unavailable"}}),
+            encoding="utf-8",
+        )
+        # a batch of 2: the never-attempted leaders go first, so the deferred one cannot starve them
+        rg.run(inp=inp, out_path=str(out), max_n=2, sleep=0)
+        assert asked == [2, 3]
+        assert "already done: 0 | to process: 2" in capsys.readouterr().out
+        # next run: only the deferred leader is left, and a successful fetch replaces the marker
+        result = rg.run(inp=inp, out_path=str(out), max_n=2, sleep=0)
+        assert asked == [2, 3, 1]
+        assert "note" not in result["deferred"]
+        assert result["deferred"]["n_low"] == 0
 
     def test_max_n_bounds_the_batch(self, tmp_path, write_jsonl, scan_inputs):
         inp = write_jsonl(

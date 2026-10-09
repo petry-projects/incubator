@@ -514,11 +514,13 @@ class TestExtractRun:
 
         monkeypatch.setattr(extract, "fetch", banned)
         out = tmp_path / "records.jsonl"
-        with pytest.raises(errors.StageError, match="throttle storm: batch aborted after 15 failed fetches"):
+        with pytest.raises(errors.StageError, match="batch aborted after 15 failed fetches"):
             extract.run(keywords_path=keywords(40), out_path=str(out), workers=1)
         assert len(calls) == 15  # the 15th consecutive failure trips the breaker; the other 25 are never sent
         assert read_jsonl(out) == []
-        assert "403-storm" in capsys.readouterr().out
+        stdout = capsys.readouterr().out
+        assert "breaker: ABORTING batch" in stdout
+        assert "DONE" not in stdout  # a run cut short must not also report success
 
     def test_reports_progress_every_100(self, tmp_path, keywords, monkeypatch, capsys):
         monkeypatch.setattr(extract, "fetch", lambda term, country="us", limit=20: ([], True))

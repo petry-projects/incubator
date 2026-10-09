@@ -28,6 +28,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 # open() (path injection); callers that need other locations (tests) pass them to run().
 IN_PATH = os.path.join(HERE, "output", "records.jsonl")
 OUT_PATH = os.path.join(HERE, "output", "resented.json")
+UNFETCHED = "reviews-unavailable"  # note on a leader whose reviews could not be fetched (retried later)
 UA = "DemandRadar-spike/0.6 (+petry-projects/incubator; research)"
 CATS = {
     "pricing": [
@@ -190,10 +191,15 @@ def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
             out = json.load(f)
     else:
         out = {}
-    todo = [k for k in leaders if k not in out]
+    # Leaders whose reviews could not be fetched last time are retried, but AFTER the ones
+    # never attempted — so with --max a persistently failing leader cannot hold a batch slot
+    # run after run and starve the rest.
+    deferred = [k for k in leaders if out.get(k, {}).get("note") == UNFETCHED]
+    todo = [k for k in leaders if k not in out] + deferred
     if max_n:
         todo = todo[:max_n]
-    print(f"proven-market leaders: {len(leaders)} | already done: {len(out)} | to process: {len(todo)}", flush=True)
+    done = len(out) - sum(1 for v in out.values() if v.get("note") == UNFETCHED)
+    print(f"proven-market leaders: {len(leaders)} | already done: {done} | to process: {len(todo)}", flush=True)
 
     unfetched = 0
     for i, k in enumerate(todo):
@@ -206,8 +212,9 @@ def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
         reviews = fetch_low_reviews(tid)
         time.sleep(sleep)
         if reviews is None:
-            # Not recorded, so the next (resumed) run retries this leader instead of
-            # treating a failed fetch as a completed "not resented" scan.
+            # Marked, not scored: "no sample" is not "not resented". The marker makes the
+            # next run retry this leader (after any never-attempted ones).
+            out[k] = {**L, "id": tid, "resented": False, "note": UNFETCHED}
             unfetched += 1
             continue
         sc = scan(reviews)
@@ -233,7 +240,7 @@ def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
             f"  {v.get('leaderR')}star /{v['market']:>9,}  resent={int(v['resent_frac'] * 100)}% [{cats}]  {v['app'][:34]}  (e.g. '{v['kw']}' [{v['vert']}])"
         )
     if unfetched:
-        print(f"\n{unfetched} leader(s) had no fetchable reviews this run; left pending for the next one")
+        print(f"\n{unfetched} leader(s) had no fetchable reviews this run; marked for retry on a later one")
     print(f"\n-> {out_path}")
     return out
 

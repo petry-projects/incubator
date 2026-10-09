@@ -349,7 +349,7 @@ def run(
                     if counts["consec"] >= 15 and not abort.is_set():
                         abort.set()
                         print(
-                            f"  ~~ 403-storm: ABORTING batch after {counts['fail']} fails (ban active); "
+                            f"  ~~ breaker: ABORTING batch after {counts['fail']} fails (15 consecutive); "
                             f"{counts['ok']} scored this batch, pending preserved for next cooldown ~~",
                             flush=True,
                         )
@@ -368,14 +368,15 @@ def run(
             # with its future and leave records silently unwritten.
             for fut in as_completed([ex.submit(work, k) for k in pending]):
                 fut.result()
-    print(f"DONE. wrote {counts['n']} records (ok={counts['ok']} fail={counts['fail']}) -> {out_path}", flush=True)
     if abort.is_set():
         # Per-keyword failures are routine (they stay pending); a tripped breaker means the
-        # run was cut short by a ban, so report the stage as failed rather than done.
+        # run was cut short, so report the stage as failed rather than printing DONE. The
+        # breaker counts consecutive failures of any kind, so don't claim a cause.
         raise StageError(
-            f"iTunes throttle storm: batch aborted after {counts['fail']} failed fetches "
-            f"({counts['ok']} scored; the rest stay pending for a later run)"
+            f"iTunes fetches kept failing (throttle/ban or network outage): batch aborted after "
+            f"{counts['fail']} failed fetches ({counts['ok']} scored; the rest stay pending for a later run)"
         )
+    print(f"DONE. wrote {counts['n']} records (ok={counts['ok']} fail={counts['fail']}) -> {out_path}", flush=True)
     return counts
 
 
