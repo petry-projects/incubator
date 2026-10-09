@@ -150,6 +150,10 @@ class TestCommunitySources:
         assert req.get_header("Authorization") == "Basic " + base64.b64encode(b"id:secret").decode()
         assert isinstance(fake.handlers[0], enrich.HTTPSOnlyRedirectHandler)
 
+    def test_reddit_calls_cannot_reach_the_network_unfaked(self):
+        with pytest.raises(AssertionError, match="unexpected network call via opener"):
+            enrich.reddit_mentions("mood tracker", "tok")
+
     def test_reddit_mentions_counts_posts(self, opener):
         fake = opener({"data": {"children": [{}, {}, {}]}})
         assert enrich.reddit_mentions("mood tracker", "tok") == {
@@ -559,6 +563,34 @@ class TestDashboardHelpers:
     def test_disruption_without_supply_block(self):
         assert dash.disruption({"canonical_query": "x"}) == (0, None, None, False)
 
+    def test_detector_leader_is_recovered_by_review_count_not_name(self):
+        # "Quizlet" is the detector's leader for this query via its description; its name
+        # shares no token with the query, so a name-only match would lose it (and with it
+        # the resented.json lookup that is keyed on this app).
+        rec = make_record(
+            "flashcard maker",
+            market=600000,
+            leader_rating=4.8,
+            solutions=[
+                {"app": "Flashcard Maker Lite", "rating": 4.2, "rating_count": 900},
+                {"app": "Quizlet", "rating": 4.8, "rating_count": 600000},
+            ],
+        )
+        assert dash.disruption(rec) == (600000, 4.8, "Quizlet", False)
+
+    def test_detector_record_without_a_count_match_falls_back_to_name(self):
+        rec = make_record(
+            "flashcard maker",
+            market=600000,
+            leader_rating=4.8,
+            solutions=[{"app": "Flashcard Maker Lite", "rating": 4.2, "rating_count": 900}],
+        )
+        assert dash.disruption(rec) == (600000, 4.8, "Flashcard Maker Lite", False)
+
+    def test_zero_market_never_matches_an_unrated_app(self):
+        rec = make_record("flashcard maker", market=0, solutions=[{"app": "Unrelated", "rating_count": 0}])
+        assert dash.disruption(rec) == (0, None, None, False)
+
     def test_legacy_disruption_with_no_relevant_app(self):
         rec = {"canonical_query": "mood tracker", "supply": {"solutions": [{"app": "Unrelated", "rating": 4.0}]}}
         assert dash.disruption(rec) == (0, None, None, False)
@@ -818,6 +850,26 @@ class TestDeepDiveMain:
         assert '    - *"Paywall"* — Everything is behind a subscription now.' in md
         assert '- "wish there was export to csv please"' in md
         assert "## The wedge — how to win" in md
+
+    def test_market_wishes_draw_from_every_competitor(self, tmp_path, monkeypatch, argv):
+        apps = [{"trackName": n, "trackId": i, "userRatingCount": 5000} for i, n in enumerate(["A", "B", "C"], 1)]
+        by_app = {i: [(2, "t", f"I wish app {i} had feature number {n} today.") for n in range(6)] for i in (1, 2, 3)}
+        monkeypatch.setattr(deep_dive, "HERE", str(tmp_path))
+        monkeypatch.setattr(deep_dive, "competitors", lambda kw, top: apps)
+        monkeypatch.setattr(deep_dive, "reviews", lambda tid, pages: by_app[tid])
+        argv("--keyword", "white noise")
+        deep_dive.main()
+        result = json.loads((tmp_path / "output" / "deepdive" / "white-noise.json").read_text(encoding="utf-8"))
+        assert len(result["wishes"]) == 10
+        assert [w.split()[2] for w in result["wishes"]] == ["1", "2", "3", "1", "2", "3", "1", "2", "3", "1"]
+
+    def test_long_excerpts_are_marked_as_clipped(self):
+        body = "subscription " * 30
+        rv = deep_dive.analyze_reviews([(1, "T" * 80, body)])
+        quote = rv["quotes"]["pricing / paywall"][0]
+        assert quote["t"] == "T" * 70 + "…"
+        assert quote["b"] == body[:160].rstrip() + "…"
+        assert deep_dive._clip("short", 70) == "short"
 
     def test_market_with_no_minable_incumbents(self, dive):
         outdir, mined = dive(self.APPS[1:2], "--keyword", "obscure niche")

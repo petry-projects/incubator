@@ -1,6 +1,6 @@
 # Deep dive — **white noise**
 
-**Market demand (MobileAction):** search volume `64` · difficulty `39` · 230 ranked apps. resented market: BetterSleep 80% resent
+**Market demand (MobileAction):** search volume `64` · difficulty `39` · 230 ranked apps. resented market: BetterSleep 98% resent
 
 ## The market — who you're up against
 

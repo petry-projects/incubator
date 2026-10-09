@@ -7,8 +7,10 @@ under tmp_path, so these exercise the real read → score → write paths, resum
 pacing and failure handling without touching the network or the committed output/ data.
 """
 
+import email.message
 import json
 import time
+import urllib.error
 
 import pytest
 from helpers import read_jsonl
@@ -222,6 +224,20 @@ class TestSelectPriority:
             "app_intent": None,
         }
 
+    def test_negative_limit_is_rejected_not_sliced(self, tmp_path, write_jsonl):
+        inp = write_jsonl(tmp_path / "broad.jsonl", [{"keyword": "a", "vertical": "v", "broad_interest": 1}])
+        out = tmp_path / "priority.jsonl"
+        with pytest.raises(errors.StageError, match="--per-vertical must be >= 0"):
+            select_priority.run(inp=inp, out=str(out), per_vertical=-1)
+        assert not out.exists()
+
+    def test_main_exits_1_on_negative_limit(self, argv, capsys):
+        argv("--per-vertical", "-1")
+        with pytest.raises(SystemExit) as exc:
+            select_priority.main()
+        assert exc.value.code == 1
+        assert "--per-vertical must be >= 0 (got -1)" in capsys.readouterr().err
+
     def test_main_passes_per_vertical(self, argv, monkeypatch):
         seen = {}
         monkeypatch.setattr(select_priority, "run", lambda **kw: seen.update(kw))
@@ -287,6 +303,26 @@ class TestFetch:
         assert extract.fetch("x", retries=2) == ([], False)
         assert len(http.calls) == 2
         assert len(sleeps) == 1
+
+    @pytest.mark.parametrize("code", [403, 429])
+    def test_throttle_response_fails_fast_without_retrying(self, http, sleeps, code):
+        http.add("itunes.apple.com/search", urllib.error.HTTPError("u", code, "banned", email.message.Message(), None))
+        assert extract.fetch("x") == ([], False)
+        assert len(http.calls) == 1  # no further requests into an active ban
+        assert sleeps == []
+
+    def test_server_error_is_still_retried(self, http, sleeps):
+        attempts = []
+
+        def flaky(url):
+            attempts.append(url)
+            if len(attempts) == 1:
+                return urllib.error.HTTPError("u", 503, "unavailable", email.message.Message(), None)
+            return {"results": []}
+
+        http.add("itunes.apple.com/search", flaky)
+        assert extract.fetch("x") == ([], True)
+        assert len(attempts) == 2
 
     def test_zero_retries_never_calls_out(self, http):
         assert extract.fetch("x", retries=0) == ([], False)
@@ -470,6 +506,19 @@ class TestExtractRun:
         extract.run(config_path=str(cfg), out_path=str(out), workers=1)
         assert seen == ["de"]
         assert [r["canonical_query"] for r in read_jsonl(out)] == ["dog log"]
+
+    def test_a_crash_while_scoring_fails_the_stage_after_the_batch(self, tmp_path, keywords, monkeypatch):
+        def fetch(term, country="us", limit=20):
+            if term.endswith("1"):
+                raise ValueError("unexpected payload shape")
+            return [], True
+
+        monkeypatch.setattr(extract, "fetch", fetch)
+        out = tmp_path / "records.jsonl"
+        with pytest.raises(ValueError, match="unexpected payload shape"):
+            extract.run(keywords_path=keywords(3), out_path=str(out), workers=1)
+        # the rest of the batch still completed and was written before the failure surfaced
+        assert sorted(r["canonical_query"] for r in read_jsonl(out)) == ["mood tracker 0", "mood tracker 2"]
 
     def test_unreadable_existing_output_is_a_stage_error(self, tmp_path, keywords):
         out_dir = tmp_path / "records.jsonl"

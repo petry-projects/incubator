@@ -30,9 +30,16 @@ def sleeps(monkeypatch):
 @pytest.fixture(autouse=True)
 def http(monkeypatch):
     """Replace urlopen with a FakeHTTP router; an unrouted URL fails the test, so nothing
-    can reach the real network."""
+    can reach the real network. Requests made through build_opener(...).open() bypass
+    urlopen (the Reddit calls do), so OpenerDirector.open fails fast too — a test that needs
+    an opener must install its own fake."""
     fake = FakeHTTP()
     monkeypatch.setattr(urllib.request, "urlopen", fake)
+
+    def no_opener(self, req, *args, **kwargs):
+        raise AssertionError(f"unexpected network call via opener: {getattr(req, 'full_url', req)}")
+
+    monkeypatch.setattr(urllib.request.OpenerDirector, "open", no_opener)
     return fake
 
 

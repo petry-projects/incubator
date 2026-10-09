@@ -25,6 +25,7 @@ import re
 import secrets
 import threading
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -76,8 +77,11 @@ def fetch(term, country="us", limit=20, entity="software", retries=4):
             req = urllib.request.Request(url, headers={"User-Agent": UA})
             with urllib.request.urlopen(req, timeout=20) as resp:
                 return json.loads(resp.read().decode("utf-8")).get("results", []), True
-        except Exception:  # noqa: BLE001 — throttle/network: backoff and retry
-            if attempt == retries - 1:
+        except Exception as e:  # noqa: BLE001 — network blip: backoff and retry
+            # 403/429 is Apple's throttle/ban, not a blip: retrying only sends more requests
+            # into an active ban. Fail this keyword now and let the batch breaker count it.
+            banned = isinstance(e, urllib.error.HTTPError) and e.code in (403, 429)
+            if banned or attempt == retries - 1:
                 return [], False
             time.sleep(2.0 * (attempt + 1) + _jitter.random())
     return [], False
@@ -360,7 +364,10 @@ def run(
             return True
 
         with ThreadPoolExecutor(max_workers=workers) as ex:
-            list(as_completed([ex.submit(work, k) for k in pending]))
+            # Read every result: an exception inside work() must fail the stage, not vanish
+            # with its future and leave records silently unwritten.
+            for fut in as_completed([ex.submit(work, k) for k in pending]):
+                fut.result()
     print(f"DONE. wrote {counts['n']} records (ok={counts['ok']} fail={counts['fail']}) -> {out_path}", flush=True)
     return counts
 

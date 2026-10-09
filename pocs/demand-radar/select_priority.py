@@ -15,6 +15,8 @@ import json
 import os
 from collections import defaultdict
 
+from errors import StageError, run_cli
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 # Fixed data locations. Deliberately NOT CLI options: a path taken from argv would flow into
 # open() (path injection); callers that need other locations (tests) pass them to run().
@@ -23,6 +25,9 @@ OUT_PATH = os.path.join(HERE, "output", "keywords.priority.jsonl")
 
 
 def run(inp=IN_PATH, out=OUT_PATH, per_vertical=50):
+    if per_vertical < 0:
+        # rows[:-n] would silently mean "all but the last n" and widen the supply pass
+        raise StageError(f"--per-vertical must be >= 0 (got {per_vertical})")
     by_vert = defaultdict(list)
     with open(inp, encoding="utf-8") as f:
         for line in f:
@@ -67,7 +72,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--per-vertical", type=int, default=50)
     args = ap.parse_args()
-    run(per_vertical=args.per_vertical)
+    run_cli(run, per_vertical=args.per_vertical)
 
 
 if __name__ == "__main__":

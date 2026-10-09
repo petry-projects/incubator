@@ -82,11 +82,16 @@ def disruption(rec):
     if sup is None:
         return 0, None, None, False
     if sup.get("market_size") is not None:  # scored with the new detector
-        lr = sup.get("leader_rating")
-        # Filter solutions by relevance to query before picking the leader (consistent with else case)
-        apps = [a for a in sup.get("solutions", []) if name_rel(a.get("app"), q) and a.get("rating")]
-        lead = max(apps, key=lambda a: a.get("rating_count") or 0, default=None) if apps else None
-        return sup["market_size"], lr, (lead or {}).get("app"), bool(sup.get("disruption"))
+        ms, lr, sols = sup["market_size"], sup.get("leader_rating"), sup.get("solutions", [])
+        # The detector's leader is the relevant incumbent whose review count IS market_size
+        # (extract.analyze). Recover it by that count — the rule resented_giants.py keys
+        # resented.json on — so a leader that was relevant through its description rather
+        # than its name still resolves. Records with no such match fall back to name relevance.
+        lead = next((a for a in sols if ms and (a.get("rating_count") or 0) == ms and a.get("app")), None)
+        if lead is None:
+            apps = [a for a in sols if name_rel(a.get("app"), q) and a.get("rating")]
+            lead = max(apps, key=lambda a: a.get("rating_count") or 0, default=None)
+        return ms, lr, (lead or {}).get("app"), bool(sup.get("disruption"))
     apps = [a for a in sup.get("solutions", []) if name_rel(a.get("app"), q) and a.get("rating")]
     if not apps:
         return 0, None, None, False

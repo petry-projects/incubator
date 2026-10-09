@@ -16,6 +16,7 @@ Free data only (iTunes Search API + customer-reviews RSS). Paced; no auth.
 
 import argparse
 import collections
+import itertools
 import json
 import os
 import re
@@ -139,6 +140,12 @@ LOVES = [
 WISH_RE = re.compile(r"(?:wish|would love|needs?|please add|no way to|can'?t)\b[^.!?]{0,80}", re.I)
 
 
+def _clip(text, n):
+    """Cut text to n chars, marking the cut with an ellipsis so a clipped excerpt is never
+    presented as the complete review."""
+    return text if len(text) <= n else text[:n].rstrip() + "…"
+
+
 def get(url):
     return urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": UA}), timeout=20).read()
 
@@ -196,7 +203,7 @@ def analyze_reviews(revs):
                 if c in RESENT_CATS:
                     hit_resent = True
                 if len(quotes[c]) < 3:
-                    quotes[c].append({"r": rt, "t": t[:70], "b": b[:160]})
+                    quotes[c].append({"r": rt, "t": _clip(t, 70), "b": _clip(b, 160)})
         if hit_resent:
             resenting += 1
     loves = collections.Counter()
@@ -265,7 +272,7 @@ def main():
     time.sleep(2.0)
     comps = []
     market_gripes = collections.Counter()
-    all_wishes = []
+    wish_lists = []  # one list per review-mined competitor
     for a in apps:
         c = {
             "app": a.get("trackName"),
@@ -282,7 +289,7 @@ def main():
             c["reviews"] = rv
             for k, v in rv["gripes"].items():
                 market_gripes[k] += v
-            all_wishes += rv["wishes"]
+            wish_lists.append(rv["wishes"])
             time.sleep(0.6)
         comps.append(c)
 
@@ -291,6 +298,9 @@ def main():
         for k, v in (c.get("reviews", {}).get("loves") or {}).items():
             loves[k] += v
     wedge = synth_wedge(market_gripes, dict(loves.most_common(6)))
+    # Round-robin across competitors so the capped market list draws from every incumbent
+    # instead of being filled by the first one or two.
+    all_wishes = [w for tier in itertools.zip_longest(*wish_lists) for w in tier if w is not None]
 
     result = {
         "keyword": kw,
