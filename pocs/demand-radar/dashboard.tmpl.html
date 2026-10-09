@@ -260,7 +260,7 @@
       <div class="seg" id="rate" data-key="rate">
         <button class="on" data-v="">All</button><button data-v="star">★ Shortlist</button><button data-v="maybe">~ Maybe</button><button data-v="none">Unrated</button>
       </div>
-      <select class="sort" id="sort">
+      <select class="sort" id="sort" aria-label="Sort order">
         <option value="score">Sort: Signal score</option>
         <option value="dscore">Sort: Disruption score</option>
         <option value="comm">Sort: Community</option>
@@ -393,7 +393,7 @@ function rowHTML(x,i){
         ${x.wedge&&x.wedge.length?`<div class="gripes"><h4 style="margin:10px 0 7px">🎯 How to win · the wedge</h4>${x.wedge.map(w=>`<div class="wedge">${esc(w)}</div>`).join("")}</div>`:""}
         <div class="sigrow"><span>Demand (autocomplete)</span><b>${x.app? "app-intent ✓":"—"} · ${x.bi}</b></div>
         <div class="sigrow"><span>Community (${esc(x.commSrc||"—")})</span><b>${fmt(x.comm)}</b></div>
-        <div class="note"><textarea placeholder="Notes on ${esc(x.kw)}…" data-note="${esc(key)}">${esc(r.note||"")}</textarea></div>
+        <div class="note"><textarea aria-label="Notes on ${esc(x.kw)}" placeholder="Notes on ${esc(x.kw)}…" data-note="${esc(key)}">${esc(r.note||"")}</textarea></div>
       </div></div></div>`;
   }
   return `<article class="row${foc}${x.disrupt?' dt':''}" data-kw="${esc(key)}" data-i="${i}">

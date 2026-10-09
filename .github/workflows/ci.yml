@@ -85,7 +85,12 @@ jobs:
           cd pocs/demand-radar
           # One retry after a short backoff for a transient PyPI blip (org CI standard:
           # network-bound steps get exactly one retry; paid only on failure).
-          retry() { "$@" && return 0; echo "::warning::'$*' failed — retrying once in 15s"; sleep 15; "$@"; }
+          retry() {
+            "$@" && return 0
+            echo "::warning::'$*' failed (momentary network blip) — retrying once in 15s"
+            sleep 15
+            "$@"
+          }
           retry python3 -m pip install -q --only-binary :all: ruff==0.16.5 mypy==2.3.1
           ruff check .                       # lint (config: ruff.toml)
           ruff format --check .              # formatting
@@ -96,7 +101,12 @@ jobs:
           cd pocs/demand-radar
           # One retry after a short backoff for a transient PyPI blip (org CI standard:
           # network-bound steps get exactly one retry; paid only on failure).
-          retry() { "$@" && return 0; echo "::warning::'$*' failed — retrying once in 15s"; sleep 15; "$@"; }
+          retry() {
+            "$@" && return 0
+            echo "::warning::'$*' failed (momentary network blip) — retrying once in 15s"
+            sleep 15
+            "$@"
+          }
           retry python3 -m pip install -q --only-binary :all: pytest==9.1.1
           python3 -m pytest tests/ -q --tb=short
           echo "✓ DemandRadar tests passed"
