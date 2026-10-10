@@ -299,7 +299,9 @@ def run(
     country="us",
 ):
     """Score pending keywords and append records to out_path. keywords_path=None => small
-    mode (keyword-groups.json, which also supplies the store country)."""
+    mode (keyword-groups.json, which also supplies the store country). max_n=0 => no cap."""
+    if max_n < 0:
+        raise StageError(f"--max must be >= 0 (got {max_n})")
     _min_interval[0] = 60.0 / max(1.0, rate)
 
     if keywords_path:

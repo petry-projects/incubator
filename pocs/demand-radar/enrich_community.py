@@ -286,13 +286,17 @@ def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
     # as source "none" — fail up front instead. (Auto-routing still just skips youtube.)
     if source and source not in BUDGET:
         raise StageError(f"Error: unknown community source {source!r}; expected one of {', '.join(BUDGET)}.")
-    if source == "youtube" and "YOUTUBE_API_KEY" not in os.environ:
+    if max_n < 0:
+        raise StageError(f"--max must be >= 0 (got {max_n})")
+    # An EMPTY key counts as no key: CI always sets the variable, to "" when the secret is absent.
+    has_youtube_key = bool(os.environ.get("YOUTUBE_API_KEY"))
+    if source == "youtube" and not has_youtube_key:
         raise StageError("Error: --source youtube requires YOUTUBE_API_KEY. Aborting instead of falling back.")
     with open(inp, encoding="utf-8") as f:
         records = [json.loads(line) for line in f]
     survivors = [r for r in records if not r.get("verdict_heuristic", "").startswith("REJECT")]
     survivors.sort(key=supply_score, reverse=True)
-    targets = survivors[:max_n]
+    targets = survivors[:max_n] if max_n else survivors  # 0 = no cap (same meaning as extract --max)
     print(f"records={len(records)} survivors={len(survivors)} enriching_top={len(targets)}", flush=True)
 
     rtoken = None
@@ -310,10 +314,10 @@ def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
 
     budget_left = dict(BUDGET)
     dead = set()  # sources that 429'd this run — skipped thereafter (circuit breaker)
-    if "YOUTUBE_API_KEY" not in os.environ:
-        # yt_mentions would KeyError on every record (not a 429/quota, so never circuit-broken)
+    if not has_youtube_key:
+        # yt_mentions would raise on every record (not a 429/quota, so never circuit-broken)
         dead.add("youtube")
-        print("  ~ YOUTUBE_API_KEY not found in environment; skipping youtube source", file=sys.stderr)
+        print("  ~ YOUTUBE_API_KEY not set; skipping youtube source", file=sys.stderr)
     changed = []
     for i, r in enumerate(targets):
         cm = fetch_for(r, source or None, budget_left, rtoken, dead)
@@ -328,6 +332,13 @@ def run(inp=IN_PATH, out=OUT_PATH, source="", max_n=300, sleep=0.25):
             print(f"  {i + 1}/{len(targets)}  budgets={budget_left}", flush=True)
         time.sleep(sleep)
 
+    if targets and all(r["demand"]["community_metric"].get("mentions") is None for r in targets):
+        # Every source was exhausted or unreachable. Fail the stage and leave the previous
+        # enriched file alone rather than overwrite real metrics with an all-empty pass.
+        raise StageError(
+            f"community enrichment produced no metric for any of {len(targets)} targets "
+            "(every source exhausted or unreachable); previous enriched data left in place"
+        )
     with open(out, "w", encoding="utf-8") as f:
         for r in records:
             f.write(json.dumps(r) + "\n")

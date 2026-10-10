@@ -98,7 +98,9 @@ jobs:
           }
           # Hash-pinned, wheels-only install (S8544 / S8541) — see requirements-ci.txt.
           retry python3 -m pip install -q --only-binary :all: --require-hashes -r requirements-ci.txt
-          python3 -m pytest tests/ -q --cov=. --cov-report=xml:coverage.xml
+          # The job-level SONAR_TOKEN is for the scanner only: strip it from the
+          # environment of the process that executes the repository's test code.
+          env -u SONAR_TOKEN python3 -m pytest tests/ -q --cov=. --cov-report=xml:coverage.xml
       - name: SonarCloud Scan
         id: sonar
         if: env.SONAR_TOKEN != ''

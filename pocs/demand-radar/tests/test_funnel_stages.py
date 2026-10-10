@@ -497,6 +497,10 @@ class TestExtractRun:
         assert counts["ok"] == 2
         assert len(read_jsonl(out)) == 2
 
+    def test_negative_max_is_rejected(self, tmp_path, keywords):
+        with pytest.raises(errors.StageError, match="--max must be >= 0"):
+            extract.run(keywords_path=keywords(1), out_path=str(tmp_path / "r.jsonl"), max_n=-1)
+
     def test_failed_fetch_is_not_written_so_it_stays_pending(self, tmp_path, keywords, monkeypatch, capsys):
         monkeypatch.setattr(extract, "fetch", lambda term, country="us", limit=20: ([], not term.endswith("1")))
         out = tmp_path / "records.jsonl"

@@ -338,6 +338,40 @@ class TestEnrichRun:
             enrich.run(inp=inp, out=str(out), source="reddit", sleep=0)
         assert not out.exists()
 
+    def test_empty_youtube_key_counts_as_no_key(self, tmp_path, write_jsonl, sources, monkeypatch, capsys):
+        # the scheduled workflow always sets the variable — to "" when the secret is absent
+        calls, _ = sources
+        monkeypatch.setenv("YOUTUBE_API_KEY", "")
+        inp = write_jsonl(tmp_path / "r.jsonl", [make_record("boss guide", industry="gaming-companions")])
+        enrich.run(inp=inp, out=str(tmp_path / "o.jsonl"), sleep=0)
+        assert calls == [("stackexchange", "boss guide", "gaming")]  # youtube skipped, not attempted
+        assert "skipping youtube source" in capsys.readouterr().err
+        with pytest.raises(errors.StageError, match="requires YOUTUBE_API_KEY"):
+            enrich.run(inp=inp, out=str(tmp_path / "o2.jsonl"), source="youtube", sleep=0)
+
+    def test_max_zero_means_no_cap_and_negative_is_rejected(self, tmp_path, write_jsonl, sources, monkeypatch):
+        calls, _ = sources
+        monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
+        inp = write_jsonl(tmp_path / "r.jsonl", [make_record(f"kw {i}", industry="unmapped") for i in range(3)])
+        enrich.run(inp=inp, out=str(tmp_path / "o.jsonl"), max_n=0, sleep=0)
+        assert len(calls) == 3
+        with pytest.raises(errors.StageError, match="--max must be >= 0"):
+            enrich.run(inp=inp, out=str(tmp_path / "o2.jsonl"), max_n=-1, sleep=0)
+
+    def test_run_with_no_metric_for_any_target_fails_and_keeps_previous_output(
+        self, tmp_path, write_jsonl, sources, monkeypatch
+    ):
+        _, fail = sources
+        monkeypatch.delenv("YOUTUBE_API_KEY", raising=False)
+        fail["hackernews"] = RuntimeError("HTTP Error 429")
+        fail["stackexchange"] = RuntimeError("HTTP Error 429")
+        inp = write_jsonl(tmp_path / "r.jsonl", [make_record("dog log", industry="pets")])
+        out = tmp_path / "enriched.jsonl"
+        out.write_text("previous good data\n", encoding="utf-8")
+        with pytest.raises(errors.StageError, match="no metric for any of 1 targets"):
+            enrich.run(inp=inp, out=str(out), sleep=0)
+        assert out.read_text(encoding="utf-8") == "previous good data\n"
+
     def test_unknown_forced_source_is_a_stage_error(self, tmp_path, write_jsonl):
         inp = write_jsonl(tmp_path / "r.jsonl", [make_record("dog log")])
         out = tmp_path / "o.jsonl"
@@ -1190,6 +1224,15 @@ class TestPipelineMain:
             pipeline.main()
         assert exc.value.code == 1
         assert [name for name, _ in calls] == ["select"]
+
+    @pytest.mark.parametrize("cli", [("--max", "-1"), ("--per-vertical", "-1"), ("--rate", "0")])
+    def test_rejects_out_of_range_numbers(self, stages, argv, cli):
+        calls, _ = stages
+        argv(*cli)
+        with pytest.raises(SystemExit) as exc:
+            pipeline.main()
+        assert exc.value.code == 2
+        assert calls == []
 
     def test_rejects_an_unknown_engine(self, stages, argv):
         calls, _ = stages

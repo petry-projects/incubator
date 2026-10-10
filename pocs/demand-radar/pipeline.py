@@ -94,11 +94,13 @@ def build_dashboard(tmpl_path=TMPL, data_path=DATA, html_path=HTML):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--preset", choices=["full", "refresh", "export"], default="refresh")
-    ap.add_argument("--max", type=int, default=240, help="extract/enrich batch cap")
+    ap.add_argument("--max", type=int, default=240, help="extract/enrich batch cap (0 = no cap)")
     ap.add_argument("--rate", type=float, default=18, help="iTunes calls/min")
     ap.add_argument("--per-vertical", type=int, default=50)
     ap.add_argument("--engine", default="ddg", choices=list(broad_pass.ENGINES), help="broad autocomplete engine")
     a = ap.parse_args()
+    if a.max < 0 or a.per_vertical < 0 or a.rate <= 0:
+        ap.error("--max and --per-vertical must be >= 0, and --rate must be > 0")
 
     degraded = []  # non-fatal stages that failed — the run ships but must NOT report clean success
 
