@@ -1,0 +1,16 @@
+# Ruff config for the DemandRadar spike (scoped to pocs/demand-radar). Drives the
+# lint + format CI stages (see .github/workflows/ci.yml → "DemandRadar lint / format").
+# Rules are a pragmatic, legible set for a research spike: pyflakes + pycodestyle
+# (errors/warnings) + isort + pyupgrade. E501 (line length) is relaxed — several stages
+# carry long, deliberately dense literals — but layout is still enforced via `ruff format`.
+line-length = 120
+
+[lint]
+select = ["E", "F", "W", "I", "UP"]
+ignore = ["E501"]
+
+[format]
+# generate_keywords.py is a hand-curated data table (25 verticals × domain-noun lists);
+# auto-formatting would explode it to one-item-per-line for no readability gain. It is
+# still LINTED (above) — only the layout auto-format is skipped for this data module.
+exclude = ["generate_keywords.py"]

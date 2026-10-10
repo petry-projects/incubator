@@ -1,0 +1,7 @@
+# Top-level CI tools for the DemandRadar spike. Compile to requirements-ci.txt (fully
+# pinned, hashed) with:
+#   pip-compile --generate-hashes --output-file requirements-ci.txt requirements-ci.in
+ruff==0.16.5
+mypy==2.3.1
+pytest==9.1.1
+pytest-cov==7.1.0
