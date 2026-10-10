@@ -12,7 +12,10 @@ Presets:
            enrich -> resented -> export -> build. (broad + resented are slow/ban-prone;
            run this rarely, e.g. when the keyword lexicon changes.)
   refresh  the scheduled cadence — priority -> extract(bounded batch) -> enrich -> export
-           -> build. Reuses the committed broad/priority; safe to run often.
+           -> build. Reuses the committed broad/priority; safe to run often. extract only
+           scores priority keywords that have NO record yet (it never re-scores), so once
+           the priority set is fully covered a refresh updates community metrics and the
+           exports only. To re-score supply, remove those rows from output/records.jsonl.
   export   re-derive the dashboard only — export -> build. No network.
 
   python pipeline.py --preset refresh --max 240 --rate 18

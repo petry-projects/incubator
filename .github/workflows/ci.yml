@@ -77,9 +77,10 @@ jobs:
       #
       # DemandRadar stack-specific stages: lint + format (ruff) and type check (mypy),
       # then unit tests. The CI standard requires stack lint/format/typecheck/test after
-      # the placeholder is replaced; these are scoped to pocs/demand-radar. Pinned +
-      # wheels-only: lock the resolved version (S8544) and skip source setup scripts
-      # (S8541) for a reproducible, tamper-resistant install.
+      # the placeholder is replaced; these are scoped to pocs/demand-radar. Tools come
+      # from requirements-ci.txt: every package, transitive ones included, pinned by
+      # version AND hash (--require-hashes, S8544), wheels only so no setup script runs
+      # (S8541).
       - name: DemandRadar lint + format + typecheck
         run: |
           cd pocs/demand-radar
@@ -91,7 +92,7 @@ jobs:
             sleep 15
             "$@"
           }
-          retry python3 -m pip install -q --only-binary :all: ruff==0.16.5 mypy==2.3.1
+          retry python3 -m pip install -q --only-binary :all: --require-hashes -r requirements-ci.txt
           ruff check .                       # lint (config: ruff.toml)
           ruff format --check .              # formatting
           mypy --ignore-missing-imports .    # type check
@@ -107,7 +108,7 @@ jobs:
             sleep 15
             "$@"
           }
-          retry python3 -m pip install -q --only-binary :all: pytest==9.1.1
+          retry python3 -m pip install -q --only-binary :all: --require-hashes -r requirements-ci.txt
           python3 -m pytest tests/ -q --tb=short
           echo "✓ DemandRadar tests passed"
 
@@ -213,14 +214,15 @@ jobs:
 
           # Python coverage (DemandRadar)
           if [ -d "pocs/demand-radar/tests" ]; then
-            cd pocs/demand-radar
-            # Pinned + wheels-only: lock the resolved version (S8544) and skip source
-            # setup scripts (S8541) for a reproducible, tamper-resistant install.
-            retry pip3 install -q --only-binary :all: pytest-cov==7.1.0
-            # Enforce the 80% floor here so this required check actually gates coverage
-            # (scope: the stage modules; tests are omitted via .coveragerc).
-            python3 -m pytest tests/ --cov=. --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=80
-            cd ../..
+            # Subshell: the directory change cannot leak into the bats block below.
+            (
+              cd pocs/demand-radar
+              # Hash-pinned, wheels-only install (S8544 / S8541) — see requirements-ci.txt.
+              retry pip3 install -q --only-binary :all: --require-hashes -r requirements-ci.txt
+              # Enforce the 80% floor here so this required check actually gates coverage
+              # (scope: the stage modules; tests are omitted via .coveragerc).
+              python3 -m pytest tests/ --cov=. --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=80
+            )
           fi
 
           # Shell/bats coverage (legacy)

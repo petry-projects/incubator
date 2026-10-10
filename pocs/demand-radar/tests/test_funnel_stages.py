@@ -497,13 +497,14 @@ class TestExtractRun:
         assert counts["ok"] == 2
         assert len(read_jsonl(out)) == 2
 
-    def test_failed_fetch_is_not_written_so_it_stays_pending(self, tmp_path, keywords, monkeypatch):
+    def test_failed_fetch_is_not_written_so_it_stays_pending(self, tmp_path, keywords, monkeypatch, capsys):
         monkeypatch.setattr(extract, "fetch", lambda term, country="us", limit=20: ([], not term.endswith("1")))
         out = tmp_path / "records.jsonl"
         counts = extract.run(keywords_path=keywords(3), out_path=str(out), workers=1)
         assert counts["ok"] == 2
         assert counts["fail"] == 1
         assert sorted(r["canonical_query"] for r in read_jsonl(out)) == ["mood tracker 0", "mood tracker 2"]
+        assert "DONE. wrote 2 records (1 failed fetches left pending)" in capsys.readouterr().out
 
     def test_aborts_the_batch_on_a_throttle_storm(self, tmp_path, keywords, monkeypatch, capsys):
         calls = []

@@ -42,7 +42,7 @@ python3 enrich_community.py    # + community sizing & corroboration (auto-routed
 | Layer | Source | Auth | Status |
 |---|---|---|---|
 | Supply-quality: relevant incumbents, best rating, freshness, competition, satisfaction, `gap_type` | iTunes Search API | none | ✅ |
-| Community sizing: `community_metric` + corroboration of store-absent gaps | Auto-routed per vertical: YouTube or StackExchange, then Hacker News. The scheduled Action forces StackExchange; Reddit is used only when forced (`--source reddit`) | YouTube=API key; StackExchange/HN=none; Reddit=OAuth secret | ✅ |
+| Community sizing: `community_metric` + corroboration of store-absent gaps | Auto-routed per vertical: YouTube or StackExchange, then Hacker News. The scheduled Action auto-routes too (set the `DR_COMMUNITY_SOURCE` variable to force one source — a forced source has no fallback); Reddit is used only when forced (`--source reddit`) | YouTube=API key; StackExchange/HN=none; Reddit=OAuth secret | ✅ |
 | Demand magnitude: `app_store_volume` | MobileAction (manual) → `labels/` | paid | 🔒 manual labeled set only |
 
 ## Two load-bearing mechanics
@@ -92,6 +92,9 @@ daily-batch** process. The pipeline is built for exactly this:
   **priority** set only (top 50 per vertical ≈ 1,250 keywords), so priority coverage accumulates over
   several runs. The full 11,616-keyword space is scored only by an explicit `extract.py --source all`.
   `extract.py` interleaves verticals when it loads keywords, so every partial batch spans all 25.
+  It never re-scores a keyword that already has a record: once the priority set is covered, a
+  refresh updates community metrics and the exports only. Remove rows from `output/records.jsonl`
+  to re-score supply.
 - `--preset full` resumes an existing `output/keywords.broad.jsonl`. After changing the keyword lexicon,
   delete that file first so removed/renamed keywords cannot occupy priority slots.
 - Community/demand layers are quota-limited too (SE ~300/day, YouTube ~90/day) → enrich **survivors
@@ -138,6 +141,8 @@ python3 -m pytest tests/ --cov=. --cov-report=term-missing   # needs pytest-cov
 
 CI runs lint/format/typecheck and the tests in `build-and-test`, enforces an 80% coverage
 floor in `coverage`, and `sonarcloud.yml` feeds the same report to SonarCloud's new-code gate.
+The CI tools are installed from `requirements-ci.txt` (every package pinned by version and
+hash; regenerate from `requirements-ci.in` with `pip-compile --generate-hashes`).
 
 Stage inputs/outputs are fixed paths under this directory, not CLI options (a path read from
 argv would be a path-injection sink); `extract.py --source {groups,priority,all}` picks the

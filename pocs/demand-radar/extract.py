@@ -376,7 +376,9 @@ def run(
             f"iTunes fetches kept failing (throttle/ban or network outage): batch aborted after "
             f"{counts['fail']} failed fetches ({counts['ok']} scored; the rest stay pending for a later run)"
         )
-    print(f"DONE. wrote {counts['n']} records (ok={counts['ok']} fail={counts['fail']}) -> {out_path}", flush=True)
+    print(
+        f"DONE. wrote {counts['ok']} records ({counts['fail']} failed fetches left pending) -> {out_path}", flush=True
+    )
     return counts
 
 

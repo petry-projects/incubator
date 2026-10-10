@@ -27,13 +27,13 @@ on:
       max:
         description: 'extract/enrich batch cap'
         required: false
-        default: '240'
-        type: string
+        default: 240
+        type: number
       rate:
         description: 'iTunes calls/min (stay <=~30 to avoid bans)'
         required: false
-        default: '18'
-        type: string
+        default: 18
+        type: number
 
 permissions: {}            # default-deny; the job grants only what it needs
 
@@ -54,11 +54,14 @@ jobs:
           persist-credentials: false   # read-only job: never leave the token in .git/config
 
       - name: Run DemandRadar pipeline (stdlib only — no pip)
+        id: pipeline
         env:
           YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-          DR_COMMUNITY_SOURCE: ${{ vars.DR_COMMUNITY_SOURCE || 'stackexchange' }}
+          # Empty = auto-route per vertical (YouTube or StackExchange, then Hacker News).
+          # Forcing one source has no fallback: verticals it cannot serve get no metric.
+          DR_COMMUNITY_SOURCE: ${{ vars.DR_COMMUNITY_SOURCE || '' }}
           # Pass dispatch inputs through the env (never interpolate ${{ }} into the shell
           # body) so a crafted `max`/`rate` value can't inject commands on the runner.
           DR_PRESET: ${{ github.event.inputs.preset || 'refresh' }}
@@ -76,9 +79,14 @@ jobs:
         # gitignored, so it exists only when pipeline.py built it; without that guard a run
         # that died at a fatal stage would present the COMMITTED snapshot as its refresh.
         if: ${{ always() && hashFiles('pocs/demand-radar/dashboard.html') != '' }}
+        env:
+          PIPELINE_OUTCOME: ${{ steps.pipeline.outcome }}
         run: |
           {
             echo "### DemandRadar refresh"
+            if [ "$PIPELINE_OUTCOME" != "success" ]; then
+              echo "> **DEGRADED** — a pipeline stage failed; the data below is a partial refresh."
+            fi
             head -c 4000 pocs/demand-radar/output/starter-list.md 2>/dev/null || true
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -87,7 +95,8 @@ jobs:
         if: ${{ always() && hashFiles('pocs/demand-radar/dashboard.html') != '' }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: demand-radar
+          # a partial refresh is labelled as one, so it is never mistaken for a clean run
+          name: demand-radar${{ steps.pipeline.outcome != 'success' && '-degraded' || '' }}
           path: |
             pocs/demand-radar/output/dashboard-data.json
             pocs/demand-radar/output/starter-list.md

@@ -424,11 +424,15 @@ class TestResentedFetchers:
         http.add("itunes.apple.com/search", {"results": [{"trackId": 1, "trackName": "Quizlet Plus Helper"}]})
         assert rg.resolve_id("Quizlet") is None
 
-    def test_resolve_id_is_none_when_nothing_found_or_request_fails(self, http):
+    def test_resolve_id_is_none_when_the_store_has_no_such_app(self, http):
         http.add("term=Nothing", {"results": []})
-        http.add("term=Broken", OSError("403"))
         assert rg.resolve_id("Nothing") is None
-        assert rg.resolve_id("Broken") is None
+
+    def test_resolve_id_raises_when_the_lookup_itself_fails(self, http):
+        # "could not ask" is not "no such app": the caller must be able to tell them apart
+        http.add("term=Broken", OSError("timed out"))
+        with pytest.raises(OSError, match="timed out"):
+            rg.resolve_id("Broken")
 
     def test_fetch_low_reviews_is_none_when_no_page_can_be_fetched(self, http, sleeps):
         http.add("page=1/id=7", OSError("timed out"))
@@ -538,7 +542,28 @@ class TestResentedRun:
         assert result["throttled"]["resented"] is False
         assert "n_low" not in result["throttled"]
         assert result["fine"]["n_low"] == 0
-        assert "1 leader(s) had no fetchable reviews this run" in capsys.readouterr().out
+        assert "1 leader(s) could not be looked up or had no fetchable reviews" in capsys.readouterr().out
+
+    def test_failed_id_lookup_is_marked_for_retry_not_recorded_as_no_id(self, tmp_path, write_jsonl, monkeypatch):
+        def resolve_id(name):
+            if name == "Flaky Lookup":
+                raise OSError("timed out")
+            return None  # the store genuinely has no app by that name
+
+        monkeypatch.setattr(rg, "resolve_id", resolve_id)
+        monkeypatch.setattr(rg, "fetch_low_reviews", lambda tid: [])
+        inp = write_jsonl(tmp_path / "r.jsonl", [leader_record("Flaky Lookup", 9000), leader_record("Gone App", 9000)])
+        out = tmp_path / "resented.json"
+        result = rg.run(inp=inp, out_path=str(out), sleep=0)
+        assert result["flaky lookup"]["note"] == "reviews-unavailable"  # retried on a later run
+        assert result["gone app"]["note"] == "no-id"  # a definitive answer: not retried
+        # the retry happens: next run looks the flaky leader up again, not the definitive one
+        asked = []
+        monkeypatch.setattr(rg, "resolve_id", lambda name: asked.append(name) or 55)
+        result = rg.run(inp=inp, out_path=str(out), sleep=0)
+        assert asked == ["Flaky Lookup"]
+        assert result["flaky lookup"]["id"] == 55
+        assert "note" not in result["flaky lookup"]
 
     def test_deferred_leader_is_retried_after_fresh_ones_and_can_recover(
         self, tmp_path, write_jsonl, monkeypatch, capsys

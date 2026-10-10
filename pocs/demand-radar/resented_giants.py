@@ -98,17 +98,16 @@ def get(url):
 
 
 def resolve_id(name):
-    """Look a leader's track id up by app name. Only an exact (case-insensitive) title match
-    counts: taking the first search hit could attribute another app's reviews to this leader."""
-    try:
-        d = json.loads(
-            get(
-                "https://itunes.apple.com/search?"
-                + urllib.parse.urlencode({"term": name, "country": "us", "entity": "software", "limit": 5})
-            )
+    """Look a leader's track id up by app name; None when the store has no such app. Only an
+    exact (case-insensitive) title match counts: taking the first search hit could attribute
+    another app's reviews to this leader. A failed request RAISES — "could not ask" must not
+    be recorded as "no such app" (run() marks the leader for retry instead)."""
+    d = json.loads(
+        get(
+            "https://itunes.apple.com/search?"
+            + urllib.parse.urlencode({"term": name, "country": "us", "entity": "software", "limit": 5})
         )
-    except Exception:  # noqa: BLE001
-        return None
+    )
     want = name.strip().lower()
     return next(
         (r.get("trackId") for r in d.get("results") or [] if (r.get("trackName") or "").strip().lower() == want),
@@ -204,7 +203,13 @@ def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
     unfetched = 0
     for i, k in enumerate(todo):
         L = leaders[k]
-        tid = L["id"] or resolve_id(L["app"])
+        try:
+            tid = L["id"] or resolve_id(L["app"])
+        except Exception:  # noqa: BLE001 — lookup failed (timeout/throttle): retry on a later run
+            out[k] = {**L, "resented": False, "note": UNFETCHED}
+            unfetched += 1
+            time.sleep(sleep)
+            continue
         time.sleep(sleep)
         if not tid:
             out[k] = {**L, "resented": False, "note": "no-id"}
@@ -240,7 +245,7 @@ def run(inp=IN_PATH, out_path=OUT_PATH, min_market=8000, max_n=0, sleep=2.2):
             f"  {v.get('leaderR')}star /{v['market']:>9,}  resent={int(v['resent_frac'] * 100)}% [{cats}]  {v['app'][:34]}  (e.g. '{v['kw']}' [{v['vert']}])"
         )
     if unfetched:
-        print(f"\n{unfetched} leader(s) had no fetchable reviews this run; marked for retry on a later one")
+        print(f"\n{unfetched} leader(s) could not be looked up or had no fetchable reviews; marked for retry")
     print(f"\n-> {out_path}")
     return out
 
